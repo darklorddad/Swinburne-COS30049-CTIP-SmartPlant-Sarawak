@@ -142,6 +142,7 @@ def main(args, progress_callback=None):
     dataset_sizes = {x: len(image_datasets[x]) for x in phases}
     class_names = image_datasets[train_dir_name].classes
     num_classes = len(class_names)
+    labels_for_cm = list(range(num_classes))
 
     if device_str == 'auto':
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -300,7 +301,7 @@ def main(args, progress_callback=None):
     
     val_final_loss = val_running_loss / dataset_sizes[val_dir_name]
     val_final_acc = val_running_corrects.double() / dataset_sizes[val_dir_name]
-    val_cm = confusion_matrix(val_all_labels, val_all_preds).tolist()
+    val_cm = confusion_matrix(val_all_labels, val_all_preds, labels=labels_for_cm).tolist()
     log(f'Final Validation Loss: {val_final_loss:.4f} Acc: {val_final_acc:.4f}')
 
     # Save the model
@@ -348,7 +349,7 @@ def main(args, progress_callback=None):
         test_loss_value = running_loss / dataset_sizes[test_dir_name]
         test_acc = running_corrects.double() / dataset_sizes[test_dir_name]
         test_acc_value = test_acc.item()
-        test_cm = confusion_matrix(all_labels, all_preds).tolist()
+        test_cm = confusion_matrix(all_labels, all_preds, labels=labels_for_cm).tolist()
         log(f'Test Loss: {test_loss_value:.4f} Acc: {test_acc:.4f}')
 
     log("Fine-tuning finished")
