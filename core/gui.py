@@ -241,7 +241,7 @@ def main(page: ft.Page):
             if "cannot exceed 100" in str(ex) or "between 0 and 100" in str(ex) or "positive number" in str(ex):
                 toast_text.value = str(ex)
             else:
-                toast_text.value = "Invalid number in one of the fields. Please check ratios, resolution, and seed."
+                toast_text.value = "Invalid number in one of the fields. Please check ratios, resolution, and seed"
             toast_progress_ring.visible = False
             cancel_button_row.visible = False
             toast_container.visible = True
@@ -395,7 +395,7 @@ def main(page: ft.Page):
                     message = f"Fine-tuning finished. Results are in the Evaluation tab"
                     progress_callback(message)
                 elif cancel_event.is_set():
-                    progress_callback("Fine-tuning was cancelled.")
+                    progress_callback("Fine-tuning was cancelled")
                 else:
                     progress_callback("Fine-tuning finished, but no results were returned")
 
