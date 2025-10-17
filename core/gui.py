@@ -12,10 +12,10 @@ from inference import classify_image
 
 cancel_event = threading.Event()
 mpl_lock = threading.Lock()
-latest_eval_results = None
 
 def main(page: ft.Page):
     """Main function for the Flet GUI"""
+    page.latest_eval_results = None
     page.title = "Core"
     page.theme_mode = ft.ThemeMode.DARK
     page.window_min_width = 640
@@ -359,6 +359,24 @@ def main(page: ft.Page):
             page.update()
             return
 
+        def handle_finetuning_completion(results):
+            """Callback executed in the UI thread after fine-tuning is complete."""
+            if results and "error" in results:
+                toast_text.value = f"An error occurred: {results['error']}"
+            elif results and not cancel_event.is_set():
+                page.latest_eval_results = results
+                toast_text.value = "Fine-tuning finished. Results are in the Evaluation tab"
+            elif cancel_event.is_set():
+                toast_text.value = "Fine-tuning was cancelled"
+            else:
+                toast_text.value = "Fine-tuning finished, but no results were returned"
+
+            start_button.disabled = False
+            toast_progress_ring.visible = False
+            cancel_button_row.visible = False
+            toast_close_button.visible = True
+            page.update()
+
         def run_finetuning(settings_dict):
             """Target function for the training thread"""
             epoch_message = ""
@@ -381,25 +399,9 @@ def main(page: ft.Page):
 
             try:
                 results = finetune_main(settings_dict, progress_callback=progress_callback)
-                if results and not cancel_event.is_set():
-                    global latest_eval_results
-                    latest_eval_results = results
-                    
-                    message = f"Fine-tuning finished. Results are in the Evaluation tab"
-                    progress_callback(message)
-                elif cancel_event.is_set():
-                    progress_callback("Fine-tuning was cancelled")
-                else:
-                    progress_callback("Fine-tuning finished, but no results were returned")
-
+                page.call(handle_finetuning_completion, results)
             except Exception as ex:
-                progress_callback(f"An error occurred: {ex}")
-            finally:
-                start_button.disabled = False
-                toast_progress_ring.visible = False
-                cancel_button_row.visible = False
-                toast_close_button.visible = True
-                page.update()
+                page.call(handle_finetuning_completion, {"error": str(ex)})
 
         finetuning_thread = threading.Thread(target=run_finetuning, args=(settings,))
         finetuning_thread.start()
@@ -687,7 +689,7 @@ def main(page: ft.Page):
             if e.path:
                 try:
                     with open(e.path, 'w') as f:
-                        json.dump(latest_eval_results, f, indent=4)
+                        json.dump(page.latest_eval_results, f, indent=4)
                     toast_text.value = f"Results saved to {e.path}"
                 except Exception as ex:
                     toast_text.value = f"Error saving results: {ex}"
@@ -744,8 +746,8 @@ def main(page: ft.Page):
     def on_tab_change(e):
         selected_tab_text = e.control.tabs[e.control.selected_index].text
         if selected_tab_text == "Evaluation":
-            if latest_eval_results:
-                update_evaluation_tab_content(latest_eval_results)
+            if page.latest_eval_results:
+                update_evaluation_tab_content(page.latest_eval_results)
 
     tabs = ft.Tabs(
         selected_index=0,
