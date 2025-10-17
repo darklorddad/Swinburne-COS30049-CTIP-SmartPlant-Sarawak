@@ -83,7 +83,7 @@ def create_evaluation_view(results, on_save_callback):
             ft.Row(
                 [
                     ft.Text("Evaluation Results", theme_style=ft.TextThemeStyle.HEADLINE_SMALL, expand=True),
-                    ft.ElevatedButton("Save Results", icon=ft.icons.SAVE, on_click=on_save_callback)
+                    ft.ElevatedButton("Save Results", icon=ft.Icons.SAVE, on_click=on_save_callback)
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN
             ),

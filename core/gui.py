@@ -646,7 +646,7 @@ def main(page: ft.Page):
                 [
                     toast_text,
                     toast_progress_ring,
-                    ft.IconButton(ft.icons.CLOSE, on_click=lambda _: hide_toast(page), icon_size=16)
+                    ft.IconButton(ft.Icons.CLOSE, on_click=lambda _: hide_toast(page), icon_size=16)
                 ],
                 spacing=10,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
