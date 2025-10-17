@@ -410,7 +410,7 @@ def main(page: ft.Page):
 
     model_name_field = ft.TextField(
         label="Model name (e.g., from timm or Hugging Face)",
-        value="resnet18",
+        value="efficientnet_b0",
         height=TEXT_FIELD_HEIGHT,
         expand=True,
     )
@@ -419,14 +419,14 @@ def main(page: ft.Page):
     learning_rate_field = ft.TextField(label="Learning rate", value="0.001", height=TEXT_FIELD_HEIGHT)
     input_size_field = ft.TextField(label="Input size (px)", value="224", height=TEXT_FIELD_HEIGHT)
     resize_size_field = ft.TextField(label="Resize size (px)", value="256", height=TEXT_FIELD_HEIGHT)
-    num_workers_field = ft.TextField(label="Data loader workers", value="0", height=TEXT_FIELD_HEIGHT)
+    num_workers_field = ft.TextField(label="Data loader workers", value="4", height=TEXT_FIELD_HEIGHT)
     log_frequency_field = ft.TextField(label="Log Frequency per Epoch", value="10", height=TEXT_FIELD_HEIGHT)
     device_field = ft.TextField(label="Device", value="auto", height=TEXT_FIELD_HEIGHT)
     train_from_scratch_switch = ft.Switch(value=False)
     strict_load_switch = ft.Switch(value=False)
-    dropout_rate_field = ft.TextField(label="Dropout rate", value="0.0", height=TEXT_FIELD_HEIGHT)
-    mixed_precision_switch = ft.Switch(value=False)
-    early_stopping_switch = ft.Switch(value=False)
+    dropout_rate_field = ft.TextField(label="Dropout rate", value="0.2", height=TEXT_FIELD_HEIGHT)
+    mixed_precision_switch = ft.Switch(value=True)
+    early_stopping_switch = ft.Switch(value=True)
     early_stopping_patience_field = ft.TextField(label="Patience", value="5", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
     early_stopping_min_delta_field = ft.TextField(label="Min delta", value="0.001", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
     early_stopping_metric_dropdown = ft.Dropdown(
@@ -441,17 +441,17 @@ def main(page: ft.Page):
         focused_border_color=ft.Colors.GREY_600,
         expand=True,
     )
-    pin_memory_switch = ft.Switch(value=False)
+    pin_memory_switch = ft.Switch(value=True)
     
     sgd_momentum_field = ft.TextField(label="SGD Momentum", value="0.9", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
     adam_beta1_field = ft.TextField(label="Adam/W Beta1", value="0.9", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
     adam_beta2_field = ft.TextField(label="Adam/W Beta2", value="0.999", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
     adam_eps_field = ft.TextField(label="Adam/W Epsilon", value="1e-8", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
-    weight_decay_field = ft.TextField(label="Weight Decay", value="0.0", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
+    weight_decay_field = ft.TextField(label="Weight Decay", value="0.01", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
 
     loss_function_dropdown = ft.Dropdown(
         label="Loss Function",
-        value="cross_entropy",
+        value="label_smoothing",
         options=[
             ft.dropdown.Option("cross_entropy"),
             ft.dropdown.Option("label_smoothing"),
@@ -461,7 +461,7 @@ def main(page: ft.Page):
         focused_border_color=ft.Colors.GREY_600,
         expand=True,
     )
-    label_smoothing_factor_field = ft.TextField(label="Label Smoothing Factor", value="0.1", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True, disabled=True)
+    label_smoothing_factor_field = ft.TextField(label="Label Smoothing Factor", value="0.1", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True, disabled=False)
 
     def toggle_label_smoothing_field(e):
         is_ls = loss_function_dropdown.value == 'label_smoothing'
@@ -1047,6 +1047,15 @@ def main(page: ft.Page):
                                                 ft.Text("Training", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
                                                 ft.Divider(),
                                                 start_button,
+                                                ft.ElevatedButton(
+                                                    text="Reset to Defaults",
+                                                    on_click=reset_to_defaults,
+                                                    icon=ft.Icons.SETTINGS_BACKUP_RESTORE,
+                                                    bgcolor=ft.Colors.GREY_800,
+                                                    color=ft.Colors.WHITE,
+                                                    style=action_button_style,
+                                                    height=BUTTON_HEIGHT,
+                                                ),
                                             ],
                                             spacing=10,
                                             horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
@@ -1117,6 +1126,77 @@ def main(page: ft.Page):
             toggle_label_smoothing_field(None)
             
             page.update()
+
+    def reset_to_defaults(e):
+        """Resets all settings to their default values"""
+        # Process dataset tab
+        source_dir_path.value = ""
+        dest_dir_path.value = ""
+        train_ratio_field.value = "80"
+        val_ratio_field.value = "10"
+        test_ratio_field.value = "10"
+        resolution_field.value = "224"
+        process_seed_field.value = ""
+        train_dir_name_field.value = "train"
+        val_dir_name_field.value = "val"
+        test_dir_name_field.value = "test"
+        image_extensions_field.value = ".jpg,.jpeg,.png"
+        color_mode_dropdown.value = "RGB"
+        overwrite_dest_switch.value = False
+
+        # Fine-tuning tab
+        data_dir_path.value = ""
+        save_model_path.value = ""
+        load_model_path.value = ""
+        model_name_field.value = "efficientnet_b0"
+        epochs_field.value = "25"
+        batch_size_field.value = "32"
+        learning_rate_field.value = "0.001"
+        input_size_field.value = "224"
+        resize_size_field.value = "256"
+        num_workers_field.value = "4"
+        log_frequency_field.value = "10"
+        device_field.value = "auto"
+        train_from_scratch_switch.value = False
+        strict_load_switch.value = False
+        dropout_rate_field.value = "0.2"
+        optimiser_dropdown.value = "adamw"
+        sgd_momentum_field.value = "0.9"
+        adam_beta1_field.value = "0.9"
+        adam_beta2_field.value = "0.999"
+        adam_eps_field.value = "1e-8"
+        weight_decay_field.value = "0.01"
+        loss_function_dropdown.value = "label_smoothing"
+        label_smoothing_factor_field.value = "0.1"
+        use_imagenet_norm_switch.value = True
+        norm_mean_field.value = "0.485, 0.456, 0.406"
+        norm_std_field.value = "0.229, 0.224, 0.225"
+        load_truncated_images_switch.value = True
+        mixed_precision_switch.value = True
+        pin_memory_switch.value = True
+        early_stopping_switch.value = True
+        early_stopping_patience_field.value = "5"
+        early_stopping_min_delta_field.value = "0.001"
+        early_stopping_metric_dropdown.value = "loss"
+        finetune_seed_field.value = ""
+        aug_random_resized_crop_switch.value = True
+        aug_crop_scale_min_field.value = "0.08"
+        aug_crop_scale_max_field.value = "1.0"
+        aug_crop_ratio_min_field.value = "0.75"
+        aug_crop_ratio_max_field.value = "1.33"
+        aug_horizontal_flip_switch.value = True
+        aug_rotation_switch.value = True
+        aug_rotation_degrees_field.value = "15"
+        aug_color_jitter_switch.value = True
+        aug_color_jitter_brightness_field.value = "0.2"
+        aug_color_jitter_contrast_field.value = "0.2"
+        aug_color_jitter_saturation_field.value = "0.2"
+        aug_color_jitter_hue_field.value = "0.1"
+
+        toggle_norm_fields(None)
+        toggle_label_smoothing_field(None)
+        page.update()
+        save_inputs()
 
     for control in controls_to_save.values():
         control.on_change = save_inputs
