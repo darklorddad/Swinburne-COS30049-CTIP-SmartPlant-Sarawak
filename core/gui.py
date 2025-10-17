@@ -553,14 +553,14 @@ def main(page: ft.Page):
     )
     pin_memory_switch = ft.Switch(value=True)
     
-    sgd_momentum_field = ft.TextField(label="SGD Momentum", value="0.9", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
-    adam_beta1_field = ft.TextField(label="Adam/W Beta1", value="0.9", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
-    adam_beta2_field = ft.TextField(label="Adam/W Beta2", value="0.999", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
-    adam_eps_field = ft.TextField(label="Adam/W Epsilon", value="1e-8", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
-    weight_decay_field = ft.TextField(label="Weight Decay", value="0.01", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
+    sgd_momentum_field = ft.TextField(label="SGD momentum", value="0.9", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
+    adam_beta1_field = ft.TextField(label="Adam/W beta1", value="0.9", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
+    adam_beta2_field = ft.TextField(label="Adam/W beta2", value="0.999", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
+    adam_eps_field = ft.TextField(label="Adam/W epsilon", value="1e-8", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
+    weight_decay_field = ft.TextField(label="Weight decay", value="0.01", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
 
     loss_function_dropdown = ft.Dropdown(
-        label="Loss Function",
+        label="Loss function",
         value="label_smoothing",
         options=[
             ft.dropdown.Option("cross_entropy"),
@@ -571,7 +571,7 @@ def main(page: ft.Page):
         focused_border_color=ft.Colors.GREY_600,
         expand=True,
     )
-    label_smoothing_factor_field = ft.TextField(label="Label Smoothing Factor", value="0.1", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True, disabled=False)
+    label_smoothing_factor_field = ft.TextField(label="Label smoothing factor", value="0.1", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True, disabled=False)
 
     def toggle_label_smoothing_field(e):
         is_ls = loss_function_dropdown.value == 'label_smoothing'
@@ -587,8 +587,8 @@ def main(page: ft.Page):
         save_inputs()
 
     use_imagenet_norm_switch = ft.Switch(value=True)
-    norm_mean_field = ft.TextField(label="Normalisation Mean (comma-separated)", value="0.485, 0.456, 0.406", height=TEXT_FIELD_HEIGHT, expand=True, disabled=True)
-    norm_std_field = ft.TextField(label="Normalisation Std Dev (comma-separated)", value="0.229, 0.224, 0.225", height=TEXT_FIELD_HEIGHT, expand=True, disabled=True)
+    norm_mean_field = ft.TextField(label="Normalisation mean (comma-separated)", value="0.485, 0.456, 0.406", height=TEXT_FIELD_HEIGHT, expand=True, disabled=True)
+    norm_std_field = ft.TextField(label="Normalisation std dev (comma-separated)", value="0.229, 0.224, 0.225", height=TEXT_FIELD_HEIGHT, expand=True, disabled=True)
     load_truncated_images_switch = ft.Switch(value=True)
 
     optimiser_dropdown = ft.Dropdown(
@@ -924,7 +924,7 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                create_card_title("Optimiser Settings", reset_finetune_optimiser_settings),
+                                                create_card_title("Optimiser settings", reset_finetune_optimiser_settings),
                                                 ft.Divider(),
                                                 ft.Row([sgd_momentum_field, adam_beta1_field], spacing=10),
                                                 ft.Row([adam_beta2_field, adam_eps_field], spacing=10),
@@ -945,13 +945,13 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                create_card_title("Normalisation and Loss", reset_finetune_norm_loss),
+                                                create_card_title("Normalisation and loss", reset_finetune_norm_loss),
                                                 ft.Divider(),
                                                 loss_function_dropdown,
                                                 label_smoothing_factor_field,
                                                 ft.Row(
                                                     [
-                                                        ft.Text("Use ImageNet Normalisation", expand=True),
+                                                        ft.Text("Use ImageNet normalisation", expand=True),
                                                         use_imagenet_norm_switch,
                                                     ],
                                                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
