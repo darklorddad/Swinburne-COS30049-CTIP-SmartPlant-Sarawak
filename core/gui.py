@@ -12,6 +12,7 @@ from inference import classify_image
 
 cancel_event = threading.Event()
 latest_eval_results = None
+eval_results_rendered = False
 mpl_lock = threading.Lock()
 
 def hide_toast(page: ft.Page):
@@ -386,12 +387,9 @@ def main(page: ft.Page):
             try:
                 results = finetune_main(settings_dict, progress_callback=progress_callback)
                 if results and not cancel_event.is_set():
-                    global latest_eval_results
+                    global latest_eval_results, eval_results_rendered
                     latest_eval_results = results
-                    update_evaluation_tab(results)
-                    
-                    val_acc = results.get('val_acc', 0.0)
-                    test_acc = results.get('test_acc')
+                    eval_results_rendered = False
                     
                     message = f"Fine-tuning finished. Results are in the Evaluation tab"
                     progress_callback(message)
@@ -689,7 +687,7 @@ def main(page: ft.Page):
         save_eval_picker.on_result = on_save
         save_eval_picker.save_file(dialog_title="Save Evaluation Results", file_name="evaluation_results.json")
 
-    def update_evaluation_tab(results):
+    def update_evaluation_tab_content(results):
         with mpl_lock:
             new_content = create_evaluation_view(results, on_save_callback=save_eval_results)
         evaluation_tab_content.controls.clear()
@@ -733,9 +731,18 @@ def main(page: ft.Page):
         height=BUTTON_HEIGHT,
     )
 
+    def on_tab_change(e):
+        global eval_results_rendered
+        selected_tab_text = e.control.tabs[e.control.selected_index].text
+        if selected_tab_text == "Evaluation":
+            if latest_eval_results and not eval_results_rendered:
+                update_evaluation_tab_content(latest_eval_results)
+                eval_results_rendered = True
+
     tabs = ft.Tabs(
         selected_index=0,
         animation_duration=300,
+        on_change=on_tab_change,
         tabs=[
             ft.Tab(
                 text="Process dataset",
