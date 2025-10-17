@@ -704,7 +704,7 @@ def main(page: ft.Page):
         with mpl_lock:
             new_content = create_evaluation_view(results, on_save_callback=save_eval_results)
         evaluation_container.content = new_content
-        page.update()
+        evaluation_container.update()
 
     test_model_path = ft.TextField(label="Model path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
     test_image_path = ft.TextField(label="Image path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
