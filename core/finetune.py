@@ -8,6 +8,8 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from timm.loss import LabelSmoothingCrossEntropy
 from PIL import ImageFile
+from sklearn.metrics import confusion_matrix
+import numpy as np
 
 def main(args, progress_callback=None):
     """Main function to run the fine-tuning script"""
@@ -159,7 +161,12 @@ def main(args, progress_callback=None):
     # 5. If a load_path is provided, load the model state
     if load_path:
         # Using strict=False allows loading weights from a checkpoint with a different classifier.
-        model.load_state_dict(torch.load(load_path, map_location=device), strict=strict_load)
+        checkpoint = torch.load(load_path, map_location=device)
+        if 'state_dict' in checkpoint:
+            model.load_state_dict(checkpoint['state_dict'], strict=strict_load)
+        else:
+            # For backwards compatibility with old checkpoints
+            model.load_state_dict(checkpoint, strict=strict_load)
 
     model = model.to(device)
 
@@ -182,15 +189,16 @@ def main(args, progress_callback=None):
 
     # 8. Implement the training loop
     best_model_state = copy.deepcopy(model.state_dict())
-    final_epoch_val_acc = 0.0
     best_val_loss = float('inf')
     best_val_acc = 0.0
     epochs_no_improve = 0
+    
+    history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': []}
 
     for epoch in range(num_epochs):
         if cancel_event and cancel_event.is_set():
             log("Fine-tuning cancelled")
-            return {'val_acc': final_epoch_val_acc, 'test_acc': None}
+            return None
         log(f'Epoch {epoch}/{num_epochs - 1}')
         log('-' * 10)
 
@@ -207,7 +215,7 @@ def main(args, progress_callback=None):
             for i, (inputs, labels) in enumerate(dataloaders[phase]):
                 if cancel_event and cancel_event.is_set():
                     log("Fine-tuning cancelled")
-                    return {'val_acc': final_epoch_val_acc, 'test_acc': None}
+                    return None
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
@@ -237,8 +245,12 @@ def main(args, progress_callback=None):
 
             log(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
 
-            if phase == val_dir_name:
-                final_epoch_val_acc = epoch_acc.item()
+            if phase == train_dir_name:
+                history['train_loss'].append(epoch_loss)
+                history['train_acc'].append(epoch_acc.item())
+            elif phase == val_dir_name:
+                history['val_loss'].append(epoch_loss)
+                history['val_acc'].append(epoch_acc.item())
                 if early_stopping_patience > 0:
                     if early_stopping_metric == 'loss':
                         if epoch_loss < best_val_loss - early_stopping_min_delta:
@@ -262,20 +274,62 @@ def main(args, progress_callback=None):
             continue
         break
 
-    # 9. After training, save the model
+    # 9. After training, load the best model state if early stopping was used
+    if early_stopping_patience > 0 and epochs_no_improve < early_stopping_patience:
+        log("Loading best model state for final evaluation.")
+        model.load_state_dict(best_model_state)
+
+    # Evaluate on validation set for confusion matrix
+    log("Evaluating on validation set for final metrics...")
+    model.eval()
+    val_running_loss = 0.0
+    val_running_corrects = 0
+    val_all_preds = []
+    val_all_labels = []
+    for inputs, labels in dataloaders[val_dir_name]:
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+        with torch.no_grad():
+            outputs = model(inputs)
+            _, preds = torch.max(outputs, 1)
+            loss = criterion(outputs, labels)
+        val_running_loss += loss.item() * inputs.size(0)
+        val_running_corrects += torch.sum(preds == labels.data)
+        val_all_preds.extend(preds.cpu().numpy())
+        val_all_labels.extend(labels.cpu().numpy())
+    
+    val_final_loss = val_running_loss / dataset_sizes[val_dir_name]
+    val_final_acc = val_running_corrects.double() / dataset_sizes[val_dir_name]
+    val_cm = confusion_matrix(val_all_labels, val_all_preds).tolist()
+    log(f'Final Validation Loss: {val_final_loss:.4f} Acc: {val_final_acc:.4f}')
+
+    # Save the model
     if save_path:
-        if early_stopping_patience > 0:
-            log("Loading best model state before saving.")
-            model.load_state_dict(best_model_state)
-        torch.save(model.state_dict(), save_path)
+        log(f"Saving model to {save_path}")
+        save_data = {
+            'state_dict': model.state_dict(),
+            'model_name': model_name,
+            'num_classes': num_classes,
+            'class_names': class_names,
+            'input_size': input_size,
+            'resize_size': resize_size,
+            'use_imagenet_norm': use_imagenet_norm,
+            'norm_mean': mean if 'mean' in locals() and use_imagenet_norm else [],
+            'norm_std': std if 'std' in locals() and use_imagenet_norm else []
+        }
+        torch.save(save_data, save_path)
 
     # 10. Evaluate on test set if it exists
     test_acc_value = None
+    test_loss_value = None
+    test_cm = None
     if test_dir_name in dataloaders:
         log("Evaluating on test set...")
         model.eval()
         running_loss = 0.0
         running_corrects = 0
+        all_preds = []
+        all_labels = []
 
         for inputs, labels in dataloaders[test_dir_name]:
             inputs = inputs.to(device)
@@ -288,16 +342,28 @@ def main(args, progress_callback=None):
 
             running_loss += loss.item() * inputs.size(0)
             running_corrects += torch.sum(preds == labels.data)
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
 
-        test_loss = running_loss / dataset_sizes[test_dir_name]
+        test_loss_value = running_loss / dataset_sizes[test_dir_name]
         test_acc = running_corrects.double() / dataset_sizes[test_dir_name]
         test_acc_value = test_acc.item()
-        log(f'Test Loss: {test_loss:.4f} Acc: {test_acc:.4f}')
+        test_cm = confusion_matrix(all_labels, all_preds).tolist()
+        log(f'Test Loss: {test_loss_value:.4f} Acc: {test_acc:.4f}')
 
     log("Fine-tuning finished")
     
     # 11. Return the final validation and test accuracies
-    return {'val_acc': final_epoch_val_acc, 'test_acc': test_acc_value}
+    return {
+        'history': history,
+        'val_acc': val_final_acc.item(),
+        'val_loss': val_final_loss,
+        'val_cm': val_cm,
+        'test_acc': test_acc_value,
+        'test_loss': test_loss_value,
+        'test_cm': test_cm,
+        'class_names': class_names
+    }
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Fine-tune a model on a new dataset')

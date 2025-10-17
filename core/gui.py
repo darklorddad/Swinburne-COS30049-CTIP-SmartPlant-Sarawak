@@ -7,9 +7,11 @@ import shutil
 import os
 from finetune import main as finetune_main
 from process_dataset import process_dataset
+from evaluation import create_evaluation_view
+from inference import classify_image
 
 cancel_event = threading.Event()
-toast_hide_timer = None
+latest_eval_results = None
 
 def hide_toast(page: ft.Page):
     """Hides the toast notification"""
@@ -57,9 +59,15 @@ def main(page: ft.Page):
             page.update()
             save_inputs()
 
-    def on_load_dialog_result(e: ft.FilePickerResultEvent):
+    def on_load_dialog_result(e: ft.FilePickerResultEvent, target_field=None):
+        if not target_field:
+            target_field = load_model_path
+
         if e.files:
-            load_model_path.value = e.files[0].path
+            target_field.value = e.files[0].path
+            if target_field == test_image_path:
+                test_image_display.src = e.files[0].path
+                test_image_display.visible = True
             page.update()
             save_inputs()
 
@@ -199,9 +207,6 @@ def main(page: ft.Page):
 
     def start_processing(e):
         """Callback to start the dataset processing in a separate thread"""
-        global toast_hide_timer
-        if toast_hide_timer:
-            toast_hide_timer.cancel()
         cancel_event.clear()
         cancel_button_row.visible = True
         cancel_button.disabled = False
@@ -242,8 +247,6 @@ def main(page: ft.Page):
             toast_container.visible = True
             process_start_button.disabled = False
             page.update()
-            toast_hide_timer = threading.Timer(5.0, lambda: hide_toast(page))
-            toast_hide_timer.start()
             return
 
         def progress_callback(message):
@@ -281,18 +284,12 @@ def main(page: ft.Page):
                 toast_progress_ring.visible = False
                 cancel_button_row.visible = False
                 page.update()
-                global toast_hide_timer
-                toast_hide_timer = threading.Timer(5.0, lambda: hide_toast(page))
-                toast_hide_timer.start()
 
         processing_thread = threading.Thread(target=run_processing)
         processing_thread.start()
 
     def start_finetuning(e):
         """Callback to start the fine-tuning process in a separate thread"""
-        global toast_hide_timer
-        if toast_hide_timer:
-            toast_hide_timer.cancel()
         cancel_event.clear()
         cancel_button_row.visible = True
         cancel_button.disabled = False
@@ -363,8 +360,6 @@ def main(page: ft.Page):
             cancel_button_row.visible = False
             start_button.disabled = False
             page.update()
-            toast_hide_timer = threading.Timer(5.0, lambda: hide_toast(page))
-            toast_hide_timer.start()
             return
 
         def run_finetuning(settings_dict):
@@ -389,14 +384,21 @@ def main(page: ft.Page):
 
             try:
                 results = finetune_main(settings_dict, progress_callback=progress_callback)
-                if not cancel_event.is_set():
+                if results and not cancel_event.is_set():
+                    global latest_eval_results
+                    latest_eval_results = results
+                    update_evaluation_tab(results)
+                    
                     val_acc = results.get('val_acc', 0.0)
                     test_acc = results.get('test_acc')
                     
-                    message = f"Fine-tuning finished. Final validation accuracy: {val_acc:.4f}"
-                    if test_acc is not None:
-                        message += f". Test accuracy: {test_acc:.4f}"
+                    message = f"Fine-tuning finished. Results are in the Evaluation tab."
                     progress_callback(message)
+                elif cancel_event.is_set():
+                    progress_callback("Fine-tuning was cancelled.")
+                else:
+                    progress_callback("Fine-tuning finished, but no results were returned.")
+
             except Exception as ex:
                 progress_callback(f"An error occurred: {ex}")
             finally:
@@ -404,9 +406,6 @@ def main(page: ft.Page):
                 toast_progress_ring.visible = False
                 cancel_button_row.visible = False
                 page.update()
-                global toast_hide_timer
-                toast_hide_timer = threading.Timer(5.0, lambda: hide_toast(page))
-                toast_hide_timer.start()
 
         finetuning_thread = threading.Thread(target=run_finetuning, args=(settings,))
         finetuning_thread.start()
@@ -416,7 +415,12 @@ def main(page: ft.Page):
     load_file_picker = ft.FilePicker(on_result=on_load_dialog_result)
     source_dir_picker = ft.FilePicker(on_result=on_source_dir_result)
     dest_dir_picker = ft.FilePicker(on_result=on_dest_dir_result)
-    page.overlay.extend([file_picker, save_file_picker, load_file_picker, source_dir_picker, dest_dir_picker])
+    
+    test_model_picker = ft.FilePicker(on_result=lambda e: on_load_dialog_result(e, test_model_path))
+    test_image_picker = ft.FilePicker(on_result=lambda e: on_load_dialog_result(e, test_image_path))
+    save_eval_picker = ft.FilePicker()
+
+    page.overlay.extend([file_picker, save_file_picker, load_file_picker, source_dir_picker, dest_dir_picker, test_model_picker, test_image_picker, save_eval_picker])
 
     data_dir_path = ft.TextField(label="Dataset directory", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
     save_model_path = ft.TextField(label="Save model path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
@@ -477,15 +481,9 @@ def main(page: ft.Page):
         
         toast_progress_ring.visible = False
         page.update()
-        global toast_hide_timer
-        toast_hide_timer = threading.Timer(5.0, lambda: hide_toast(page))
-        toast_hide_timer.start()
 
     def clear_dataset(e):
         """Handles clearing the dataset"""
-        global toast_hide_timer
-        if toast_hide_timer:
-            toast_hide_timer.cancel()
     
         toast_text.value = "Clearing processed dataset"
         toast_progress_ring.visible = True
@@ -645,7 +643,11 @@ def main(page: ft.Page):
     toast_container = ft.Container(
         content=ft.Column([
             ft.Row(
-                [toast_text, toast_progress_ring],
+                [
+                    toast_text,
+                    toast_progress_ring,
+                    ft.IconButton(ft.icons.CLOSE, on_click=lambda _: hide_toast(page), icon_size=16)
+                ],
                 spacing=10,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
@@ -802,7 +804,6 @@ def main(page: ft.Page):
                                                     spacing=10,
                                                     alignment=ft.MainAxisAlignment.CENTER,
                                                 ),
-                                                ft.Divider(),
                                                 ft.Row(
                                                     [
                                                         ft.Text("Overwrite destination", expand=True),
@@ -1177,6 +1178,78 @@ def main(page: ft.Page):
                     alignment=ft.alignment.top_center,
                 ),
             ),
+            ft.Tab(
+                text="Evaluation",
+                content=ft.Container(
+                    content=evaluation_tab_content,
+                    alignment=ft.alignment.top_center,
+                    padding=ft.padding.all(20),
+                )
+            ),
+            ft.Tab(
+                text="Testing",
+                content=ft.Container(
+                    content=ft.Column(
+                        [
+                            ft.Container(
+                                content=ft.Card(
+                                    content=ft.Container(
+                                        content=ft.Column(
+                                            [
+                                                ft.Text("Inference", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
+                                                ft.Divider(),
+                                                ft.Row(
+                                                    [
+                                                        test_model_path,
+                                                        ft.ElevatedButton(
+                                                            "Select model",
+                                                            icon=ft.Icons.UPLOAD_FILE,
+                                                            on_click=lambda _: test_model_picker.pick_files(
+                                                                dialog_title="Select model file", allow_multiple=False
+                                                            ),
+                                                            style=beside_button_style, expand=1, height=BUTTON_HEIGHT,
+                                                        ),
+                                                    ],
+                                                    spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                                                ),
+                                                ft.Row(
+                                                    [
+                                                        test_image_path,
+                                                        ft.ElevatedButton(
+                                                            "Select image",
+                                                            icon=ft.Icons.IMAGE,
+                                                            on_click=lambda _: test_image_picker.pick_files(
+                                                                dialog_title="Select image file", allow_multiple=False
+                                                            ),
+                                                            style=beside_button_style, expand=1, height=BUTTON_HEIGHT,
+                                                        ),
+                                                    ],
+                                                    spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                                                ),
+                                                ft.Row([classify_button], alignment=ft.MainAxisAlignment.CENTER),
+                                                ft.Divider(),
+                                                ft.Row(
+                                                    [
+                                                        ft.Column([test_result_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=1),
+                                                        ft.Column([test_image_display], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=1),
+                                                    ],
+                                                    alignment=ft.MainAxisAlignment.SPACE_AROUND,
+                                                ),
+                                            ],
+                                            spacing=10, horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+                                        ),
+                                        padding=ft.padding.all(15)
+                                    ),
+                                    elevation=2, shape=ft.RoundedRectangleBorder(radius=8), width=800,
+                                ),
+                                alignment=ft.alignment.center, padding=ft.padding.only(top=20),
+                            ),
+                        ],
+                        spacing=10, scroll=ft.ScrollMode.ADAPTIVE, horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+                    ),
+                    alignment=ft.alignment.top_center,
+                ),
+            ),
         ],
         expand=1,
     )
@@ -1235,6 +1308,71 @@ def main(page: ft.Page):
     loss_function_dropdown.on_change = toggle_label_smoothing_field
 
     load_inputs()
+
+    evaluation_tab_content = ft.Column(
+        [ft.Text("No evaluation results available. Run fine-tuning first.", size=16)],
+        alignment=ft.MainAxisAlignment.CENTER,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        expand=True
+    )
+
+    def save_eval_results(e):
+        def on_save(e: ft.FilePickerResultEvent):
+            if e.path:
+                try:
+                    with open(e.path, 'w') as f:
+                        json.dump(latest_eval_results, f, indent=4)
+                    toast_text.value = f"Results saved to {e.path}"
+                except Exception as ex:
+                    toast_text.value = f"Error saving results: {ex}"
+                toast_container.visible = True
+                page.update()
+
+        save_eval_picker.on_result = on_save
+        save_eval_picker.save_file(dialog_title="Save Evaluation Results", file_name="evaluation_results.json")
+
+    def update_evaluation_tab(results):
+        new_content = create_evaluation_view(results, on_save_callback=save_eval_results)
+        evaluation_tab_content.controls.clear()
+        evaluation_tab_content.controls.append(new_content)
+        evaluation_tab_content.update()
+
+    test_model_path = ft.TextField(label="Model path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
+    test_image_path = ft.TextField(label="Image path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
+    test_image_display = ft.Image(visible=False, width=224, height=224, fit=ft.ImageFit.CONTAIN)
+    test_result_text = ft.Text("", size=16, weight=ft.FontWeight.BOLD)
+
+    def run_classification():
+        model_path = test_model_path.value
+        image_path = test_image_path.value
+        if not model_path or not image_path:
+            test_result_text.value = "Please select a model and an image."
+            page.update()
+            return
+
+        classify_button.disabled = True
+        test_result_text.value = "Classifying..."
+        page.update()
+
+        try:
+            predicted_class, confidence = classify_image(model_path, image_path)
+            test_result_text.value = f"Prediction: {predicted_class}\nConfidence: {confidence:.2%}"
+        except Exception as ex:
+            test_result_text.value = f"Error: {ex}"
+        finally:
+            classify_button.disabled = False
+            page.update()
+
+    def start_classification_thread(e):
+        threading.Thread(target=run_classification).start()
+
+    classify_button = ft.ElevatedButton(
+        "Classify",
+        icon=ft.Icons.SEARCH,
+        on_click=start_classification_thread,
+        style=action_button_style,
+        height=BUTTON_HEIGHT,
+    )
 
     page.add(
         tabs
