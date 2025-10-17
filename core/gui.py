@@ -639,7 +639,7 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                ft.Text("Directories", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
+                                                create_card_title("Directories", reset_process_dirs),
                                                 ft.Divider(),
                                                 ft.Row(
                                                     [
@@ -696,7 +696,7 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                ft.Text("Settings", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
+                                                create_card_title("Settings", reset_process_settings),
                                                 ft.Divider(),
                                                 ft.Row(
                                                     [
@@ -753,7 +753,7 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                ft.Text("Actions", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
+                                                create_card_title("Actions", reset_process_actions),
                                                 ft.Divider(),
                                                 ft.Row(
                                                     [
@@ -801,7 +801,7 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                ft.Text("Model and data", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
+                                                create_card_title("Model and data", reset_finetune_model_data),
                                                 ft.Divider(),
                                                 model_name_field,
                                                 ft.Row(
@@ -885,7 +885,7 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                ft.Text("Optimiser Settings", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
+                                                create_card_title("Optimiser Settings", reset_finetune_optimiser_settings),
                                                 ft.Divider(),
                                                 ft.Row([sgd_momentum_field, adam_beta1_field], spacing=10),
                                                 ft.Row([adam_beta2_field, adam_eps_field], spacing=10),
@@ -906,7 +906,7 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                ft.Text("Normalisation and Loss", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
+                                                create_card_title("Normalisation and Loss", reset_finetune_norm_loss),
                                                 ft.Divider(),
                                                 loss_function_dropdown,
                                                 label_smoothing_factor_field,
@@ -935,7 +935,7 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                ft.Text("Hyperparameters", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
+                                                create_card_title("Hyperparameters", reset_finetune_hyperparams),
                                                 ft.Divider(),
                                                 epochs_field,
                                                 batch_size_field,
@@ -1000,7 +1000,7 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                ft.Text("Advanced Settings", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
+                                                create_card_title("Advanced Settings", reset_finetune_advanced),
                                                 ft.Divider(),
                                                 ft.Row(
                                                     [
@@ -1024,7 +1024,7 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                ft.Text("Data Augmentation", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
+                                                create_card_title("Data Augmentation", reset_finetune_augmentation),
                                                 ft.Divider(),
                                                 ft.Row(
                                                     [
@@ -1118,15 +1118,6 @@ def main(page: ft.Page):
                                                 ft.Text("Training", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
                                                 ft.Divider(),
                                                 start_button,
-                                                ft.ElevatedButton(
-                                                    text="Reset to Defaults",
-                                                    on_click=reset_to_defaults,
-                                                    icon=ft.Icons.SETTINGS_BACKUP_RESTORE,
-                                                    bgcolor=ft.Colors.GREY_800,
-                                                    color=ft.Colors.WHITE,
-                                                    style=action_button_style,
-                                                    height=BUTTON_HEIGHT,
-                                                ),
                                             ],
                                             spacing=10,
                                             horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
