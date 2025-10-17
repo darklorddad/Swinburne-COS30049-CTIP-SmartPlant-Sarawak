@@ -12,6 +12,7 @@ from inference import classify_image
 
 cancel_event = threading.Event()
 mpl_lock = threading.Lock()
+latest_eval_results = None
 
 def main(page: ft.Page):
     """Main function for the Flet GUI"""
@@ -381,7 +382,8 @@ def main(page: ft.Page):
             try:
                 results = finetune_main(settings_dict, progress_callback=progress_callback)
                 if results and not cancel_event.is_set():
-                    page.session.set("latest_eval_results", results)
+                    global latest_eval_results
+                    latest_eval_results = results
                     
                     message = f"Fine-tuning finished. Results are in the Evaluation tab"
                     progress_callback(message)
@@ -684,9 +686,8 @@ def main(page: ft.Page):
         def on_save(e: ft.FilePickerResultEvent):
             if e.path:
                 try:
-                    results_to_save = page.session.get("latest_eval_results")
                     with open(e.path, 'w') as f:
-                        json.dump(results_to_save, f, indent=4)
+                        json.dump(latest_eval_results, f, indent=4)
                     toast_text.value = f"Results saved to {e.path}"
                 except Exception as ex:
                     toast_text.value = f"Error saving results: {ex}"
@@ -743,9 +744,8 @@ def main(page: ft.Page):
     def on_tab_change(e):
         selected_tab_text = e.control.tabs[e.control.selected_index].text
         if selected_tab_text == "Evaluation":
-            results = page.session.get("latest_eval_results")
-            if results:
-                update_evaluation_tab_content(results)
+            if latest_eval_results:
+                update_evaluation_tab_content(latest_eval_results)
 
     tabs = ft.Tabs(
         selected_index=0,
