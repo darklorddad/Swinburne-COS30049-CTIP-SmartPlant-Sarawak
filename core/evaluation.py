@@ -32,7 +32,7 @@ def create_plots(history):
 def create_confusion_matrix_table(cm, class_names):
     """Creates a Flet DataTable for the confusion matrix."""
     if not cm or not class_names:
-        return ft.Text("Confusion matrix not available.")
+        return ft.Text("Confusion matrix not available")
 
     columns = [ft.DataColumn(ft.Text("Actual \\ Pred"))] + [ft.DataColumn(ft.Text(name)) for name in class_names]
     
@@ -48,7 +48,7 @@ def create_confusion_matrix_table(cm, class_names):
 def create_evaluation_view(results, on_save_callback):
     """Creates the Flet view for the Evaluation tab based on results."""
     if not results:
-        return ft.Column([ft.Text("No evaluation results available. Run fine-tuning first.", size=16)], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
+        return ft.Column([ft.Text("No evaluation results available. Run fine-tuning first", size=16)], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
 
     history = results.get('history', {})
     val_cm = results.get('val_cm')

@@ -112,10 +112,10 @@ def main(args, progress_callback=None):
             mean = [float(x.strip()) for x in norm_mean_str.split(',')]
             std = [float(x.strip()) for x in norm_std_str.split(',')]
         except ValueError:
-            raise ValueError("Invalid format for norm_mean or norm_std. They should be comma-separated floats.")
+            raise ValueError("Invalid format for norm_mean or norm_std. They should be comma-separated floats")
         
         if len(mean) != len(std):
-            raise ValueError("norm_mean and norm_std must have the same number of values.")
+            raise ValueError("norm_mean and norm_std must have the same number of values")
 
         normalizer = transforms.Normalize(mean, std)
         train_transform_list.append(normalizer)
@@ -153,7 +153,7 @@ def main(args, progress_callback=None):
     use_amp = mixed_precision and device.type == 'cuda'
     scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
     if use_amp:
-        log("Using mixed precision training (AMP).")
+        log("Using mixed precision training (AMP)")
 
     # 4. Load pretrained model from timm
     # This will load a pretrained model and replace the classifier head with a new one for our number of classes.
@@ -269,7 +269,7 @@ def main(args, progress_callback=None):
                             epochs_no_improve += 1
                     
                     if epochs_no_improve >= early_stopping_patience:
-                        log(f"Early stopping triggered after {epochs_no_improve} epochs with no improvement.")
+                        log(f"Early stopping triggered after {epochs_no_improve} epochs with no improvement")
                         break
         else:
             continue
@@ -277,7 +277,7 @@ def main(args, progress_callback=None):
 
     # 9. After training, load the best model state if early stopping was used
     if early_stopping_patience > 0 and epochs_no_improve < early_stopping_patience:
-        log("Loading best model state for final evaluation.")
+        log("Loading best model state for final evaluation")
         model.load_state_dict(best_model_state)
 
     # Evaluate on validation set for confusion matrix
