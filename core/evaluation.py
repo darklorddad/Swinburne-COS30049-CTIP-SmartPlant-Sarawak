@@ -1,5 +1,7 @@
 import flet as ft
 from flet.matplotlib_chart import MatplotlibChart
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 

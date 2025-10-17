@@ -151,7 +151,7 @@ def main(args, progress_callback=None):
     log(f"Using device: {device}")
 
     use_amp = mixed_precision and device.type == 'cuda'
-    scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+    scaler = torch.amp.GradScaler(device.type, enabled=use_amp)
     if use_amp:
         log("Using mixed precision training (AMP)")
 
@@ -223,7 +223,7 @@ def main(args, progress_callback=None):
                 optimizer.zero_grad()
 
                 with torch.set_grad_enabled(phase == 'train'):
-                    with torch.cuda.amp.autocast(enabled=use_amp):
+                    with torch.amp.autocast(device.type, enabled=use_amp):
                         outputs = model(inputs)
                         _, preds = torch.max(outputs, 1)
                         loss = criterion(outputs, labels)
