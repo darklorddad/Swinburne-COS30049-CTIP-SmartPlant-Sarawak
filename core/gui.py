@@ -701,7 +701,8 @@ def main(page: ft.Page):
     def update_evaluation_tab_content(results):
         with mpl_lock:
             new_content = create_evaluation_view(results, on_save_callback=save_eval_results)
-        evaluation_container.content = new_content
+        evaluation_tab_content.controls.clear()
+        evaluation_tab_content.controls.append(new_content)
         page.update()
 
     test_model_path = ft.TextField(label="Model path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
