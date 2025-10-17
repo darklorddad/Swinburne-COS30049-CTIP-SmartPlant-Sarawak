@@ -680,6 +680,11 @@ def main(page: ft.Page):
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         expand=True
     )
+    evaluation_container = ft.Container(
+        content=evaluation_tab_content,
+        alignment=ft.alignment.top_center,
+        padding=ft.padding.all(20),
+    )
 
     def save_eval_results(e):
         def on_save(e: ft.FilePickerResultEvent):
@@ -700,9 +705,8 @@ def main(page: ft.Page):
     def update_evaluation_tab_content(results):
         with mpl_lock:
             new_content = create_evaluation_view(results, on_save_callback=save_eval_results)
-        evaluation_tab_content.controls.clear()
-        evaluation_tab_content.controls.append(new_content)
-        page.update()
+        evaluation_container.content = new_content
+        evaluation_container.update()
 
     test_model_path = ft.TextField(label="Model path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
     test_image_path = ft.TextField(label="Image path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
@@ -1264,11 +1268,7 @@ def main(page: ft.Page):
             ),
             ft.Tab(
                 text="Evaluation",
-                content=ft.Container(
-                    content=evaluation_tab_content,
-                    alignment=ft.alignment.top_center,
-                    padding=ft.padding.all(20),
-                )
+                content=evaluation_container,
             ),
             ft.Tab(
                 text="Testing",
