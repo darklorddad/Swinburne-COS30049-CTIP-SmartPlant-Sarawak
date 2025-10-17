@@ -92,7 +92,7 @@ def main(page: ft.Page):
             [
                 ft.Text(title_text, theme_style=ft.TextThemeStyle.TITLE_MEDIUM, expand=True),
                 ft.IconButton(
-                    icon=ft.icons.SETTINGS_BACKUP_RESTORE,
+                    icon=ft.Icons.SETTINGS_BACKUP_RESTORE,
                     on_click=reset_callback,
                     tooltip="Reset to defaults"
                 )
