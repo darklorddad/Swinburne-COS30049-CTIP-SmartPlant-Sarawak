@@ -12,7 +12,6 @@ from inference import classify_image
 
 cancel_event = threading.Event()
 latest_eval_results = None
-eval_results_rendered = False
 mpl_lock = threading.Lock()
 
 def main(page: ft.Page):
@@ -383,9 +382,8 @@ def main(page: ft.Page):
             try:
                 results = finetune_main(settings_dict, progress_callback=progress_callback)
                 if results and not cancel_event.is_set():
-                    global latest_eval_results, eval_results_rendered
+                    global latest_eval_results
                     latest_eval_results = results
-                    eval_results_rendered = False
                     
                     message = f"Fine-tuning finished. Results are in the Evaluation tab"
                     progress_callback(message)
@@ -704,7 +702,7 @@ def main(page: ft.Page):
         with mpl_lock:
             new_content = create_evaluation_view(results, on_save_callback=save_eval_results)
         evaluation_container.content = new_content
-        evaluation_container.update()
+        page.update()
 
     test_model_path = ft.TextField(label="Model path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
     test_image_path = ft.TextField(label="Image path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
@@ -744,12 +742,10 @@ def main(page: ft.Page):
     )
 
     def on_tab_change(e):
-        global eval_results_rendered
         selected_tab_text = e.control.tabs[e.control.selected_index].text
         if selected_tab_text == "Evaluation":
-            if latest_eval_results and not eval_results_rendered:
+            if latest_eval_results:
                 update_evaluation_tab_content(latest_eval_results)
-                eval_results_rendered = True
 
     tabs = ft.Tabs(
         selected_index=0,
