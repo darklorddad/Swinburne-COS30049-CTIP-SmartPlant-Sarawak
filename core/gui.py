@@ -15,15 +15,6 @@ latest_eval_results = None
 eval_results_rendered = False
 mpl_lock = threading.Lock()
 
-def hide_toast(page: ft.Page):
-    """Hides the toast notification"""
-    # The toast container is the last overlay
-    if page.overlay:
-        toast_container = page.overlay[-1]
-        if isinstance(toast_container, ft.Container):
-            toast_container.visible = False
-            page.update()
-
 def main(page: ft.Page):
     """Main function for the Flet GUI"""
     page.title = "Core"
@@ -637,7 +628,7 @@ def main(page: ft.Page):
     toast_text = ft.Text(color=ft.Colors.WHITE, expand=True)
     toast_progress_bar = ft.ProgressBar(visible=False, color=ft.Colors.GREY_500)
     toast_progress_ring = ft.ProgressRing(visible=False, color=ft.Colors.GREY_500, width=20, height=20)
-    toast_close_button = ft.IconButton(ft.Icons.CLOSE, on_click=lambda _: hide_toast(page), icon_size=16, visible=False)
+    toast_close_button = ft.IconButton(ft.Icons.CLOSE, icon_size=16, visible=False)
 
     def cancel_operation(e):
         toast_text.value = "Cancelling"
@@ -674,8 +665,15 @@ def main(page: ft.Page):
 
     page.overlay.append(toast_container)
 
+    def hide_toast(e):
+        """Hides the toast notification"""
+        toast_container.visible = False
+        page.update()
+    
+    toast_close_button.on_click = hide_toast
+
     evaluation_tab_content = ft.Column(
-        [ft.Text("No evaluation results available. Run fine-tuning first", size=16)],
+        [ft.Text("No evaluation results available. Run fine-tuning first.", size=16)],
         alignment=ft.MainAxisAlignment.CENTER,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         expand=True
@@ -706,7 +704,7 @@ def main(page: ft.Page):
         with mpl_lock:
             new_content = create_evaluation_view(results, on_save_callback=save_eval_results)
         evaluation_container.content = new_content
-        evaluation_container.update()
+        page.update()
 
     test_model_path = ft.TextField(label="Model path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
     test_image_path = ft.TextField(label="Image path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
@@ -717,7 +715,7 @@ def main(page: ft.Page):
         model_path = test_model_path.value
         image_path = test_image_path.value
         if not model_path or not image_path:
-            test_result_text.value = "Please select a model and an image"
+            test_result_text.value = "Please select a model and an image."
             page.update()
             return
 
