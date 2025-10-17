@@ -12,6 +12,7 @@ from inference import classify_image
 
 cancel_event = threading.Event()
 latest_eval_results = None
+mpl_lock = threading.Lock()
 
 def hide_toast(page: ft.Page):
     """Hides the toast notification"""
@@ -689,10 +690,11 @@ def main(page: ft.Page):
         save_eval_picker.save_file(dialog_title="Save Evaluation Results", file_name="evaluation_results.json")
 
     def update_evaluation_tab(results):
-        new_content = create_evaluation_view(results, on_save_callback=save_eval_results)
+        with mpl_lock:
+            new_content = create_evaluation_view(results, on_save_callback=save_eval_results)
         evaluation_tab_content.controls.clear()
         evaluation_tab_content.controls.append(new_content)
-        evaluation_tab_content.update()
+        page.update()
 
     test_model_path = ft.TextField(label="Model path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
     test_image_path = ft.TextField(label="Image path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
