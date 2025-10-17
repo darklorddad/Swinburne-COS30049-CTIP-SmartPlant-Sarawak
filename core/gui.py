@@ -666,6 +666,71 @@ def main(page: ft.Page):
 
     page.overlay.append(toast_container)
 
+    evaluation_tab_content = ft.Column(
+        [ft.Text("No evaluation results available. Run fine-tuning first.", size=16)],
+        alignment=ft.MainAxisAlignment.CENTER,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        expand=True
+    )
+
+    def save_eval_results(e):
+        def on_save(e: ft.FilePickerResultEvent):
+            if e.path:
+                try:
+                    with open(e.path, 'w') as f:
+                        json.dump(latest_eval_results, f, indent=4)
+                    toast_text.value = f"Results saved to {e.path}"
+                except Exception as ex:
+                    toast_text.value = f"Error saving results: {ex}"
+                toast_container.visible = True
+                page.update()
+
+        save_eval_picker.on_result = on_save
+        save_eval_picker.save_file(dialog_title="Save Evaluation Results", file_name="evaluation_results.json")
+
+    def update_evaluation_tab(results):
+        new_content = create_evaluation_view(results, on_save_callback=save_eval_results)
+        evaluation_tab_content.controls.clear()
+        evaluation_tab_content.controls.append(new_content)
+        evaluation_tab_content.update()
+
+    test_model_path = ft.TextField(label="Model path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
+    test_image_path = ft.TextField(label="Image path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
+    test_image_display = ft.Image(visible=False, width=224, height=224, fit=ft.ImageFit.CONTAIN)
+    test_result_text = ft.Text("", size=16, weight=ft.FontWeight.BOLD)
+
+    def run_classification():
+        model_path = test_model_path.value
+        image_path = test_image_path.value
+        if not model_path or not image_path:
+            test_result_text.value = "Please select a model and an image."
+            page.update()
+            return
+
+        classify_button.disabled = True
+        test_result_text.value = "Classifying..."
+        page.update()
+
+        try:
+            predicted_class, confidence = classify_image(model_path, image_path)
+            test_result_text.value = f"Prediction: {predicted_class}\nConfidence: {confidence:.2%}"
+        except Exception as ex:
+            test_result_text.value = f"Error: {ex}"
+        finally:
+            classify_button.disabled = False
+            page.update()
+
+    def start_classification_thread(e):
+        threading.Thread(target=run_classification).start()
+
+    classify_button = ft.ElevatedButton(
+        "Classify",
+        icon=ft.Icons.SEARCH,
+        on_click=start_classification_thread,
+        style=action_button_style,
+        height=BUTTON_HEIGHT,
+    )
+
     tabs = ft.Tabs(
         selected_index=0,
         animation_duration=300,
@@ -1308,71 +1373,6 @@ def main(page: ft.Page):
     loss_function_dropdown.on_change = toggle_label_smoothing_field
 
     load_inputs()
-
-    evaluation_tab_content = ft.Column(
-        [ft.Text("No evaluation results available. Run fine-tuning first.", size=16)],
-        alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        expand=True
-    )
-
-    def save_eval_results(e):
-        def on_save(e: ft.FilePickerResultEvent):
-            if e.path:
-                try:
-                    with open(e.path, 'w') as f:
-                        json.dump(latest_eval_results, f, indent=4)
-                    toast_text.value = f"Results saved to {e.path}"
-                except Exception as ex:
-                    toast_text.value = f"Error saving results: {ex}"
-                toast_container.visible = True
-                page.update()
-
-        save_eval_picker.on_result = on_save
-        save_eval_picker.save_file(dialog_title="Save Evaluation Results", file_name="evaluation_results.json")
-
-    def update_evaluation_tab(results):
-        new_content = create_evaluation_view(results, on_save_callback=save_eval_results)
-        evaluation_tab_content.controls.clear()
-        evaluation_tab_content.controls.append(new_content)
-        evaluation_tab_content.update()
-
-    test_model_path = ft.TextField(label="Model path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
-    test_image_path = ft.TextField(label="Image path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
-    test_image_display = ft.Image(visible=False, width=224, height=224, fit=ft.ImageFit.CONTAIN)
-    test_result_text = ft.Text("", size=16, weight=ft.FontWeight.BOLD)
-
-    def run_classification():
-        model_path = test_model_path.value
-        image_path = test_image_path.value
-        if not model_path or not image_path:
-            test_result_text.value = "Please select a model and an image."
-            page.update()
-            return
-
-        classify_button.disabled = True
-        test_result_text.value = "Classifying..."
-        page.update()
-
-        try:
-            predicted_class, confidence = classify_image(model_path, image_path)
-            test_result_text.value = f"Prediction: {predicted_class}\nConfidence: {confidence:.2%}"
-        except Exception as ex:
-            test_result_text.value = f"Error: {ex}"
-        finally:
-            classify_button.disabled = False
-            page.update()
-
-    def start_classification_thread(e):
-        threading.Thread(target=run_classification).start()
-
-    classify_button = ft.ElevatedButton(
-        "Classify",
-        icon=ft.Icons.SEARCH,
-        on_click=start_classification_thread,
-        style=action_button_style,
-        height=BUTTON_HEIGHT,
-    )
 
     page.add(
         tabs
