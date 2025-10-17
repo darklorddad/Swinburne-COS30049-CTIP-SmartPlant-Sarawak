@@ -112,7 +112,6 @@ def main(page: ft.Page):
         val_ratio_field.value = "10"
         test_ratio_field.value = "10"
         resolution_field.value = "224"
-        process_seed_field.value = ""
         train_dir_name_field.value = "train"
         val_dir_name_field.value = "val"
         test_dir_name_field.value = "test"
@@ -182,7 +181,6 @@ def main(page: ft.Page):
         save_inputs()
 
     def reset_finetune_augmentation(e):
-        finetune_seed_field.value = ""
         aug_random_resized_crop_switch.value = True
         aug_crop_scale_min_field.value = "0.08"
         aug_crop_scale_max_field.value = "1.0"
