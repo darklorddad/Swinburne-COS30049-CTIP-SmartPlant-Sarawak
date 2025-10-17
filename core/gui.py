@@ -216,6 +216,7 @@ def main(page: ft.Page):
         toast_text.value = "Processing dataset"
         toast_progress_bar.visible = False
         toast_progress_ring.visible = True
+        toast_close_button.visible = False
         toast_container.visible = True
         page.update()
 
@@ -246,6 +247,7 @@ def main(page: ft.Page):
                 toast_text.value = "Invalid number in one of the fields. Please check ratios, resolution, and seed"
             toast_progress_ring.visible = False
             cancel_button_row.visible = False
+            toast_close_button.visible = True
             toast_container.visible = True
             process_start_button.disabled = False
             page.update()
@@ -285,6 +287,7 @@ def main(page: ft.Page):
                 process_start_button.disabled = False
                 toast_progress_ring.visible = False
                 cancel_button_row.visible = False
+                toast_close_button.visible = True
                 page.update()
 
         processing_thread = threading.Thread(target=run_processing)
@@ -300,6 +303,7 @@ def main(page: ft.Page):
         toast_progress_bar.visible = False
         toast_progress_ring.value = 0
         toast_progress_ring.visible = True
+        toast_close_button.visible = False
         toast_container.visible = True
         page.update()
 
@@ -361,6 +365,7 @@ def main(page: ft.Page):
             toast_progress_ring.visible = False
             cancel_button_row.visible = False
             start_button.disabled = False
+            toast_close_button.visible = True
             page.update()
             return
 
@@ -404,6 +409,7 @@ def main(page: ft.Page):
                 start_button.disabled = False
                 toast_progress_ring.visible = False
                 cancel_button_row.visible = False
+                toast_close_button.visible = True
                 page.update()
 
         finetuning_thread = threading.Thread(target=run_finetuning, args=(settings,))
@@ -479,6 +485,7 @@ def main(page: ft.Page):
                 toast_text.value = f"Error clearing dataset: {ex}"
         
         toast_progress_ring.visible = False
+        toast_close_button.visible = True
         page.update()
 
     def clear_dataset(e):
@@ -487,6 +494,7 @@ def main(page: ft.Page):
         toast_text.value = "Clearing processed dataset"
         toast_progress_ring.visible = True
         toast_progress_bar.visible = False
+        toast_close_button.visible = False
         toast_container.visible = True
         page.update()
 
@@ -629,6 +637,7 @@ def main(page: ft.Page):
     toast_text = ft.Text(color=ft.Colors.WHITE, expand=True)
     toast_progress_bar = ft.ProgressBar(visible=False, color=ft.Colors.GREY_500)
     toast_progress_ring = ft.ProgressRing(visible=False, color=ft.Colors.GREY_500, width=20, height=20)
+    toast_close_button = ft.IconButton(ft.Icons.CLOSE, on_click=lambda _: hide_toast(page), icon_size=16, visible=False)
 
     def cancel_operation(e):
         toast_text.value = "Cancelling"
@@ -645,7 +654,7 @@ def main(page: ft.Page):
                 [
                     toast_text,
                     toast_progress_ring,
-                    ft.IconButton(ft.Icons.CLOSE, on_click=lambda _: hide_toast(page), icon_size=16)
+                    toast_close_button,
                 ],
                 spacing=10,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -681,6 +690,7 @@ def main(page: ft.Page):
                     toast_text.value = f"Results saved to {e.path}"
                 except Exception as ex:
                     toast_text.value = f"Error saving results: {ex}"
+                toast_close_button.visible = True
                 toast_container.visible = True
                 page.update()
 
