@@ -87,11 +87,27 @@ def main(page: ft.Page):
         page.update()
         save_inputs()
 
-    def reset_to_defaults(e):
-        """Resets all settings to their default values"""
-        # Process dataset tab
+    def create_card_title(title_text, reset_callback):
+        return ft.Row(
+            [
+                ft.Text(title_text, theme_style=ft.TextThemeStyle.TITLE_MEDIUM, expand=True),
+                ft.IconButton(
+                    icon=ft.icons.SETTINGS_BACKUP_RESTORE,
+                    on_click=reset_callback,
+                    tooltip="Reset to defaults"
+                )
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+
+    def reset_process_dirs(e):
         source_dir_path.value = ""
         dest_dir_path.value = ""
+        page.update()
+        save_inputs()
+
+    def reset_process_settings(e):
         train_ratio_field.value = "80"
         val_ratio_field.value = "10"
         test_ratio_field.value = "10"
@@ -102,13 +118,44 @@ def main(page: ft.Page):
         test_dir_name_field.value = "test"
         image_extensions_field.value = ".jpg,.jpeg,.png"
         color_mode_dropdown.value = "RGB"
-        overwrite_dest_switch.value = False
+        page.update()
+        save_inputs()
 
-        # Fine-tuning tab
+    def reset_process_actions(e):
+        overwrite_dest_switch.value = False
+        page.update()
+        save_inputs()
+
+    def reset_finetune_model_data(e):
         data_dir_path.value = ""
         save_model_path.value = ""
         load_model_path.value = ""
         model_name_field.value = "efficientnet_b0"
+        strict_load_switch.value = False
+        page.update()
+        save_inputs()
+
+    def reset_finetune_optimiser_settings(e):
+        sgd_momentum_field.value = "0.9"
+        adam_beta1_field.value = "0.9"
+        adam_beta2_field.value = "0.999"
+        adam_eps_field.value = "1e-8"
+        weight_decay_field.value = "0.01"
+        page.update()
+        save_inputs()
+
+    def reset_finetune_norm_loss(e):
+        loss_function_dropdown.value = "label_smoothing"
+        label_smoothing_factor_field.value = "0.1"
+        use_imagenet_norm_switch.value = True
+        norm_mean_field.value = "0.485, 0.456, 0.406"
+        norm_std_field.value = "0.229, 0.224, 0.225"
+        toggle_norm_fields(None)
+        toggle_label_smoothing_field(None)
+        page.update()
+        save_inputs()
+
+    def reset_finetune_hyperparams(e):
         epochs_field.value = "25"
         batch_size_field.value = "32"
         learning_rate_field.value = "0.001"
@@ -117,27 +164,24 @@ def main(page: ft.Page):
         num_workers_field.value = "4"
         log_frequency_field.value = "10"
         device_field.value = "auto"
-        train_from_scratch_switch.value = False
-        strict_load_switch.value = False
         dropout_rate_field.value = "0.2"
         optimiser_dropdown.value = "adamw"
-        sgd_momentum_field.value = "0.9"
-        adam_beta1_field.value = "0.9"
-        adam_beta2_field.value = "0.999"
-        adam_eps_field.value = "1e-8"
-        weight_decay_field.value = "0.01"
-        loss_function_dropdown.value = "label_smoothing"
-        label_smoothing_factor_field.value = "0.1"
-        use_imagenet_norm_switch.value = True
-        norm_mean_field.value = "0.485, 0.456, 0.406"
-        norm_std_field.value = "0.229, 0.224, 0.225"
-        load_truncated_images_switch.value = True
+        train_from_scratch_switch.value = False
         mixed_precision_switch.value = True
         pin_memory_switch.value = True
         early_stopping_switch.value = True
         early_stopping_patience_field.value = "5"
         early_stopping_min_delta_field.value = "0.001"
         early_stopping_metric_dropdown.value = "loss"
+        page.update()
+        save_inputs()
+
+    def reset_finetune_advanced(e):
+        load_truncated_images_switch.value = True
+        page.update()
+        save_inputs()
+
+    def reset_finetune_augmentation(e):
         finetune_seed_field.value = ""
         aug_random_resized_crop_switch.value = True
         aug_crop_scale_min_field.value = "0.08"
@@ -152,9 +196,6 @@ def main(page: ft.Page):
         aug_color_jitter_contrast_field.value = "0.2"
         aug_color_jitter_saturation_field.value = "0.2"
         aug_color_jitter_hue_field.value = "0.1"
-
-        toggle_norm_fields(None)
-        toggle_label_smoothing_field(None)
         page.update()
         save_inputs()
 
