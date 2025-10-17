@@ -355,7 +355,7 @@ def main(page: ft.Page):
                 'seed': int(finetune_seed_field.value) if finetune_seed_field.value else None,
             }
         except (ValueError, TypeError):
-            toast_text.value = "Invalid number in one of the fields. Please check hyperparameters and seed."
+            toast_text.value = "Invalid number in one of the fields. Please check hyperparameters and seed"
             toast_progress_ring.visible = False
             cancel_button_row.visible = False
             start_button.disabled = False
@@ -392,12 +392,12 @@ def main(page: ft.Page):
                     val_acc = results.get('val_acc', 0.0)
                     test_acc = results.get('test_acc')
                     
-                    message = f"Fine-tuning finished. Results are in the Evaluation tab."
+                    message = f"Fine-tuning finished. Results are in the Evaluation tab"
                     progress_callback(message)
                 elif cancel_event.is_set():
                     progress_callback("Fine-tuning was cancelled.")
                 else:
-                    progress_callback("Fine-tuning finished, but no results were returned.")
+                    progress_callback("Fine-tuning finished, but no results were returned")
 
             except Exception as ex:
                 progress_callback(f"An error occurred: {ex}")
@@ -528,7 +528,7 @@ def main(page: ft.Page):
     input_size_field = ft.TextField(label="Input size (px)", value="224", height=TEXT_FIELD_HEIGHT)
     resize_size_field = ft.TextField(label="Resize size (px)", value="256", height=TEXT_FIELD_HEIGHT)
     num_workers_field = ft.TextField(label="Data loader workers", value="4", height=TEXT_FIELD_HEIGHT)
-    log_frequency_field = ft.TextField(label="Log Frequency per Epoch", value="10", height=TEXT_FIELD_HEIGHT)
+    log_frequency_field = ft.TextField(label="Log frequency per epoch", value="10", height=TEXT_FIELD_HEIGHT)
     device_field = ft.TextField(label="Device", value="auto", height=TEXT_FIELD_HEIGHT)
     train_from_scratch_switch = ft.Switch(value=False)
     strict_load_switch = ft.Switch(value=False)
@@ -538,7 +538,7 @@ def main(page: ft.Page):
     early_stopping_patience_field = ft.TextField(label="Patience", value="5", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
     early_stopping_min_delta_field = ft.TextField(label="Min delta", value="0.001", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
     early_stopping_metric_dropdown = ft.Dropdown(
-        label="Early Stopping Metric",
+        label="Early stopping metric",
         value="loss",
         options=[
             ft.dropdown.Option("loss"),
@@ -613,10 +613,10 @@ def main(page: ft.Page):
     aug_color_jitter_contrast_field = ft.TextField(label="Contrast", value="0.2", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
     aug_color_jitter_saturation_field = ft.TextField(label="Saturation", value="0.2", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
     aug_color_jitter_hue_field = ft.TextField(label="Hue", value="0.1", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
-    aug_crop_scale_min_field = ft.TextField(label="Min Scale", value="0.08", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
-    aug_crop_scale_max_field = ft.TextField(label="Max Scale", value="1.0", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
-    aug_crop_ratio_min_field = ft.TextField(label="Min Ratio", value="0.75", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
-    aug_crop_ratio_max_field = ft.TextField(label="Max Ratio", value="1.33", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
+    aug_crop_scale_min_field = ft.TextField(label="Min scale", value="0.08", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
+    aug_crop_scale_max_field = ft.TextField(label="Max scale", value="1.0", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
+    aug_crop_ratio_min_field = ft.TextField(label="Min ratio", value="0.75", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
+    aug_crop_ratio_max_field = ft.TextField(label="Max ratio", value="1.33", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
 
     start_button = ft.ElevatedButton(
         text="Run fine-tuning",
@@ -667,7 +667,7 @@ def main(page: ft.Page):
     page.overlay.append(toast_container)
 
     evaluation_tab_content = ft.Column(
-        [ft.Text("No evaluation results available. Run fine-tuning first.", size=16)],
+        [ft.Text("No evaluation results available. Run fine-tuning first", size=16)],
         alignment=ft.MainAxisAlignment.CENTER,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         expand=True
@@ -703,7 +703,7 @@ def main(page: ft.Page):
         model_path = test_model_path.value
         image_path = test_image_path.value
         if not model_path or not image_path:
-            test_result_text.value = "Please select a model and an image."
+            test_result_text.value = "Please select a model and an image"
             page.update()
             return
 
@@ -1062,21 +1062,21 @@ def main(page: ft.Page):
                                                 ),
                                                 ft.Row(
                                                     [
-                                                        ft.Text("Mixed Precision (AMP)", expand=True),
+                                                        ft.Text("Mixed precision (AMP)", expand=True),
                                                         mixed_precision_switch,
                                                     ],
                                                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                                                 ),
                                                 ft.Row(
                                                     [
-                                                        ft.Text("Pin Memory (CUDA)", expand=True),
+                                                        ft.Text("Pin memory (CUDA)", expand=True),
                                                         pin_memory_switch,
                                                     ],
                                                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                                                 ),
                                                 ft.Row(
                                                     [
-                                                        ft.Text("Early Stopping", expand=True),
+                                                        ft.Text("Early stopping", expand=True),
                                                         early_stopping_switch,
                                                     ],
                                                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -1105,7 +1105,7 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                create_card_title("Advanced Settings", reset_finetune_advanced),
+                                                create_card_title("Advanced settings", reset_finetune_advanced),
                                                 ft.Divider(),
                                                 ft.Row(
                                                     [
@@ -1129,11 +1129,11 @@ def main(page: ft.Page):
                                     content=ft.Container(
                                         content=ft.Column(
                                             [
-                                                create_card_title("Data Augmentation", reset_finetune_augmentation),
+                                                create_card_title("Data augmentation", reset_finetune_augmentation),
                                                 ft.Divider(),
                                                 ft.Row(
                                                     [
-                                                        ft.Text("Random Crop and Zoom", expand=True),
+                                                        ft.Text("Random crop and zoom", expand=True),
                                                         aug_random_resized_crop_switch,
                                                     ],
                                                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -1154,14 +1154,14 @@ def main(page: ft.Page):
                                                 ),
                                                 ft.Row(
                                                     [
-                                                        ft.Text("Random Horizontal Flip", expand=True),
+                                                        ft.Text("Random horizontal flip", expand=True),
                                                         aug_horizontal_flip_switch,
                                                     ],
                                                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                                                 ),
                                                 ft.Row(
                                                     [
-                                                        ft.Text("Random Rotation", expand=True),
+                                                        ft.Text("Random rotation", expand=True),
                                                         aug_rotation_switch,
                                                     ],
                                                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -1169,7 +1169,7 @@ def main(page: ft.Page):
                                                 aug_rotation_degrees_field,
                                                 ft.Row(
                                                     [
-                                                        ft.Text("Random Brightness/Contrast", expand=True),
+                                                        ft.Text("Random brightness/contrast", expand=True),
                                                         aug_color_jitter_switch,
                                                     ],
                                                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
