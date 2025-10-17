@@ -79,6 +79,14 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
             progress_callback("No subdirectories with image files found")
         return
 
+    # Create all class directories in train, val, and test splits to ensure consistent class indexing.
+    all_class_names = {d.name for d in class_dirs}
+    for class_name in all_class_names:
+        (train_dest_path / class_name).mkdir(exist_ok=True)
+        (val_dest_path / class_name).mkdir(exist_ok=True)
+        if test_ratio > 0:
+            (test_dest_path / class_name).mkdir(exist_ok=True)
+
     processed_class_names = set()
 
     # Process each class directory
@@ -119,7 +127,6 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
         
         # Create destination class directories and copy files
         if train_images:
-            (train_dest_path / class_name).mkdir()
             if progress_callback:
                 progress_callback(f'Copying {len(train_images)} training images for class {class_name}')
             for img in train_images:
@@ -134,7 +141,6 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
                     shutil.copy(img, train_dest_path / class_name / img.name)
 
         if val_images:
-            (val_dest_path / class_name).mkdir()
             if progress_callback:
                 progress_callback(f'Copying {len(val_images)} validation images for class {class_name}')
             for img in val_images:
@@ -149,7 +155,6 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
                     shutil.copy(img, val_dest_path / class_name / img.name)
 
         if test_images:
-            (test_dest_path / class_name).mkdir()
             if progress_callback:
                 progress_callback(f'Copying {len(test_images)} test images for class {class_name}')
             for img in test_images:
