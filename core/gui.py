@@ -87,6 +87,77 @@ def main(page: ft.Page):
         page.update()
         save_inputs()
 
+    def reset_to_defaults(e):
+        """Resets all settings to their default values"""
+        # Process dataset tab
+        source_dir_path.value = ""
+        dest_dir_path.value = ""
+        train_ratio_field.value = "80"
+        val_ratio_field.value = "10"
+        test_ratio_field.value = "10"
+        resolution_field.value = "224"
+        process_seed_field.value = ""
+        train_dir_name_field.value = "train"
+        val_dir_name_field.value = "val"
+        test_dir_name_field.value = "test"
+        image_extensions_field.value = ".jpg,.jpeg,.png"
+        color_mode_dropdown.value = "RGB"
+        overwrite_dest_switch.value = False
+
+        # Fine-tuning tab
+        data_dir_path.value = ""
+        save_model_path.value = ""
+        load_model_path.value = ""
+        model_name_field.value = "efficientnet_b0"
+        epochs_field.value = "25"
+        batch_size_field.value = "32"
+        learning_rate_field.value = "0.001"
+        input_size_field.value = "224"
+        resize_size_field.value = "256"
+        num_workers_field.value = "4"
+        log_frequency_field.value = "10"
+        device_field.value = "auto"
+        train_from_scratch_switch.value = False
+        strict_load_switch.value = False
+        dropout_rate_field.value = "0.2"
+        optimiser_dropdown.value = "adamw"
+        sgd_momentum_field.value = "0.9"
+        adam_beta1_field.value = "0.9"
+        adam_beta2_field.value = "0.999"
+        adam_eps_field.value = "1e-8"
+        weight_decay_field.value = "0.01"
+        loss_function_dropdown.value = "label_smoothing"
+        label_smoothing_factor_field.value = "0.1"
+        use_imagenet_norm_switch.value = True
+        norm_mean_field.value = "0.485, 0.456, 0.406"
+        norm_std_field.value = "0.229, 0.224, 0.225"
+        load_truncated_images_switch.value = True
+        mixed_precision_switch.value = True
+        pin_memory_switch.value = True
+        early_stopping_switch.value = True
+        early_stopping_patience_field.value = "5"
+        early_stopping_min_delta_field.value = "0.001"
+        early_stopping_metric_dropdown.value = "loss"
+        finetune_seed_field.value = ""
+        aug_random_resized_crop_switch.value = True
+        aug_crop_scale_min_field.value = "0.08"
+        aug_crop_scale_max_field.value = "1.0"
+        aug_crop_ratio_min_field.value = "0.75"
+        aug_crop_ratio_max_field.value = "1.33"
+        aug_horizontal_flip_switch.value = True
+        aug_rotation_switch.value = True
+        aug_rotation_degrees_field.value = "15"
+        aug_color_jitter_switch.value = True
+        aug_color_jitter_brightness_field.value = "0.2"
+        aug_color_jitter_contrast_field.value = "0.2"
+        aug_color_jitter_saturation_field.value = "0.2"
+        aug_color_jitter_hue_field.value = "0.1"
+
+        toggle_norm_fields(None)
+        toggle_label_smoothing_field(None)
+        page.update()
+        save_inputs()
+
     def start_processing(e):
         """Callback to start the dataset processing in a separate thread"""
         global toast_hide_timer
@@ -1126,77 +1197,6 @@ def main(page: ft.Page):
             toggle_label_smoothing_field(None)
             
             page.update()
-
-    def reset_to_defaults(e):
-        """Resets all settings to their default values"""
-        # Process dataset tab
-        source_dir_path.value = ""
-        dest_dir_path.value = ""
-        train_ratio_field.value = "80"
-        val_ratio_field.value = "10"
-        test_ratio_field.value = "10"
-        resolution_field.value = "224"
-        process_seed_field.value = ""
-        train_dir_name_field.value = "train"
-        val_dir_name_field.value = "val"
-        test_dir_name_field.value = "test"
-        image_extensions_field.value = ".jpg,.jpeg,.png"
-        color_mode_dropdown.value = "RGB"
-        overwrite_dest_switch.value = False
-
-        # Fine-tuning tab
-        data_dir_path.value = ""
-        save_model_path.value = ""
-        load_model_path.value = ""
-        model_name_field.value = "efficientnet_b0"
-        epochs_field.value = "25"
-        batch_size_field.value = "32"
-        learning_rate_field.value = "0.001"
-        input_size_field.value = "224"
-        resize_size_field.value = "256"
-        num_workers_field.value = "4"
-        log_frequency_field.value = "10"
-        device_field.value = "auto"
-        train_from_scratch_switch.value = False
-        strict_load_switch.value = False
-        dropout_rate_field.value = "0.2"
-        optimiser_dropdown.value = "adamw"
-        sgd_momentum_field.value = "0.9"
-        adam_beta1_field.value = "0.9"
-        adam_beta2_field.value = "0.999"
-        adam_eps_field.value = "1e-8"
-        weight_decay_field.value = "0.01"
-        loss_function_dropdown.value = "label_smoothing"
-        label_smoothing_factor_field.value = "0.1"
-        use_imagenet_norm_switch.value = True
-        norm_mean_field.value = "0.485, 0.456, 0.406"
-        norm_std_field.value = "0.229, 0.224, 0.225"
-        load_truncated_images_switch.value = True
-        mixed_precision_switch.value = True
-        pin_memory_switch.value = True
-        early_stopping_switch.value = True
-        early_stopping_patience_field.value = "5"
-        early_stopping_min_delta_field.value = "0.001"
-        early_stopping_metric_dropdown.value = "loss"
-        finetune_seed_field.value = ""
-        aug_random_resized_crop_switch.value = True
-        aug_crop_scale_min_field.value = "0.08"
-        aug_crop_scale_max_field.value = "1.0"
-        aug_crop_ratio_min_field.value = "0.75"
-        aug_crop_ratio_max_field.value = "1.33"
-        aug_horizontal_flip_switch.value = True
-        aug_rotation_switch.value = True
-        aug_rotation_degrees_field.value = "15"
-        aug_color_jitter_switch.value = True
-        aug_color_jitter_brightness_field.value = "0.2"
-        aug_color_jitter_contrast_field.value = "0.2"
-        aug_color_jitter_saturation_field.value = "0.2"
-        aug_color_jitter_hue_field.value = "0.1"
-
-        toggle_norm_fields(None)
-        toggle_label_smoothing_field(None)
-        page.update()
-        save_inputs()
 
     for control in controls_to_save.values():
         control.on_change = save_inputs
