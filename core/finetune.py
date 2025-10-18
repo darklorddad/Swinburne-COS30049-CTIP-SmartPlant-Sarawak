@@ -213,68 +213,88 @@ def main(args, progress_callback=None):
         log(f'Epoch {epoch}/{num_epochs - 1}')
         log('-' * 10)
 
-        for phase in [train_dir_name, val_dir_name]:
-            if phase == train_dir_name:
-                model.train()
-            else:
-                model.eval()
+        # --- Training Phase ---
+        model.train()
+        train_running_loss = 0.0
+        train_running_corrects = 0
+        num_batches = len(dataloaders[train_dir_name])
+        for i, (inputs, labels) in enumerate(dataloaders[train_dir_name]):
+            if cancel_event and cancel_event.is_set():
+                log("Fine-tuning cancelled")
+                return None
+            inputs = inputs.to(device)
+            labels = labels.to(device)
 
-            running_loss = 0.0
-            running_corrects = 0
+            optimizer.zero_grad()
 
-            num_batches = len(dataloaders[phase])
-            for i, (inputs, labels) in enumerate(dataloaders[phase]):
+            with torch.set_grad_enabled(True):
+                with torch.amp.autocast(device.type, enabled=use_amp):
+                    outputs = model(inputs)
+                    _, preds = torch.max(outputs, 1)
+                    loss = criterion(outputs, labels)
+
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+
+            if (i + 1) % 10 == 0 or i + 1 == num_batches:
+                log(f'Processing {train_dir_name} batch {i+1}/{num_batches}')
+
+            train_running_loss += loss.item() * inputs.size(0)
+            train_running_corrects += torch.sum(preds == labels.data)
+
+        train_epoch_loss = train_running_loss / dataset_sizes[train_dir_name]
+        train_epoch_acc = train_running_corrects.double() / dataset_sizes[train_dir_name]
+        log(f'{train_dir_name} Loss: {train_epoch_loss:.4f} Acc: {train_epoch_acc:.4f}')
+        history['train_loss'].append(train_epoch_loss)
+        history['train_acc'].append(train_epoch_acc.item())
+
+        # --- Validation Phase ---
+        model.eval()
+        val_running_loss = 0.0
+        val_running_corrects = 0
+        num_batches = len(dataloaders[val_dir_name])
+        with torch.no_grad():
+            for i, (inputs, labels) in enumerate(dataloaders[val_dir_name]):
                 if cancel_event and cancel_event.is_set():
                     log("Fine-tuning cancelled")
                     return None
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                optimizer.zero_grad()
-
-                with torch.set_grad_enabled(phase == 'train'):
-                    with torch.amp.autocast(device.type, enabled=use_amp):
-                        outputs = model(inputs)
-                        _, preds = torch.max(outputs, 1)
-                        loss = criterion(outputs, labels)
-
-                    if phase == 'train':
-                        scaler.scale(loss).backward()
-                        scaler.step(optimizer)
-                        scaler.update()
+                with torch.amp.autocast(device.type, enabled=use_amp):
+                    outputs = model(inputs)
+                    _, preds = torch.max(outputs, 1)
+                    loss = criterion(outputs, labels)
 
                 if (i + 1) % 10 == 0 or i + 1 == num_batches:
-                    log(f'Processing {phase} batch {i+1}/{num_batches}')
+                    log(f'Processing {val_dir_name} batch {i+1}/{num_batches}')
 
-                running_loss += loss.item() * inputs.size(0)
-                running_corrects += torch.sum(preds == labels.data)
+                val_running_loss += loss.item() * inputs.size(0)
+                val_running_corrects += torch.sum(preds == labels.data)
 
-            epoch_loss = running_loss / dataset_sizes[phase]
-            epoch_acc = running_corrects.double() / dataset_sizes[phase]
+        val_epoch_loss = val_running_loss / dataset_sizes[val_dir_name]
+        val_epoch_acc = val_running_corrects.double() / dataset_sizes[val_dir_name]
+        log(f'{val_dir_name} Loss: {val_epoch_loss:.4f} Acc: {val_epoch_acc:.4f}')
+        history['val_loss'].append(val_epoch_loss)
+        history['val_acc'].append(val_epoch_acc.item())
 
-            log(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
-
-            if phase == train_dir_name:
-                history['train_loss'].append(epoch_loss)
-                history['train_acc'].append(epoch_acc.item())
-            elif phase == val_dir_name:
-                history['val_loss'].append(epoch_loss)
-                history['val_acc'].append(epoch_acc.item())
-                if early_stopping_patience > 0:
-                    if early_stopping_metric == 'loss':
-                        if epoch_loss < best_val_loss - early_stopping_min_delta:
-                            best_val_loss = epoch_loss
-                            best_model_state = copy.deepcopy(model.state_dict())
-                            epochs_no_improve = 0
-                        else:
-                            epochs_no_improve += 1
-                    elif early_stopping_metric == 'accuracy':
-                        if epoch_acc > best_val_acc + early_stopping_min_delta:
-                            best_val_acc = epoch_acc.item()
-                            best_model_state = copy.deepcopy(model.state_dict())
-                            epochs_no_improve = 0
-                        else:
-                            epochs_no_improve += 1
+        # Early stopping logic based on validation metrics
+        if early_stopping_patience > 0:
+            if early_stopping_metric == 'loss':
+                if val_epoch_loss < best_val_loss - early_stopping_min_delta:
+                    best_val_loss = val_epoch_loss
+                    best_model_state = copy.deepcopy(model.state_dict())
+                    epochs_no_improve = 0
+                else:
+                    epochs_no_improve += 1
+            elif early_stopping_metric == 'accuracy':
+                if val_epoch_acc > best_val_acc + early_stopping_min_delta:
+                    best_val_acc = val_epoch_acc.item()
+                    best_model_state = copy.deepcopy(model.state_dict())
+                    epochs_no_improve = 0
+                else:
+                    epochs_no_improve += 1
         
         if early_stopping_patience > 0 and epochs_no_improve >= early_stopping_patience:
             log(f"Early stopping triggered after {epochs_no_improve} epochs with no improvement")
