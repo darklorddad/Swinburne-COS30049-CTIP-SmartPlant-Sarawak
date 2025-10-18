@@ -5,6 +5,7 @@ import re
 import json
 import shutil
 import os
+import pprint
 from finetune import main as finetune_main
 from process_dataset import process_dataset
 from evaluation import create_evaluation_view
@@ -366,6 +367,7 @@ def main(page: ft.Page):
             elif results and not cancel_event.is_set():
                 page.latest_eval_results = results
                 toast_text.value = "Fine-tuning finished. Results are in the Evaluation tab"
+                pprint.pprint(results)
             elif cancel_event.is_set():
                 toast_text.value = "Fine-tuning was cancelled"
             else:
@@ -399,9 +401,9 @@ def main(page: ft.Page):
 
             try:
                 results = finetune_main(settings_dict, progress_callback=progress_callback)
-                page.call(handle_finetuning_completion, results)
+                handle_finetuning_completion(results)
             except Exception as ex:
-                page.call(handle_finetuning_completion, {"error": str(ex)})
+                handle_finetuning_completion({"error": str(ex)})
 
         finetuning_thread = threading.Thread(target=run_finetuning, args=(settings,))
         finetuning_thread.start()
