@@ -126,10 +126,11 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
         # Create destination class directories and copy files
         if train_images:
             log(f'Copying {len(train_images)} training images for class {class_name}')
-            for img in train_images:
+            for i, img in enumerate(train_images):
                 if cancel_event and cancel_event.is_set():
                     log("Processing cancelled")
                     return
+                log(f"  - Training image {i+1}/{len(train_images)}: {img.name}")
                 if resolution:
                     with Image.open(img) as image:
                         image = image.convert(color_mode).resize((resolution, resolution))
@@ -139,10 +140,11 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
 
         if val_images:
             log(f'Copying {len(val_images)} validation images for class {class_name}')
-            for img in val_images:
+            for i, img in enumerate(val_images):
                 if cancel_event and cancel_event.is_set():
                     log("Processing cancelled")
                     return
+                log(f"  - Validation image {i+1}/{len(val_images)}: {img.name}")
                 if resolution:
                     with Image.open(img) as image:
                         image = image.convert(color_mode).resize((resolution, resolution))
@@ -152,10 +154,11 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
 
         if test_images:
             log(f'Copying {len(test_images)} test images for class {class_name}')
-            for img in test_images:
+            for i, img in enumerate(test_images):
                 if cancel_event and cancel_event.is_set():
                     log("Processing cancelled")
                     return
+                log(f"  - Test image {i+1}/{len(test_images)}: {img.name}")
                 if resolution:
                     with Image.open(img) as image:
                         image = image.convert(color_mode).resize((resolution, resolution))

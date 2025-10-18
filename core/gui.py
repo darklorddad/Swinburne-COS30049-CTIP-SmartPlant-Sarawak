@@ -162,7 +162,6 @@ def main(page: ft.Page):
         input_size_field.value = "224"
         resize_size_field.value = "256"
         num_workers_field.value = "4"
-        log_frequency_field.value = "10"
         device_field.value = "auto"
         dropout_rate_field.value = "0.2"
         optimiser_dropdown.value = "adamw"
@@ -331,7 +330,6 @@ def main(page: ft.Page):
                 'input_size': int(input_size_field.value) if input_size_field.value else 224,
                 'resize_size': int(resize_size_field.value) if resize_size_field.value else int((int(input_size_field.value) if input_size_field.value else 224) / 224 * 256),
                 'num_workers': int(num_workers_field.value) if num_workers_field.value else 0,
-                'log_frequency': int(log_frequency_field.value) if log_frequency_field.value else 10,
                 'device': device_field.value or 'auto',
                 'train_dir_name': train_dir_name_field.value or 'train',
                 'val_dir_name': val_dir_name_field.value or 'val',
@@ -549,7 +547,6 @@ def main(page: ft.Page):
     input_size_field = ft.TextField(label="Input size (px)", value="224", height=TEXT_FIELD_HEIGHT)
     resize_size_field = ft.TextField(label="Resize size (px)", value="256", height=TEXT_FIELD_HEIGHT)
     num_workers_field = ft.TextField(label="Data loader workers", value="4", height=TEXT_FIELD_HEIGHT)
-    log_frequency_field = ft.TextField(label="Log frequency per epoch", value="10", height=TEXT_FIELD_HEIGHT)
     device_field = ft.TextField(label="Device", value="auto", height=TEXT_FIELD_HEIGHT)
     train_from_scratch_switch = ft.Switch(value=False)
     strict_load_switch = ft.Switch(value=False)
@@ -1102,7 +1099,6 @@ def main(page: ft.Page):
                                                 input_size_field,
                                                 resize_size_field,
                                                 num_workers_field,
-                                                log_frequency_field,
                                                 device_field,
                                                 dropout_rate_field,
                                                 optimiser_dropdown,
@@ -1379,7 +1375,7 @@ def main(page: ft.Page):
         "data_dir_path": data_dir_path, "save_model_path": save_model_path, "load_model_path": load_model_path,
         "model_name_field": model_name_field, "epochs_field": epochs_field,
         "batch_size_field": batch_size_field, "learning_rate_field": learning_rate_field,
-        "input_size_field": input_size_field, "resize_size_field": resize_size_field, "num_workers_field": num_workers_field, "log_frequency_field": log_frequency_field, "device_field": device_field,
+        "input_size_field": input_size_field, "resize_size_field": resize_size_field, "num_workers_field": num_workers_field, "device_field": device_field,
         "train_from_scratch_switch": train_from_scratch_switch,
         "strict_load_switch": strict_load_switch,
         "dropout_rate_field": dropout_rate_field, "optimiser_dropdown": optimiser_dropdown,
