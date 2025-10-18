@@ -373,11 +373,22 @@ def main(page: ft.Page):
                 print(message)
                 toast_text.value = message
             elif results and not cancel_event.is_set():
-                page.session.set("latest_eval_results", results)
+                # Save results to a file for persistence
+                results_path = "latest_eval_results.json"
+                try:
+                    with open(results_path, "w") as f:
+                        json.dump(results, f, indent=4)
+                except Exception as e:
+                    print(f"Error saving latest results to file: {e}")
+
                 message = "Fine-tuning finished. Results are in the Evaluation tab"
                 print(message)
                 toast_text.value = message
                 pprint.pprint(results)
+
+                # If on evaluation tab, update it immediately
+                if tabs.selected_index == 2: # Evaluation tab
+                    update_evaluation_tab_content(results)
             elif cancel_event.is_set():
                 message = "Fine-tuning was cancelled"
                 print(message)
@@ -709,11 +720,17 @@ def main(page: ft.Page):
             if e.path:
                 message = ""
                 try:
-                    latest_eval_results = page.session.get("latest_eval_results")
-                    if not latest_eval_results:
+                    results_to_save = None
+                    results_path = "latest_eval_results.json"
+                    if os.path.exists(results_path):
+                        with open(results_path, "r") as f:
+                            results_to_save = json.load(f)
+                    
+                    if not results_to_save:
                         raise ValueError("No evaluation results found to save.")
+
                     with open(e.path, 'w') as f:
-                        json.dump(latest_eval_results, f, indent=4)
+                        json.dump(results_to_save, f, indent=4)
                     message = f"Results saved to {e.path}"
                 except Exception as ex:
                     message = f"Error saving results: {ex}"
@@ -780,8 +797,15 @@ def main(page: ft.Page):
     def on_tab_change(e):
         selected_tab_text = e.control.tabs[e.control.selected_index].text
         if selected_tab_text == "Evaluation":
-            latest_eval_results = page.session.get("latest_eval_results")
-            update_evaluation_tab_content(latest_eval_results)
+            results = None
+            results_path = "latest_eval_results.json"
+            if os.path.exists(results_path):
+                try:
+                    with open(results_path, "r") as f:
+                        results = json.load(f)
+                except Exception as ex:
+                    print(f"Error loading results from file: {ex}")
+            update_evaluation_tab_content(results)
 
     tabs = ft.Tabs(
         selected_index=0,
