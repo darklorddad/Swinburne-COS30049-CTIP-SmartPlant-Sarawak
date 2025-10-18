@@ -277,7 +277,7 @@ def main(args, progress_callback=None):
         break
 
     # 9. After training, load the best model state if early stopping was used
-    if early_stopping_patience > 0 and epochs_no_improve < early_stopping_patience:
+    if early_stopping_patience > 0:
         log("Loading best model state for final evaluation")
         model.load_state_dict(best_model_state)
 
