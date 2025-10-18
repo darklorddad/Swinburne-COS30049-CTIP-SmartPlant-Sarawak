@@ -268,13 +268,10 @@ def main(args, progress_callback=None):
                             epochs_no_improve = 0
                         else:
                             epochs_no_improve += 1
-                    
-                    if epochs_no_improve >= early_stopping_patience:
-                        log(f"Early stopping triggered after {epochs_no_improve} epochs with no improvement")
-                        break
-        else:
-            continue
-        break
+        
+        if early_stopping_patience > 0 and epochs_no_improve >= early_stopping_patience:
+            log(f"Early stopping triggered after {epochs_no_improve} epochs with no improvement")
+            break
 
     # 9. After training, load the best model state if early stopping was used
     if early_stopping_patience > 0:
