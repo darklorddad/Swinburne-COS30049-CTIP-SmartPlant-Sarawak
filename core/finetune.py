@@ -127,7 +127,7 @@ def main(args, progress_callback=None):
         test_dir_name: transforms.Compose(val_transform_list),
     }
 
-    log("Creating datasets...")
+    log("Loading image datasets...")
     # 2. Create ImageFolder datasets
     phases = [train_dir_name, val_dir_name]
     if os.path.isdir(os.path.join(data_dir, test_dir_name)):

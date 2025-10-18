@@ -294,7 +294,6 @@ def main(page: ft.Page):
         cancel_button_row.visible = True
         cancel_button.disabled = False
         start_button.disabled = True
-        print("Starting fine-tuning")
         toast_text.value = "Starting fine-tuning"
         toast_progress_bar.visible = False
         toast_progress_ring.value = 0
