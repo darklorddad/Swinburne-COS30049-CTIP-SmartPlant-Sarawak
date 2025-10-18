@@ -8,8 +8,6 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from timm.loss import LabelSmoothingCrossEntropy
 from PIL import ImageFile
-from sklearn.metrics import confusion_matrix
-import numpy as np
 import pathlib
 
 def main(args, progress_callback=None):
@@ -150,7 +148,6 @@ def main(args, progress_callback=None):
     dataset_sizes = {x: len(image_datasets[x]) for x in phases}
     class_names = image_datasets[train_dir_name].classes
     num_classes = len(class_names)
-    labels_for_cm = list(range(num_classes))
 
     if device_str == 'auto':
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -202,8 +199,6 @@ def main(args, progress_callback=None):
     best_val_loss = float('inf')
     best_val_acc = 0.0
     epochs_no_improve = 0
-    
-    history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': []}
 
     for epoch in range(num_epochs):
         if cancel_event and cancel_event.is_set():
@@ -245,8 +240,6 @@ def main(args, progress_callback=None):
         train_epoch_loss = train_running_loss / dataset_sizes[train_dir_name]
         train_epoch_acc = train_running_corrects.double() / dataset_sizes[train_dir_name]
         log(f'{train_dir_name} Loss: {train_epoch_loss:.4f} Acc: {train_epoch_acc:.4f}')
-        history['train_loss'].append(train_epoch_loss)
-        history['train_acc'].append(train_epoch_acc.item())
 
         # --- Validation Phase ---
         model.eval()
@@ -275,8 +268,6 @@ def main(args, progress_callback=None):
         val_epoch_loss = val_running_loss / dataset_sizes[val_dir_name]
         val_epoch_acc = val_running_corrects.double() / dataset_sizes[val_dir_name]
         log(f'{val_dir_name} Loss: {val_epoch_loss:.4f} Acc: {val_epoch_acc:.4f}')
-        history['val_loss'].append(val_epoch_loss)
-        history['val_acc'].append(val_epoch_acc.item())
 
         # Early stopping logic based on validation metrics
         if early_stopping_patience > 0:
@@ -304,33 +295,6 @@ def main(args, progress_callback=None):
         log("Loading best model state for final evaluation")
         model.load_state_dict(best_model_state)
 
-    # Evaluate on validation set for confusion matrix
-    log("Evaluating on validation set for final metrics...")
-    model.eval()
-    val_running_loss = 0.0
-    val_running_corrects = 0
-    val_all_preds = []
-    val_all_labels = []
-    for inputs, labels in dataloaders[val_dir_name]:
-        if cancel_event and cancel_event.is_set():
-            log("Fine-tuning cancelled")
-            return None
-        inputs = inputs.to(device)
-        labels = labels.to(device)
-        with torch.no_grad():
-            outputs = model(inputs)
-            _, preds = torch.max(outputs, 1)
-            loss = criterion(outputs, labels)
-        val_running_loss += loss.item() * inputs.size(0)
-        val_running_corrects += torch.sum(preds == labels.data)
-        val_all_preds.extend(preds.cpu().numpy())
-        val_all_labels.extend(labels.cpu().numpy())
-    
-    val_final_loss = val_running_loss / dataset_sizes[val_dir_name]
-    val_final_acc = val_running_corrects.double() / dataset_sizes[val_dir_name]
-    val_cm = confusion_matrix(val_all_labels, val_all_preds, labels=labels_for_cm).tolist()
-    log(f'Final Validation Loss: {val_final_loss:.4f} Acc: {val_final_acc:.4f}')
-
     # Save the model
     if save_path:
         log(f"Saving model to {save_path}")
@@ -347,52 +311,10 @@ def main(args, progress_callback=None):
         }
         torch.save(save_data, save_path)
 
-    # 10. Evaluate on test set if it exists
-    test_acc_value = None
-    test_loss_value = None
-    test_cm = None
-    if test_dir_name in dataloaders:
-        log("Evaluating on test set...")
-        model.eval()
-        running_loss = 0.0
-        running_corrects = 0
-        all_preds = []
-        all_labels = []
-
-        for inputs, labels in dataloaders[test_dir_name]:
-            if cancel_event and cancel_event.is_set():
-                log("Fine-tuning cancelled")
-                return None
-            inputs = inputs.to(device)
-            labels = labels.to(device)
-
-            with torch.no_grad():
-                outputs = model(inputs)
-                _, preds = torch.max(outputs, 1)
-                loss = criterion(outputs, labels)
-
-            running_loss += loss.item() * inputs.size(0)
-            running_corrects += torch.sum(preds == labels.data)
-            all_preds.extend(preds.cpu().numpy())
-            all_labels.extend(labels.cpu().numpy())
-
-        test_loss_value = running_loss / dataset_sizes[test_dir_name]
-        test_acc = running_corrects.double() / dataset_sizes[test_dir_name]
-        test_acc_value = test_acc.item()
-        test_cm = confusion_matrix(all_labels, all_preds, labels=labels_for_cm).tolist()
-        log(f'Test Loss: {test_loss_value:.4f} Acc: {test_acc:.4f}')
-
     log("Fine-tuning finished")
 
     results = {
-        'history': history,
-        'val_acc': val_final_acc.item(),
-        'val_loss': val_final_loss,
-        'val_cm': val_cm,
-        'test_acc': test_acc_value,
-        'test_loss': test_loss_value,
-        'test_cm': test_cm,
-        'class_names': class_names
+        'status': 'completed'
     }
 
     # Explicitly clean up to help with memory management in a GUI context
