@@ -68,10 +68,18 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
     if test_ratio > 0:
         test_dest_path.mkdir(exist_ok=True)
 
+    if cancel_event and cancel_event.is_set():
+        log("Processing cancelled")
+        return
+
     # Recursively scan for directories with images.
+    log("Scanning for class directories...")
     all_dirs = [d for d in source_path.rglob('*') if d.is_dir()]
     class_dirs = []
     for d in all_dirs:
+        if cancel_event and cancel_event.is_set():
+            log("Processing cancelled")
+            return
         if any(f.suffix.lower() in image_extensions for f in d.iterdir() if f.is_file()):
             class_dirs.append(d)
 

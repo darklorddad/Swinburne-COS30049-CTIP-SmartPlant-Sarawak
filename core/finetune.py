@@ -133,8 +133,13 @@ def main(args, progress_callback=None):
     if os.path.isdir(os.path.join(data_dir, test_dir_name)):
         phases.append(test_dir_name)
     
-    image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x])
-                      for x in phases}
+    image_datasets = {}
+    for x in phases:
+        if cancel_event and cancel_event.is_set():
+            log("Fine-tuning cancelled")
+            return None
+        log(f"Loading '{x}' dataset...")
+        image_datasets[x] = datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x])
     
     log("Creating data loaders...")
     # 3. Create DataLoaders
