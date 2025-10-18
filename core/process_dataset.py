@@ -59,7 +59,7 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
                 shutil.rmtree(test_dest_path)
         else:
             if progress_callback:
-                progress_callback("Destination directory is not empty. Please clear it first or enable 'Overwrite destination'.")
+                progress_callback("Destination directory is not empty. Please clear it first or enable 'Overwrite destination'")
             return
 
     train_dest_path.mkdir(exist_ok=True)
