@@ -286,6 +286,9 @@ def main(args, progress_callback=None):
     val_all_preds = []
     val_all_labels = []
     for inputs, labels in dataloaders[val_dir_name]:
+        if cancel_event and cancel_event.is_set():
+            log("Fine-tuning cancelled")
+            return None
         inputs = inputs.to(device)
         labels = labels.to(device)
         with torch.no_grad():
@@ -331,6 +334,9 @@ def main(args, progress_callback=None):
         all_labels = []
 
         for inputs, labels in dataloaders[test_dir_name]:
+            if cancel_event and cancel_event.is_set():
+                log("Fine-tuning cancelled")
+                return None
             inputs = inputs.to(device)
             labels = labels.to(device)
 
