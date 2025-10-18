@@ -10,8 +10,6 @@ from timm.loss import LabelSmoothingCrossEntropy
 from PIL import ImageFile
 from sklearn.metrics import confusion_matrix
 import numpy as np
-import csv
-import datetime
 
 def main(args, progress_callback=None):
     """Main function to run the fine-tuning script"""
@@ -349,43 +347,6 @@ def main(args, progress_callback=None):
         test_acc_value = test_acc.item()
         test_cm = confusion_matrix(all_labels, all_preds, labels=labels_for_cm).tolist()
         log(f'Test Loss: {test_loss_value:.4f} Acc: {test_acc:.4f}')
-
-    # Log results to CSV
-    try:
-        csv_log_path = 'finetuning_log.csv'
-        log(f"Logging results to {csv_log_path}")
-
-        fieldnames = [
-            'timestamp', 'model_name', 'num_epochs', 'batch_size', 'learning_rate', 'dropout_rate',
-            'optimiser', 'loss_function', 'train_from_scratch', 'final_val_acc', 'final_val_loss',
-            'final_test_acc', 'final_test_loss'
-        ]
-
-        log_data = {
-            'timestamp': datetime.datetime.now().isoformat(),
-            'model_name': args.get('model_name'),
-            'num_epochs': args.get('num_epochs'),
-            'batch_size': args.get('batch_size'),
-            'learning_rate': args.get('learning_rate'),
-            'dropout_rate': args.get('dropout_rate'),
-            'optimiser': args.get('optimiser'),
-            'loss_function': args.get('loss_function'),
-            'train_from_scratch': args.get('train_from_scratch'),
-            'final_val_acc': val_final_acc.item(),
-            'final_val_loss': val_final_loss,
-            'final_test_acc': test_acc_value,
-            'final_test_loss': test_loss_value
-        }
-
-        file_exists = os.path.isfile(csv_log_path) and os.path.getsize(csv_log_path) > 0
-
-        with open(csv_log_path, 'a', newline='', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            if not file_exists:
-                writer.writeheader()
-            writer.writerow(log_data)
-    except Exception as e:
-        log(f"Failed to write to CSV log: {e}")
 
     log("Fine-tuning finished")
     
