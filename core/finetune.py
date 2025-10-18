@@ -81,6 +81,7 @@ def main(args, progress_callback=None):
         torch.manual_seed(seed)
         log(f"Using random seed: {seed}")
 
+    log("Setting up data transforms...")
     # 1. Set up data transforms
     train_transform_list = []
     if aug_random_resized_crop:
@@ -126,6 +127,7 @@ def main(args, progress_callback=None):
         test_dir_name: transforms.Compose(val_transform_list),
     }
 
+    log("Creating datasets...")
     # 2. Create ImageFolder datasets
     phases = [train_dir_name, val_dir_name]
     if os.path.isdir(os.path.join(data_dir, test_dir_name)):
@@ -134,6 +136,7 @@ def main(args, progress_callback=None):
     image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x])
                       for x in phases}
     
+    log("Creating data loaders...")
     # 3. Create DataLoaders
     dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size, shuffle=(x == train_dir_name), num_workers=num_workers, pin_memory=pin_memory)
                    for x in phases}
@@ -154,6 +157,7 @@ def main(args, progress_callback=None):
     if use_amp:
         log("Using mixed precision training (AMP)")
 
+    log("Setting up model...")
     # 4. Load pretrained model from timm
     # This will load a pretrained model and replace the classifier head with a new one for our number of classes.
     model = timm.create_model(model_name, pretrained=not train_from_scratch, num_classes=num_classes, drop_rate=dropout_rate)
