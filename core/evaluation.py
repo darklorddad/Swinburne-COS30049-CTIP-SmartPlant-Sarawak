@@ -67,8 +67,8 @@ def create_evaluation_view(results, on_save_callback):
     acc_chart = MatplotlibChart(fig_acc, expand=True)
 
     # Create CM tables
-    val_cm_table = create_confusion_matrix_table(val_cm, class_names)
-    test_cm_table = create_confusion_matrix_table(test_cm, class_names)
+    val_cm_table = create_confusion_matrix_table(val_cm, class_names) if val_cm else ft.Text("Not available for this run.")
+    test_cm_table = create_confusion_matrix_table(test_cm, class_names) if test_cm else ft.Text("Not available for this run.")
 
     # Summary text
     summary_items = [

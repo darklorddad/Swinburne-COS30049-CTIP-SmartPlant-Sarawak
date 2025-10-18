@@ -393,9 +393,8 @@ def main(page: ft.Page):
                 toast_text.value = message
                 pprint.pprint(results)
 
-                # If on evaluation tab, update it immediately
-                if tabs.selected_index == 2: # Evaluation tab
-                    update_evaluation_tab_content(results)
+                # Update evaluation tab content, it will be visible when the user switches to the tab.
+                update_evaluation_tab_content(results)
             elif cancel_event.is_set():
                 message = "Fine-tuning was cancelled"
                 print(message)
@@ -427,15 +426,24 @@ def main(page: ft.Page):
                     total_epochs = int(epoch_match.group(2)) + 1
                     toast_progress_ring.value = (current_epoch + 1) / total_epochs
                 else:
-                    toast_text.value = f"{epoch_message}: {message}" if epoch_message else message
+                    # If it's not an epoch message, it's a sub-step.
+                    # Prepend the epoch message only if it's a batch progress message.
+                    if "batch" in message:
+                        toast_text.value = f"{epoch_message}: {message}" if epoch_message else message
+                    else:
+                        # For other messages like "Evaluating...", "Loss: ...", "Finished", just show the message.
+                        toast_text.value = message
 
                 page.update()
 
+            results = None
             try:
                 results = finetune_main(settings_dict, progress_callback=progress_callback)
-                handle_finetuning_completion(results)
             except Exception as ex:
-                handle_finetuning_completion({"error": str(ex)})
+                results = {"error": str(ex)}
+            finally:
+                # This callback handles UI updates and must be called to finalize the process.
+                handle_finetuning_completion(results)
 
         finetuning_thread = threading.Thread(target=run_finetuning, args=(settings,))
         finetuning_thread.start()
