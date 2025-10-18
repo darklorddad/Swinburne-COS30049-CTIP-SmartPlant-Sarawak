@@ -10,7 +10,6 @@ from timm.loss import LabelSmoothingCrossEntropy
 from PIL import ImageFile
 from sklearn.metrics import confusion_matrix
 import numpy as np
-from evaluation import save_evaluation_results
 import pathlib
 
 def main(args, progress_callback=None):
@@ -396,12 +395,6 @@ def main(args, progress_callback=None):
         'class_names': class_names
     }
 
-    # Save evaluation results to files
-    if save_path:
-        p = pathlib.Path(save_path)
-        results_dir = p.parent / f"{p.stem}_results"
-        save_evaluation_results(results, str(results_dir))
-    
     # Explicitly clean up to help with memory management in a GUI context
     del model
     del dataloaders

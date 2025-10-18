@@ -5,14 +5,10 @@ import re
 import json
 import shutil
 import os
-import pprint
 from finetune import main as finetune_main
 from process_dataset import process_dataset
-from evaluation import create_evaluation_view
-from inference import classify_image
 
 cancel_event = threading.Event()
-mpl_lock = threading.Lock()
 
 def main(page: ft.Page):
     """Main function for the Flet GUI"""
@@ -57,9 +53,6 @@ def main(page: ft.Page):
 
         if e.files:
             target_field.value = e.files[0].path
-            if target_field == test_image_path:
-                test_image_display.src = e.files[0].path
-                test_image_display.visible = True
             page.update()
             save_inputs()
 
@@ -372,28 +365,9 @@ def main(page: ft.Page):
                 print(message)
                 toast_text.value = message
             elif results and not cancel_event.is_set():
-                # Save results to a file for persistence
-                results_path = "latest_eval_results.json"
-                try:
-                    # To reduce file size, confusion matrices are stored as compact JSON strings
-                    results_to_save = results.copy()
-                    if results_to_save.get('val_cm'):
-                        results_to_save['val_cm'] = json.dumps(results_to_save['val_cm'])
-                    if results_to_save.get('test_cm'):
-                        results_to_save['test_cm'] = json.dumps(results_to_save['test_cm'])
-
-                    with open(results_path, "w") as f:
-                        json.dump(results_to_save, f, indent=4)
-                except Exception as e:
-                    print(f"Error saving latest results to file: {e}")
-
-                message = "Fine-tuning finished. Results are in the Evaluation tab"
+                message = "Fine-tuning finished."
                 print(message)
                 toast_text.value = message
-                pprint.pprint(results)
-
-                # Update evaluation tab content, it will be visible when the user switches to the tab.
-                update_evaluation_tab_content(results)
             elif cancel_event.is_set():
                 message = "Fine-tuning was cancelled"
                 print(message)
@@ -453,11 +427,7 @@ def main(page: ft.Page):
     source_dir_picker = ft.FilePicker(on_result=on_source_dir_result)
     dest_dir_picker = ft.FilePicker(on_result=on_dest_dir_result)
     
-    test_model_picker = ft.FilePicker(on_result=lambda e: on_load_dialog_result(e, test_model_path))
-    test_image_picker = ft.FilePicker(on_result=lambda e: on_load_dialog_result(e, test_image_path))
-    save_eval_picker = ft.FilePicker()
-
-    page.overlay.extend([file_picker, save_file_picker, load_file_picker, source_dir_picker, dest_dir_picker, test_model_picker, test_image_picker, save_eval_picker])
+    page.overlay.extend([file_picker, save_file_picker, load_file_picker, source_dir_picker, dest_dir_picker])
 
     data_dir_path = ft.TextField(label="Dataset directory", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
     save_model_path = ft.TextField(label="Save model path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
@@ -721,120 +691,9 @@ def main(page: ft.Page):
     
     toast_close_button.on_click = hide_toast
 
-    evaluation_tab_content = ft.Column(
-        [ft.Text("No evaluation results available. Run fine-tuning first.", size=16)],
-        alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        expand=True
-    )
-    evaluation_container = ft.Container(
-        content=evaluation_tab_content,
-        alignment=ft.alignment.top_center,
-        padding=ft.padding.all(20),
-    )
-
-    def save_eval_results(e):
-        def on_save(e: ft.FilePickerResultEvent):
-            if e.path:
-                message = ""
-                try:
-                    results_to_save = None
-                    results_path = "latest_eval_results.json"
-                    if os.path.exists(results_path):
-                        with open(results_path, "r") as f:
-                            results_to_save = json.load(f)
-                    
-                    if not results_to_save:
-                        raise ValueError("No evaluation results found to save.")
-
-                    with open(e.path, 'w') as f:
-                        json.dump(results_to_save, f, indent=4)
-                    message = f"Results saved to {e.path}"
-                except Exception as ex:
-                    message = f"Error saving results: {ex}"
-                print(message)
-                toast_text.value = message
-                toast_close_button.visible = True
-                toast_container.visible = True
-                page.update()
-
-        save_eval_picker.on_result = on_save
-        save_eval_picker.save_file(dialog_title="Save Evaluation Results", file_name="evaluation_results.json")
-
-    def update_evaluation_tab_content(results):
-        with mpl_lock:
-            new_content = create_evaluation_view(results, on_save_callback=save_eval_results)
-        evaluation_container.content = new_content
-        page.update()
-
-    test_model_path = ft.TextField(label="Model path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
-    test_image_path = ft.TextField(label="Image path", read_only=True, border_width=0.5, height=TEXT_FIELD_HEIGHT, expand=3)
-    test_image_display = ft.Image(visible=False, width=224, height=224, fit=ft.ImageFit.CONTAIN)
-    test_result_text = ft.Text("", size=16, weight=ft.FontWeight.BOLD)
-
-    def run_classification():
-        model_path = test_model_path.value
-        image_path = test_image_path.value
-        if not model_path or not image_path:
-            message = "Please select a model and an image."
-            print(message)
-            test_result_text.value = message
-            page.update()
-            return
-
-        classify_button.disabled = True
-        message = "Classifying..."
-        print(message)
-        test_result_text.value = message
-        page.update()
-
-        try:
-            predicted_class, confidence = classify_image(model_path, image_path)
-            message = f"Prediction: {predicted_class}\nConfidence: {confidence:.2%}"
-            print(message)
-            test_result_text.value = message
-        except Exception as ex:
-            message = f"Error: {ex}"
-            print(message)
-            test_result_text.value = message
-        finally:
-            classify_button.disabled = False
-            page.update()
-
-    def start_classification_thread(e):
-        threading.Thread(target=run_classification).start()
-
-    classify_button = ft.ElevatedButton(
-        "Classify",
-        icon=ft.Icons.SEARCH,
-        on_click=start_classification_thread,
-        style=action_button_style,
-        height=BUTTON_HEIGHT,
-    )
-
-    def on_tab_change(e):
-        selected_tab_text = e.control.tabs[e.control.selected_index].text
-        if selected_tab_text == "Evaluation":
-            results = None
-            results_path = "latest_eval_results.json"
-            if os.path.exists(results_path):
-                try:
-                    with open(results_path, "r") as f:
-                        results = json.load(f)
-                    
-                    # Decompress confusion matrices if they are stored as strings
-                    if isinstance(results.get('val_cm'), str):
-                        results['val_cm'] = json.loads(results['val_cm'])
-                    if isinstance(results.get('test_cm'), str):
-                        results['test_cm'] = json.loads(results['test_cm'])
-                except Exception as ex:
-                    print(f"Error loading results from file: {ex}")
-            update_evaluation_tab_content(results)
-
     tabs = ft.Tabs(
         selected_index=0,
         animation_duration=300,
-        on_change=on_tab_change,
         tabs=[
             ft.Tab(
                 text="Process dataset",
@@ -1339,74 +1198,6 @@ def main(page: ft.Page):
                         spacing=10,
                         scroll=ft.ScrollMode.ADAPTIVE,
                         horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
-                    ),
-                    alignment=ft.alignment.top_center,
-                ),
-            ),
-            ft.Tab(
-                text="Evaluation",
-                content=evaluation_container,
-            ),
-            ft.Tab(
-                text="Testing",
-                content=ft.Container(
-                    content=ft.Column(
-                        [
-                            ft.Container(
-                                content=ft.Card(
-                                    content=ft.Container(
-                                        content=ft.Column(
-                                            [
-                                                ft.Text("Inference", theme_style=ft.TextThemeStyle.TITLE_MEDIUM),
-                                                ft.Divider(),
-                                                ft.Row(
-                                                    [
-                                                        test_model_path,
-                                                        ft.ElevatedButton(
-                                                            "Select model",
-                                                            icon=ft.Icons.UPLOAD_FILE,
-                                                            on_click=lambda _: test_model_picker.pick_files(
-                                                                dialog_title="Select model file", allow_multiple=False
-                                                            ),
-                                                            style=beside_button_style, expand=1, height=BUTTON_HEIGHT,
-                                                        ),
-                                                    ],
-                                                    spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                                                ),
-                                                ft.Row(
-                                                    [
-                                                        test_image_path,
-                                                        ft.ElevatedButton(
-                                                            "Select image",
-                                                            icon=ft.Icons.IMAGE,
-                                                            on_click=lambda _: test_image_picker.pick_files(
-                                                                dialog_title="Select image file", allow_multiple=False
-                                                            ),
-                                                            style=beside_button_style, expand=1, height=BUTTON_HEIGHT,
-                                                        ),
-                                                    ],
-                                                    spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                                                ),
-                                                ft.Row([classify_button], alignment=ft.MainAxisAlignment.CENTER),
-                                                ft.Divider(),
-                                                ft.Row(
-                                                    [
-                                                        ft.Column([test_result_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=1),
-                                                        ft.Column([test_image_display], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=1),
-                                                    ],
-                                                    alignment=ft.MainAxisAlignment.SPACE_AROUND,
-                                                ),
-                                            ],
-                                            spacing=10, horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
-                                        ),
-                                        padding=ft.padding.all(15)
-                                    ),
-                                    elevation=2, shape=ft.RoundedRectangleBorder(radius=8), width=800,
-                                ),
-                                alignment=ft.alignment.center, padding=ft.padding.only(top=20),
-                            ),
-                        ],
-                        spacing=10, scroll=ft.ScrollMode.ADAPTIVE, horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
                     ),
                     alignment=ft.alignment.top_center,
                 ),
