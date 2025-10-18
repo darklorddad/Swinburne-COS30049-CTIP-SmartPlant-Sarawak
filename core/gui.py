@@ -16,7 +16,6 @@ mpl_lock = threading.Lock()
 
 def main(page: ft.Page):
     """Main function for the Flet GUI"""
-    page.latest_eval_results = None
     page.title = "Core"
     page.theme_mode = ft.ThemeMode.DARK
     page.window_min_width = 640
@@ -374,7 +373,7 @@ def main(page: ft.Page):
                 print(message)
                 toast_text.value = message
             elif results and not cancel_event.is_set():
-                page.latest_eval_results = results
+                page.session.set("latest_eval_results", results)
                 message = "Fine-tuning finished. Results are in the Evaluation tab"
                 print(message)
                 toast_text.value = message
@@ -710,8 +709,11 @@ def main(page: ft.Page):
             if e.path:
                 message = ""
                 try:
+                    latest_eval_results = page.session.get("latest_eval_results")
+                    if not latest_eval_results:
+                        raise ValueError("No evaluation results found to save.")
                     with open(e.path, 'w') as f:
-                        json.dump(page.latest_eval_results, f, indent=4)
+                        json.dump(latest_eval_results, f, indent=4)
                     message = f"Results saved to {e.path}"
                 except Exception as ex:
                     message = f"Error saving results: {ex}"
@@ -778,8 +780,8 @@ def main(page: ft.Page):
     def on_tab_change(e):
         selected_tab_text = e.control.tabs[e.control.selected_index].text
         if selected_tab_text == "Evaluation":
-            if page.latest_eval_results:
-                update_evaluation_tab_content(page.latest_eval_results)
+            latest_eval_results = page.session.get("latest_eval_results")
+            update_evaluation_tab_content(latest_eval_results)
 
     tabs = ft.Tabs(
         selected_index=0,
