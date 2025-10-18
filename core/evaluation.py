@@ -4,6 +4,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+import pandas as pd
+import seaborn as sns
 
 def create_plots(history):
     """Creates and returns matplotlib figures for loss and accuracy."""
@@ -30,6 +33,20 @@ def create_plots(history):
     fig_acc.tight_layout()
     
     return fig_loss, fig_acc
+
+def plot_confusion_matrix(cm, class_names, title='Confusion Matrix'):
+    """Creates and returns a matplotlib figure for the confusion matrix."""
+    if not cm or not class_names:
+        return None
+    
+    plt.style.use('dark_background')
+    fig, ax = plt.subplots(figsize=(max(8, len(class_names) // 2), max(6, len(class_names) // 2.5)))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names, ax=ax)
+    ax.set_title(title)
+    ax.set_ylabel('Actual')
+    ax.set_xlabel('Predicted')
+    fig.tight_layout()
+    return fig
 
 def create_confusion_matrix_table(cm, class_names):
     """Creates a Flet DataTable for the confusion matrix."""
@@ -105,3 +122,63 @@ def create_evaluation_view(results, on_save_callback):
         scroll=ft.ScrollMode.ADAPTIVE,
         horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
     )
+
+def save_evaluation_results(results, output_dir):
+    """Saves evaluation results (plots, history, summary) to a directory."""
+    if not results:
+        print("No results to save.")
+        return
+
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"Saving evaluation results to {output_dir}")
+
+    history = results.get('history', {})
+    val_cm = results.get('val_cm')
+    test_cm = results.get('test_cm')
+    class_names = results.get('class_names', [])
+
+    # 1. Save history to CSV
+    if history:
+        df = pd.DataFrame(history)
+        df.to_csv(os.path.join(output_dir, 'training_history.csv'), index_label='epoch')
+
+    # 2. Save performance plots
+    fig_loss, fig_acc = create_plots(history)
+    if fig_loss:
+        fig_loss.savefig(os.path.join(output_dir, 'loss_plot.png'))
+        plt.close(fig_loss)
+    if fig_acc:
+        fig_acc.savefig(os.path.join(output_dir, 'accuracy_plot.png'))
+        plt.close(fig_acc)
+
+    # 3. Save confusion matrices
+    if val_cm:
+        fig_val_cm = plot_confusion_matrix(val_cm, class_names, 'Validation Confusion Matrix')
+        if fig_val_cm:
+            fig_val_cm.savefig(os.path.join(output_dir, 'validation_confusion_matrix.png'))
+            plt.close(fig_val_cm)
+
+    if test_cm:
+        fig_test_cm = plot_confusion_matrix(test_cm, class_names, 'Test Confusion Matrix')
+        if fig_test_cm:
+            fig_test_cm.savefig(os.path.join(output_dir, 'test_confusion_matrix.png'))
+            plt.close(fig_test_cm)
+
+    # 4. Save summary to a text file
+    summary_path = os.path.join(output_dir, 'summary.txt')
+    with open(summary_path, 'w') as f:
+        f.write("Evaluation Summary\n")
+        f.write("="*20 + "\n")
+        val_acc = results.get('val_acc', 0)
+        val_loss = results.get('val_loss', 0)
+        f.write(f"Final Validation Accuracy: {val_acc:.4f}\n")
+        f.write(f"Final Validation Loss: {val_loss:.4f}\n")
+        
+        test_acc = results.get('test_acc')
+        test_loss = results.get('test_loss')
+        if test_acc is not None:
+            f.write(f"Final Test Accuracy: {test_acc:.4f}\n")
+        if test_loss is not None:
+            f.write(f"Final Test Loss: {test_loss:.4f}\n")
+
+    print(f"Results saved successfully.")

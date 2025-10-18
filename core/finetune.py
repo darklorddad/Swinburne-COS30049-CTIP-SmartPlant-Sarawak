@@ -10,6 +10,8 @@ from timm.loss import LabelSmoothingCrossEntropy
 from PIL import ImageFile
 from sklearn.metrics import confusion_matrix
 import numpy as np
+from evaluation import save_evaluation_results
+import pathlib
 
 def main(args, progress_callback=None):
     """Main function to run the fine-tuning script"""
@@ -362,6 +364,23 @@ def main(args, progress_callback=None):
         log(f'Test Loss: {test_loss_value:.4f} Acc: {test_acc:.4f}')
 
     log("Fine-tuning finished")
+
+    results = {
+        'history': history,
+        'val_acc': val_final_acc.item(),
+        'val_loss': val_final_loss,
+        'val_cm': val_cm,
+        'test_acc': test_acc_value,
+        'test_loss': test_loss_value,
+        'test_cm': test_cm,
+        'class_names': class_names
+    }
+
+    # Save evaluation results to files
+    if save_path:
+        p = pathlib.Path(save_path)
+        results_dir = p.parent / f"{p.stem}_results"
+        save_evaluation_results(results, str(results_dir))
     
     # Explicitly clean up to help with memory management in a GUI context
     del model
@@ -373,16 +392,7 @@ def main(args, progress_callback=None):
         torch.cuda.empty_cache()
 
     # 11. Return the final validation and test accuracies
-    return {
-        'history': history,
-        'val_acc': val_final_acc.item(),
-        'val_loss': val_final_loss,
-        'val_cm': val_cm,
-        'test_acc': test_acc_value,
-        'test_loss': test_loss_value,
-        'test_cm': test_cm,
-        'class_names': class_names
-    }
+    return results
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Fine-tune a model on a new dataset')
