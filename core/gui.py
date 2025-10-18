@@ -327,7 +327,7 @@ def main(page: ft.Page):
                 'norm_mean': norm_mean_field.value,
                 'norm_std': norm_std_field.value,
                 'input_size': int(input_size_field.value) if input_size_field.value else 224,
-                'resize_size': int(resize_size_field.value) if resize_size_field.value else int((int(input_size_field.value) if input_size_field.value else 224) / 224 * 256),
+                'resize_size': int(resize_size_field.value) if resize_size_field.value else None,
                 'num_workers': int(num_workers_field.value) if num_workers_field.value else 0,
                 'device': device_field.value or 'auto',
                 'train_dir_name': train_dir_name_field.value or 'train',
@@ -482,16 +482,15 @@ def main(page: ft.Page):
     process_seed_field = ft.TextField(label="Seed (optional)", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=3)
     overwrite_dest_switch = ft.Switch(value=False)
 
-    def run_clear_dataset_thread():
+    def run_clear_dataset_thread(dest_dir, train_dir_name, val_dir_name, test_dir_name):
         """Background thread to clear the dataset directory"""
-        dest_dir = dest_dir_path.value
         message = ""
         if not dest_dir:
             message = "Destination directory not set"
         else:
-            train_path = os.path.join(dest_dir, train_dir_name_field.value or 'train')
-            val_path = os.path.join(dest_dir, val_dir_name_field.value or 'val')
-            test_path = os.path.join(dest_dir, test_dir_name_field.value or 'test')
+            train_path = os.path.join(dest_dir, train_dir_name)
+            val_path = os.path.join(dest_dir, val_dir_name)
+            test_path = os.path.join(dest_dir, test_dir_name)
             
             try:
                 if os.path.exists(train_path):
@@ -527,7 +526,12 @@ def main(page: ft.Page):
         toast_container.visible = True
         page.update()
 
-        clear_thread = threading.Thread(target=run_clear_dataset_thread)
+        dest_dir = dest_dir_path.value
+        train_dir_name = train_dir_name_field.value or 'train'
+        val_dir_name = val_dir_name_field.value or 'val'
+        test_dir_name = test_dir_name_field.value or 'test'
+
+        clear_thread = threading.Thread(target=run_clear_dataset_thread, args=(dest_dir, train_dir_name, val_dir_name, test_dir_name))
         clear_thread.start()
 
     clear_dataset_button = ft.ElevatedButton(
