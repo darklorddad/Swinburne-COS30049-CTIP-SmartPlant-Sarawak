@@ -236,7 +236,8 @@ def main(args, progress_callback=None):
                         scaler.step(optimizer)
                         scaler.update()
 
-                log(f'Processing {phase} batch {i+1}/{num_batches}')
+                if (i + 1) % 10 == 0 or i + 1 == num_batches:
+                    log(f'Processing {phase} batch {i+1}/{num_batches}')
 
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
