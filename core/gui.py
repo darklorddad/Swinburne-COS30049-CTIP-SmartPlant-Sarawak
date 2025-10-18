@@ -204,6 +204,7 @@ def main(page: ft.Page):
         cancel_button_row.visible = True
         cancel_button.disabled = False
         process_start_button.disabled = True
+        print("Processing dataset")
         toast_text.value = "Processing dataset"
         toast_progress_bar.visible = False
         toast_progress_ring.visible = True
@@ -232,10 +233,13 @@ def main(page: ft.Page):
                 int(process_seed_field.value)
 
         except (ValueError, TypeError) as ex:
+            message = ""
             if "cannot exceed 100" in str(ex) or "between 0 and 100" in str(ex) or "positive number" in str(ex):
-                toast_text.value = str(ex)
+                message = str(ex)
             else:
-                toast_text.value = "Invalid number in one of the fields. Please check ratios, resolution, and seed"
+                message = "Invalid number in one of the fields. Please check ratios, resolution, and seed"
+            print(message)
+            toast_text.value = message
             toast_progress_ring.visible = False
             cancel_button_row.visible = False
             toast_close_button.visible = True
@@ -271,8 +275,10 @@ def main(page: ft.Page):
                     test_dir_name=test_dir_name_field.value or 'test'
                 )
                 if not cancel_event.is_set():
+                    print("Dataset processing finished successfully")
                     progress_callback("Dataset processing finished successfully")
             except Exception as ex:
+                print(f"An error occurred: {ex}")
                 progress_callback(f"An error occurred: {ex}")
             finally:
                 process_start_button.disabled = False
@@ -290,6 +296,7 @@ def main(page: ft.Page):
         cancel_button_row.visible = True
         cancel_button.disabled = False
         start_button.disabled = True
+        print("Starting fine-tuning")
         toast_text.value = "Starting fine-tuning"
         toast_progress_bar.visible = False
         toast_progress_ring.value = 0
@@ -352,7 +359,9 @@ def main(page: ft.Page):
                 'seed': int(finetune_seed_field.value) if finetune_seed_field.value else None,
             }
         except (ValueError, TypeError):
-            toast_text.value = "Invalid number in one of the fields. Please check hyperparameters and seed"
+            message = "Invalid number in one of the fields. Please check hyperparameters and seed"
+            print(message)
+            toast_text.value = message
             toast_progress_ring.visible = False
             cancel_button_row.visible = False
             start_button.disabled = False
@@ -363,15 +372,23 @@ def main(page: ft.Page):
         def handle_finetuning_completion(results):
             """Callback executed in the UI thread after fine-tuning is complete."""
             if results and "error" in results:
-                toast_text.value = f"An error occurred: {results['error']}"
+                message = f"An error occurred: {results['error']}"
+                print(message)
+                toast_text.value = message
             elif results and not cancel_event.is_set():
                 page.latest_eval_results = results
-                toast_text.value = "Fine-tuning finished. Results are in the Evaluation tab"
+                message = "Fine-tuning finished. Results are in the Evaluation tab"
+                print(message)
+                toast_text.value = message
                 pprint.pprint(results)
             elif cancel_event.is_set():
-                toast_text.value = "Fine-tuning was cancelled"
+                message = "Fine-tuning was cancelled"
+                print(message)
+                toast_text.value = message
             else:
-                toast_text.value = "Fine-tuning finished, but no results were returned"
+                message = "Fine-tuning finished, but no results were returned"
+                print(message)
+                toast_text.value = message
 
             start_button.disabled = False
             toast_progress_ring.visible = False
@@ -453,8 +470,9 @@ def main(page: ft.Page):
     def run_clear_dataset_thread():
         """Background thread to clear the dataset directory"""
         dest_dir = dest_dir_path.value
+        message = ""
         if not dest_dir:
-            toast_text.value = "Destination directory not set"
+            message = "Destination directory not set"
         else:
             train_path = os.path.join(dest_dir, train_dir_name_field.value or 'train')
             val_path = os.path.join(dest_dir, val_dir_name_field.value or 'val')
@@ -470,13 +488,15 @@ def main(page: ft.Page):
                 
                 # Verify deletion
                 if os.path.exists(train_path) or os.path.exists(val_path) or os.path.exists(test_path):
-                    toast_text.value = "Error: Failed to delete dataset directories. Please check file permissions"
+                    message = "Error: Failed to delete dataset directories. Please check file permissions"
                 else:
-                    toast_text.value = "Processed dataset cleared successfully"
+                    message = "Processed dataset cleared successfully"
 
             except Exception as ex:
-                toast_text.value = f"Error clearing dataset: {ex}"
+                message = f"Error clearing dataset: {ex}"
         
+        print(message)
+        toast_text.value = message
         toast_progress_ring.visible = False
         toast_close_button.visible = True
         page.update()
@@ -484,6 +504,7 @@ def main(page: ft.Page):
     def clear_dataset(e):
         """Handles clearing the dataset"""
     
+        print("Clearing processed dataset")
         toast_text.value = "Clearing processed dataset"
         toast_progress_ring.visible = True
         toast_progress_bar.visible = False
@@ -633,6 +654,7 @@ def main(page: ft.Page):
     toast_close_button = ft.IconButton(ft.Icons.CLOSE, icon_size=16, visible=False)
 
     def cancel_operation(e):
+        print("Cancelling")
         toast_text.value = "Cancelling"
         cancel_button.disabled = True
         page.update()
@@ -689,12 +711,15 @@ def main(page: ft.Page):
     def save_eval_results(e):
         def on_save(e: ft.FilePickerResultEvent):
             if e.path:
+                message = ""
                 try:
                     with open(e.path, 'w') as f:
                         json.dump(page.latest_eval_results, f, indent=4)
-                    toast_text.value = f"Results saved to {e.path}"
+                    message = f"Results saved to {e.path}"
                 except Exception as ex:
-                    toast_text.value = f"Error saving results: {ex}"
+                    message = f"Error saving results: {ex}"
+                print(message)
+                toast_text.value = message
                 toast_close_button.visible = True
                 toast_container.visible = True
                 page.update()
@@ -717,19 +742,27 @@ def main(page: ft.Page):
         model_path = test_model_path.value
         image_path = test_image_path.value
         if not model_path or not image_path:
-            test_result_text.value = "Please select a model and an image."
+            message = "Please select a model and an image."
+            print(message)
+            test_result_text.value = message
             page.update()
             return
 
         classify_button.disabled = True
-        test_result_text.value = "Classifying..."
+        message = "Classifying..."
+        print(message)
+        test_result_text.value = message
         page.update()
 
         try:
             predicted_class, confidence = classify_image(model_path, image_path)
-            test_result_text.value = f"Prediction: {predicted_class}\nConfidence: {confidence:.2%}"
+            message = f"Prediction: {predicted_class}\nConfidence: {confidence:.2%}"
+            print(message)
+            test_result_text.value = message
         except Exception as ex:
-            test_result_text.value = f"Error: {ex}"
+            message = f"Error: {ex}"
+            print(message)
+            test_result_text.value = message
         finally:
             classify_button.disabled = False
             page.update()
