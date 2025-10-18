@@ -304,15 +304,6 @@ def main(args, progress_callback=None):
     val_cm = confusion_matrix(val_all_labels, val_all_preds, labels=labels_for_cm).tolist()
     log(f'Final Validation Loss: {val_final_loss:.4f} Acc: {val_final_acc:.4f}')
 
-    # Explicitly clean up to help with memory management in a GUI context
-    del model
-    del dataloaders
-    del image_datasets
-    del optimizer
-    del criterion
-    if device.type == 'cuda':
-        torch.cuda.empty_cache()
-
     # Save the model
     if save_path:
         log(f"Saving model to {save_path}")
@@ -363,6 +354,15 @@ def main(args, progress_callback=None):
 
     log("Fine-tuning finished")
     
+    # Explicitly clean up to help with memory management in a GUI context
+    del model
+    del dataloaders
+    del image_datasets
+    del optimizer
+    del criterion
+    if device.type == 'cuda':
+        torch.cuda.empty_cache()
+
     # 11. Return the final validation and test accuracies
     return {
         'history': history,
