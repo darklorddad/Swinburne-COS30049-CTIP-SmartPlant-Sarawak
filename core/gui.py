@@ -365,7 +365,11 @@ def main(page: ft.Page):
                 print(message)
                 toast_text.value = message
             elif results and not cancel_event.is_set():
-                message = "Fine-tuning finished."
+                val_acc = results.get('val_acc')
+                if val_acc is not None:
+                    message = f"Fine-tuning finished. Final validation accuracy: {val_acc:.2%}"
+                else:
+                    message = "Fine-tuning finished."
                 print(message)
                 toast_text.value = message
             elif cancel_event.is_set():

@@ -295,6 +295,29 @@ def main(args, progress_callback=None):
         log("Loading best model state for final evaluation")
         model.load_state_dict(best_model_state)
 
+    # Evaluate on validation set for final metrics
+    log("Evaluating on validation set for final metrics...")
+    model.eval()
+    val_running_loss = 0.0
+    val_running_corrects = 0
+    with torch.no_grad():
+        for inputs, labels in dataloaders[val_dir_name]:
+            if cancel_event and cancel_event.is_set():
+                log("Fine-tuning cancelled")
+                return None
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            with torch.amp.autocast(device.type, enabled=use_amp):
+                outputs = model(inputs)
+                _, preds = torch.max(outputs, 1)
+                loss = criterion(outputs, labels)
+            val_running_loss += loss.item() * inputs.size(0)
+            val_running_corrects += torch.sum(preds == labels.data)
+    
+    val_final_loss = val_running_loss / dataset_sizes[val_dir_name]
+    val_final_acc = val_running_corrects.double() / dataset_sizes[val_dir_name]
+    log(f'Final Validation Loss: {val_final_loss:.4f} Acc: {val_final_acc:.4f}')
+
     # Save the model
     if save_path:
         log(f"Saving model to {save_path}")
@@ -314,7 +337,8 @@ def main(args, progress_callback=None):
     log("Fine-tuning finished")
 
     results = {
-        'status': 'completed'
+        'status': 'completed',
+        'val_acc': val_final_acc.item()
     }
 
     # Explicitly clean up to help with memory management in a GUI context
