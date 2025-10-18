@@ -376,8 +376,15 @@ def main(page: ft.Page):
                 # Save results to a file for persistence
                 results_path = "latest_eval_results.json"
                 try:
+                    # To reduce file size, confusion matrices are stored as compact JSON strings
+                    results_to_save = results.copy()
+                    if results_to_save.get('val_cm'):
+                        results_to_save['val_cm'] = json.dumps(results_to_save['val_cm'])
+                    if results_to_save.get('test_cm'):
+                        results_to_save['test_cm'] = json.dumps(results_to_save['test_cm'])
+
                     with open(results_path, "w") as f:
-                        json.dump(results, f, indent=4)
+                        json.dump(results_to_save, f, indent=4)
                 except Exception as e:
                     print(f"Error saving latest results to file: {e}")
 
@@ -803,6 +810,12 @@ def main(page: ft.Page):
                 try:
                     with open(results_path, "r") as f:
                         results = json.load(f)
+                    
+                    # Decompress confusion matrices if they are stored as strings
+                    if isinstance(results.get('val_cm'), str):
+                        results['val_cm'] = json.loads(results['val_cm'])
+                    if isinstance(results.get('test_cm'), str):
+                        results['test_cm'] = json.loads(results['test_cm'])
                 except Exception as ex:
                     print(f"Error loading results from file: {ex}")
             update_evaluation_tab_content(results)
