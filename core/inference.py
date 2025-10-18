@@ -16,10 +16,9 @@ def classify_image(model_path, image_path, progress_callback=None):
         tuple: (predicted_class_name, confidence_score)
     """
     def log(message):
+        print(message)
         if progress_callback:
             progress_callback(message)
-        else:
-            print(message)
 
     log("Loading model and image...")
     try:

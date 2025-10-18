@@ -15,10 +15,9 @@ def main(args, progress_callback=None):
     """Main function to run the fine-tuning script"""
     
     def log(message):
+        print(message)
         if progress_callback:
             progress_callback(message)
-        else:
-            print(message)
 
     log("Starting fine-tuning")
 

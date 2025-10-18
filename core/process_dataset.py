@@ -22,14 +22,17 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
         image_extensions (str, optional): Comma-separated string of image extensions to include.
         color_mode (str, optional): The color mode to convert images to (e.g., 'RGB', 'L').
     """
+    def log(message):
+        print(message)
+        if progress_callback:
+            progress_callback(message)
+
     ImageFile.LOAD_TRUNCATED_IMAGES = load_truncated_images
-    if progress_callback:
-        progress_callback("Starting dataset processing")
+    log("Starting dataset processing")
 
     if seed is not None:
         random.seed(seed)
-        if progress_callback:
-            progress_callback(f"Using random seed: {seed}")
+        log(f"Using random seed: {seed}")
 
     source_path = pathlib.Path(source_dir)
     dest_path = pathlib.Path(dest_dir)
@@ -49,8 +52,7 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
        (val_dest_path.exists() and any(val_dest_path.iterdir())) or \
        (test_dest_path.exists() and any(test_dest_path.iterdir())):
         if overwrite_dest:
-            if progress_callback:
-                progress_callback("Destination directory is not empty. Overwriting...")
+            log("Destination directory is not empty. Overwriting...")
             if train_dest_path.exists():
                 shutil.rmtree(train_dest_path)
             if val_dest_path.exists():
@@ -58,8 +60,7 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
             if test_dest_path.exists():
                 shutil.rmtree(test_dest_path)
         else:
-            if progress_callback:
-                progress_callback("Destination directory is not empty. Please clear it first or enable 'Overwrite destination'")
+            log("Destination directory is not empty. Please clear it first or enable 'Overwrite destination'")
             return
 
     train_dest_path.mkdir(exist_ok=True)
@@ -75,8 +76,7 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
             class_dirs.append(d)
 
     if not class_dirs:
-        if progress_callback:
-            progress_callback("No subdirectories with image files found")
+        log("No subdirectories with image files found")
         return
 
     # Create all class directories in train, val, and test splits to ensure consistent class indexing.
@@ -92,13 +92,12 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
     # Process each class directory
     for class_dir in class_dirs:
         if cancel_event and cancel_event.is_set():
-            progress_callback("Processing cancelled")
+            log("Processing cancelled")
             return
         class_name = class_dir.name
 
         if class_name in processed_class_names:
-            if progress_callback:
-                progress_callback(f"Warning: Class name '{class_name}' is duplicated Skipping to avoid data mixing")
+            log(f"Warning: Class name '{class_name}' is duplicated Skipping to avoid data mixing")
             continue
         processed_class_names.add(class_name)
 
@@ -110,8 +109,7 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
             continue
 
         # Report progress
-        if progress_callback:
-            progress_callback(f'Found class: {class_name} with {num_images} images')
+        log(f'Found class: {class_name} with {num_images} images')
 
         # Shuffle images
         random.shuffle(images)
@@ -127,11 +125,10 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
         
         # Create destination class directories and copy files
         if train_images:
-            if progress_callback:
-                progress_callback(f'Copying {len(train_images)} training images for class {class_name}')
+            log(f'Copying {len(train_images)} training images for class {class_name}')
             for img in train_images:
                 if cancel_event and cancel_event.is_set():
-                    progress_callback("Processing cancelled")
+                    log("Processing cancelled")
                     return
                 if resolution:
                     with Image.open(img) as image:
@@ -141,11 +138,10 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
                     shutil.copy(img, train_dest_path / class_name / img.name)
 
         if val_images:
-            if progress_callback:
-                progress_callback(f'Copying {len(val_images)} validation images for class {class_name}')
+            log(f'Copying {len(val_images)} validation images for class {class_name}')
             for img in val_images:
                 if cancel_event and cancel_event.is_set():
-                    progress_callback("Processing cancelled")
+                    log("Processing cancelled")
                     return
                 if resolution:
                     with Image.open(img) as image:
@@ -155,11 +151,10 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
                     shutil.copy(img, val_dest_path / class_name / img.name)
 
         if test_images:
-            if progress_callback:
-                progress_callback(f'Copying {len(test_images)} test images for class {class_name}')
+            log(f'Copying {len(test_images)} test images for class {class_name}')
             for img in test_images:
                 if cancel_event and cancel_event.is_set():
-                    progress_callback("Processing cancelled")
+                    log("Processing cancelled")
                     return
                 if resolution:
                     with Image.open(img) as image:
@@ -169,8 +164,7 @@ def process_dataset(source_dir, dest_dir, train_ratio=0.8, val_ratio=0.1, test_r
                     shutil.copy(img, test_dest_path / class_name / img.name)
 
     # Final progress message
-    if progress_callback:
-        progress_callback("Dataset processing complete")
+    log("Dataset processing complete")
 
 if __name__ == '__main__':
     import argparse
@@ -195,7 +189,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    def print_progress(message):
-        print(message)
-
-    process_dataset(args.source_dir, args.dest_dir, train_ratio=args.train_ratio, val_ratio=args.val_ratio, test_ratio=args.test_ratio, resolution=args.resolution, seed=args.seed, progress_callback=print_progress, image_extensions=args.image_extensions, color_mode=args.color_mode, overwrite_dest=args.overwrite_dest, load_truncated_images=args.load_truncated_images, train_dir_name=args.train_dir_name, val_dir_name=args.val_dir_name, test_dir_name=args.test_dir_name)
+    # The process_dataset function now prints to the console by default.
+    # A progress callback is not needed for command-line execution.
+    process_dataset(args.source_dir, args.dest_dir, train_ratio=args.train_ratio, val_ratio=args.val_ratio, test_ratio=args.test_ratio, resolution=args.resolution, seed=args.seed, progress_callback=None, image_extensions=args.image_extensions, color_mode=args.color_mode, overwrite_dest=args.overwrite_dest, load_truncated_images=args.load_truncated_images, train_dir_name=args.train_dir_name, val_dir_name=args.val_dir_name, test_dir_name=args.test_dir_name)
