@@ -157,6 +157,8 @@ def main(page: ft.Page):
         device_field.value = "auto"
         dropout_rate_field.value = "0.2"
         optimiser_dropdown.value = "adamw"
+        lr_scheduler_dropdown.value = "none"
+        cosine_t_max_field.value = ""
         train_from_scratch_switch.value = False
         mixed_precision_switch.value = True
         pin_memory_switch.value = True
@@ -297,6 +299,8 @@ def main(page: ft.Page):
 
         try:
             settings = {
+                'lr_scheduler': lr_scheduler_dropdown.value or 'none',
+                'cosine_t_max': int(cosine_t_max_field.value) if cosine_t_max_field.value else None,
                 'data_dir': data_dir_path.value,
                 'model_name': model_name_field.value or 'resnet18',
                 'num_epochs': int(epochs_field.value) if epochs_field.value else 25,
@@ -569,6 +573,19 @@ def main(page: ft.Page):
         focused_border_color=ft.Colors.GREY_600,
         expand=True,
     )
+    lr_scheduler_dropdown = ft.Dropdown(
+        label="Learning rate scheduler",
+        value="none",
+        options=[
+            ft.dropdown.Option("none"),
+            ft.dropdown.Option("cosine"),
+        ],
+        border_radius=8,
+        border_color=ft.Colors.GREY_700,
+        focused_border_color=ft.Colors.GREY_600,
+        expand=True,
+    )
+    cosine_t_max_field = ft.TextField(label="Cosine T_max (epochs)", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
     pin_memory_switch = ft.Switch(value=True)
     
     sgd_momentum_field = ft.TextField(label="SGD momentum", value="0.9", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
@@ -1016,6 +1033,8 @@ def main(page: ft.Page):
                                                 dropout_rate_field,
                                                 optimiser_dropdown,
                                                 ft.Divider(),
+                                                ft.Row([lr_scheduler_dropdown, cosine_t_max_field], spacing=10),
+                                                ft.Divider(),
                                                 ft.Row(
                                                     [
                                                         ft.Text("Train from scratch", expand=True),
@@ -1231,6 +1250,7 @@ def main(page: ft.Page):
         "mixed_precision_switch": mixed_precision_switch,
         "pin_memory_switch": pin_memory_switch,
         "early_stopping_switch": early_stopping_switch, "early_stopping_patience_field": early_stopping_patience_field, "early_stopping_min_delta_field": early_stopping_min_delta_field, "early_stopping_metric_dropdown": early_stopping_metric_dropdown,
+        "lr_scheduler_dropdown": lr_scheduler_dropdown, "cosine_t_max_field": cosine_t_max_field,
         "finetune_seed_field": finetune_seed_field,
         "aug_random_resized_crop_switch": aug_random_resized_crop_switch,
         "aug_crop_scale_min_field": aug_crop_scale_min_field, "aug_crop_scale_max_field": aug_crop_scale_max_field, "aug_crop_ratio_min_field": aug_crop_ratio_min_field, "aug_crop_ratio_max_field": aug_crop_ratio_max_field,

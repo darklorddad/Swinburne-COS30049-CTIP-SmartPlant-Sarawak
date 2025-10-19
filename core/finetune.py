@@ -57,6 +57,9 @@ def main(args, progress_callback=None):
     val_dir_name = args.get('val_dir_name', 'val')
     test_dir_name = args.get('test_dir_name', 'test')
     device_str = args.get('device', 'auto')
+    lr_scheduler_name = args.get('lr_scheduler', 'none')
+    cosine_t_max_arg = args.get('cosine_t_max')
+    cosine_t_max = cosine_t_max_arg if cosine_t_max_arg is not None else num_epochs
     
     # Get individual augmentation flags
     aug_random_resized_crop = args.get('aug_random_resized_crop', True)
@@ -200,6 +203,12 @@ def main(args, progress_callback=None):
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         log("Loaded optimizer state from checkpoint.")
 
+    # Set up LR scheduler
+    scheduler = None
+    if lr_scheduler_name == 'cosine':
+        log(f"Using Cosine Annealing LR scheduler with T_max={cosine_t_max}")
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cosine_t_max)
+
     # 8. Implement the training loop
     best_model_state = copy.deepcopy(model.state_dict())
     best_val_loss = float('inf')
@@ -295,6 +304,10 @@ def main(args, progress_callback=None):
         val_epoch_loss = val_running_loss / dataset_sizes[val_dir_name]
         val_epoch_acc = val_running_corrects.double() / dataset_sizes[val_dir_name]
         log(f'{val_dir_name} Loss: {val_epoch_loss:.4f} Acc: {val_epoch_acc:.4f}')
+
+        # Step the scheduler after validation
+        if scheduler:
+            scheduler.step()
 
         # Early stopping logic based on validation metrics
         if early_stopping_patience > 0:
@@ -418,6 +431,10 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=str, default='auto', help='Device to use for training (e.g., "cpu", "cuda:0")')
     parser.add_argument('--load_path', type=str, default=None, help='Path to load a model state from')
     parser.add_argument('--save_path', type=str, default=None, help='Path to save the trained model state')
+
+    # LR Scheduler args
+    parser.add_argument('--lr_scheduler', type=str, default='none', choices=['none', 'cosine'], help='Learning rate scheduler to use')
+    parser.add_argument('--cosine_t_max', type=int, default=None, help='T_max for CosineAnnealingLR scheduler (defaults to num_epochs)')
     
     # Augmentation flags
     parser.set_defaults(aug_random_resized_crop=True, aug_horizontal_flip=True, aug_rotation=True, aug_color_jitter=True)
