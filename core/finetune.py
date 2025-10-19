@@ -76,6 +76,7 @@ def main(args, progress_callback=None):
     aug_crop_ratio_max = args.get('aug_crop_ratio_max', 1.33)
     pin_memory = args.get('pin_memory', False)
     use_weighted_loss = args.get('use_weighted_loss', False)
+    tuning_strategy = args.get('tuning_strategy', 'full')
 
     seed = args.get('seed')
 
@@ -168,6 +169,25 @@ def main(args, progress_callback=None):
     # This will load a pretrained model and replace the classifier head with a new one for our number of classes.
     model = timm.create_model(model_name, pretrained=not train_from_scratch, num_classes=num_classes, drop_rate=dropout_rate)
 
+    # Apply tuning strategy
+    if tuning_strategy == 'head_only':
+        log("Applying 'head_only' tuning strategy: freezing all layers except the classifier.")
+        for param in model.parameters():
+            param.requires_grad = False
+        
+        # Unfreeze the classifier's parameters. timm models have a get_classifier() method.
+        try:
+            classifier = model.get_classifier()
+            for param in classifier.parameters():
+                param.requires_grad = True
+        except AttributeError:
+            log(f"Warning: Model {model_name} does not have a standard `get_classifier` method. 'head_only' strategy might not work as expected.")
+
+    elif tuning_strategy == 'full':
+        log("Applying 'full' tuning strategy: all layers are trainable.")
+    else:
+        raise ValueError(f"Unsupported tuning strategy: {tuning_strategy}")
+
     # 5. If a load_path is provided, load the model state
     checkpoint = None
     if load_path:
@@ -204,12 +224,14 @@ def main(args, progress_callback=None):
     else:
         raise ValueError(f"Unsupported loss function: {loss_function}")
     
+    params_to_update = filter(lambda p: p.requires_grad, model.parameters())
+    
     if optimiser_name == 'adam':
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=(adam_beta1, adam_beta2), eps=adam_eps, weight_decay=weight_decay)
+        optimizer = optim.Adam(params_to_update, lr=learning_rate, betas=(adam_beta1, adam_beta2), eps=adam_eps, weight_decay=weight_decay)
     elif optimiser_name == 'adamw':
-        optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=(adam_beta1, adam_beta2), eps=adam_eps, weight_decay=weight_decay)
+        optimizer = optim.AdamW(params_to_update, lr=learning_rate, betas=(adam_beta1, adam_beta2), eps=adam_eps, weight_decay=weight_decay)
     elif optimiser_name == 'sgd':
-        optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=sgd_momentum, weight_decay=weight_decay)
+        optimizer = optim.SGD(params_to_update, lr=learning_rate, momentum=sgd_momentum, weight_decay=weight_decay)
     else:
         raise ValueError(f"Unsupported optimiser: {optimiser_name}")
 
@@ -417,6 +439,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training')
     parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate for the optimizer')
     parser.add_argument('--dropout_rate', type=float, default=0.0, help='Dropout rate for the model classifier')
+    parser.add_argument('--tuning_strategy', type=str, default='full', choices=['full', 'head_only'], help='Fine-tuning strategy')
     parser.add_argument('--optimiser', type=str, default='adamw', choices=['adam', 'adamw', 'sgd'], help='Optimiser to use for training')
     parser.add_argument('--sgd_momentum', type=float, default=0.9, help='Momentum for SGD optimizer')
     parser.add_argument('--adam_beta1', type=float, default=0.9, help='Beta1 for Adam/AdamW optimizers')

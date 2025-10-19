@@ -157,6 +157,7 @@ def main(page: ft.Page):
         num_workers_field.value = "4"
         device_field.value = "auto"
         dropout_rate_field.value = "0.2"
+        tuning_strategy_dropdown.value = "full"
         optimiser_dropdown.value = "adamw"
         lr_scheduler_dropdown.value = "none"
         cosine_t_max_field.value = ""
@@ -300,6 +301,7 @@ def main(page: ft.Page):
 
         try:
             settings = {
+                'tuning_strategy': tuning_strategy_dropdown.value or 'full',
                 'lr_scheduler': lr_scheduler_dropdown.value or 'none',
                 'cosine_t_max': int(cosine_t_max_field.value) if cosine_t_max_field.value else None,
                 'use_weighted_loss': use_weighted_loss_switch.value,
@@ -559,6 +561,17 @@ def main(page: ft.Page):
     train_from_scratch_switch = ft.Switch(value=False)
     strict_load_switch = ft.Switch(value=False)
     dropout_rate_field = ft.TextField(label="Dropout rate", value="0.2", height=TEXT_FIELD_HEIGHT)
+    tuning_strategy_dropdown = ft.Dropdown(
+        label="Tuning strategy",
+        value="full",
+        options=[
+            ft.dropdown.Option("full", "Full (all layers)"),
+            ft.dropdown.Option("head_only", "Head only (feature extraction)"),
+        ],
+        border_radius=8,
+        border_color=ft.Colors.GREY_700,
+        focused_border_color=ft.Colors.GREY_600,
+    )
     mixed_precision_switch = ft.Switch(value=True)
     early_stopping_switch = ft.Switch(value=True)
     early_stopping_patience_field = ft.TextField(label="Patience", value="5", height=TEXT_FIELD_HEIGHT, text_align=ft.TextAlign.CENTER, expand=True)
@@ -1041,6 +1054,7 @@ def main(page: ft.Page):
                                                 num_workers_field,
                                                 device_field,
                                                 dropout_rate_field,
+                                                tuning_strategy_dropdown,
                                                 optimiser_dropdown,
                                                 ft.Divider(),
                                                 ft.Row([lr_scheduler_dropdown, cosine_t_max_field], spacing=10),
@@ -1252,7 +1266,7 @@ def main(page: ft.Page):
         "input_size_field": input_size_field, "resize_size_field": resize_size_field, "num_workers_field": num_workers_field, "device_field": device_field,
         "train_from_scratch_switch": train_from_scratch_switch,
         "strict_load_switch": strict_load_switch,
-        "dropout_rate_field": dropout_rate_field, "optimiser_dropdown": optimiser_dropdown,
+        "dropout_rate_field": dropout_rate_field, "tuning_strategy_dropdown": tuning_strategy_dropdown, "optimiser_dropdown": optimiser_dropdown,
         "sgd_momentum_field": sgd_momentum_field, "adam_beta1_field": adam_beta1_field, "adam_beta2_field": adam_beta2_field, "adam_eps_field": adam_eps_field, "weight_decay_field": weight_decay_field,
         "loss_function_dropdown": loss_function_dropdown, "label_smoothing_factor_field": label_smoothing_factor_field,
         "use_weighted_loss_switch": use_weighted_loss_switch,
