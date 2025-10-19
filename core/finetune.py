@@ -166,8 +166,10 @@ def main(args, progress_callback=None):
     model = timm.create_model(model_name, pretrained=not train_from_scratch, num_classes=num_classes, drop_rate=dropout_rate)
 
     # 5. If a load_path is provided, load the model state
+    checkpoint = None
     if load_path:
         # Using strict=False allows loading weights from a checkpoint with a different classifier.
+        log(f"Loading checkpoint from {load_path}")
         checkpoint = torch.load(load_path, map_location=device)
         if 'state_dict' in checkpoint:
             model.load_state_dict(checkpoint['state_dict'], strict=strict_load)
@@ -193,6 +195,10 @@ def main(args, progress_callback=None):
         optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=sgd_momentum, weight_decay=weight_decay)
     else:
         raise ValueError(f"Unsupported optimiser: {optimiser_name}")
+
+    if checkpoint and 'optimizer_state_dict' in checkpoint:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        log("Loaded optimizer state from checkpoint.")
 
     # 8. Implement the training loop
     best_model_state = copy.deepcopy(model.state_dict())
@@ -323,6 +329,7 @@ def main(args, progress_callback=None):
         log(f"Saving model to {save_path}")
         save_data = {
             'state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
             'model_name': model_name,
             'num_classes': num_classes,
             'class_names': class_names,
