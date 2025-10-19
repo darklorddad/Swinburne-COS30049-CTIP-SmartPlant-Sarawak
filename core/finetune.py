@@ -206,6 +206,27 @@ def main(args, progress_callback=None):
     best_val_acc = 0.0
     epochs_no_improve = 0
 
+    # Get baseline validation metrics before training if early stopping is enabled
+    if early_stopping_patience > 0 and val_dir_name in dataloaders:
+        log("Calculating initial validation metrics for early stopping baseline...")
+        model.eval()
+        val_running_loss = 0.0
+        val_running_corrects = 0
+        with torch.no_grad():
+            for inputs, labels in dataloaders[val_dir_name]:
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+                with torch.amp.autocast(device.type, enabled=use_amp):
+                    outputs = model(inputs)
+                    _, preds = torch.max(outputs, 1)
+                    loss = criterion(outputs, labels)
+                val_running_loss += loss.item() * inputs.size(0)
+                val_running_corrects += torch.sum(preds == labels.data)
+        
+        best_val_loss = val_running_loss / dataset_sizes[val_dir_name]
+        best_val_acc = (val_running_corrects.double() / dataset_sizes[val_dir_name]).item()
+        log(f'Initial validation Loss: {best_val_loss:.4f} Acc: {best_val_acc:.4f}')
+
     for epoch in range(num_epochs):
         if cancel_event and cancel_event.is_set():
             log("Fine-tuning cancelled")
