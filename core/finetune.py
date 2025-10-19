@@ -6,7 +6,6 @@ import timm
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
-from timm.loss import LabelSmoothingCrossEntropy
 from PIL import ImageFile
 import pathlib
 
@@ -76,7 +75,8 @@ def main(args, progress_callback=None):
     aug_crop_ratio_min = args.get('aug_crop_ratio_min', 0.75)
     aug_crop_ratio_max = args.get('aug_crop_ratio_max', 1.33)
     pin_memory = args.get('pin_memory', False)
-    
+    use_weighted_loss = args.get('use_weighted_loss', False)
+
     seed = args.get('seed')
 
     if seed is not None:
@@ -183,10 +183,24 @@ def main(args, progress_callback=None):
     model = model.to(device)
 
     # 7. Define loss function and optimizer
+    weights = None
+    if use_weighted_loss:
+        log("Calculating class weights for weighted loss...")
+        class_counts = [0] * num_classes
+        # This can be slow for large datasets, but is accurate.
+        for _, label in image_datasets[train_dir_name].samples:
+            class_counts[label] += 1
+    
+        num_samples = sum(class_counts)
+        class_weights = [num_samples / class_counts[i] if class_counts[i] > 0 else 0 for i in range(num_classes)]
+        weights = torch.FloatTensor(class_weights).to(device)
+        log("Applied class weights.")
+
+    # PyTorch's CrossEntropyLoss supports both weights and label smoothing.
     if loss_function == 'cross_entropy':
-        criterion = nn.CrossEntropyLoss()
+        criterion = nn.CrossEntropyLoss(weight=weights)
     elif loss_function == 'label_smoothing':
-        criterion = LabelSmoothingCrossEntropy(smoothing=label_smoothing_factor)
+        criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=label_smoothing_factor)
     else:
         raise ValueError(f"Unsupported loss function: {loss_function}")
     
@@ -411,6 +425,7 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', type=float, default=0.0, help='Weight decay for optimizers')
     parser.add_argument('--loss_function', type=str, default='cross_entropy', choices=['cross_entropy', 'label_smoothing'], help='Loss function to use')
     parser.add_argument('--label_smoothing_factor', type=float, default=0.1, help='Label smoothing factor')
+    parser.add_argument('--use_weighted_loss', action='store_true', help='Use weighted loss to handle class imbalance')
     parser.add_argument('--early_stopping_patience', type=int, default=0, help='Patience for early stopping (0 to disable)')
     parser.add_argument('--early_stopping_min_delta', type=float, default=0.0, help='Minimum delta for early stopping')
     parser.add_argument('--early_stopping_metric', type=str, default='loss', choices=['loss', 'accuracy'], help='Metric for early stopping')

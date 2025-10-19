@@ -139,6 +139,7 @@ def main(page: ft.Page):
     def reset_finetune_norm_loss(e):
         loss_function_dropdown.value = "label_smoothing"
         label_smoothing_factor_field.value = "0.1"
+        use_weighted_loss_switch.value = False
         use_imagenet_norm_switch.value = True
         norm_mean_field.value = "0.485, 0.456, 0.406"
         norm_std_field.value = "0.229, 0.224, 0.225"
@@ -301,6 +302,7 @@ def main(page: ft.Page):
             settings = {
                 'lr_scheduler': lr_scheduler_dropdown.value or 'none',
                 'cosine_t_max': int(cosine_t_max_field.value) if cosine_t_max_field.value else None,
+                'use_weighted_loss': use_weighted_loss_switch.value,
                 'data_dir': data_dir_path.value,
                 'model_name': model_name_field.value or 'resnet18',
                 'num_epochs': int(epochs_field.value) if epochs_field.value else 25,
@@ -622,6 +624,7 @@ def main(page: ft.Page):
         save_inputs()
 
     use_imagenet_norm_switch = ft.Switch(value=True)
+    use_weighted_loss_switch = ft.Switch(value=False)
     norm_mean_field = ft.TextField(label="Normalisation mean (comma-separated)", value="0.485, 0.456, 0.406", height=TEXT_FIELD_HEIGHT, expand=True, disabled=True)
     norm_std_field = ft.TextField(label="Normalisation std dev (comma-separated)", value="0.229, 0.224, 0.225", height=TEXT_FIELD_HEIGHT, expand=True, disabled=True)
     load_truncated_images_switch = ft.Switch(value=True)
@@ -998,6 +1001,13 @@ def main(page: ft.Page):
                                                 label_smoothing_factor_field,
                                                 ft.Row(
                                                     [
+                                                        ft.Text("Use weighted loss for imbalance", expand=True),
+                                                        use_weighted_loss_switch,
+                                                    ],
+                                                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                                                ),
+                                                ft.Row(
+                                                    [
                                                         ft.Text("Use ImageNet normalisation", expand=True),
                                                         use_imagenet_norm_switch,
                                                     ],
@@ -1245,6 +1255,7 @@ def main(page: ft.Page):
         "dropout_rate_field": dropout_rate_field, "optimiser_dropdown": optimiser_dropdown,
         "sgd_momentum_field": sgd_momentum_field, "adam_beta1_field": adam_beta1_field, "adam_beta2_field": adam_beta2_field, "adam_eps_field": adam_eps_field, "weight_decay_field": weight_decay_field,
         "loss_function_dropdown": loss_function_dropdown, "label_smoothing_factor_field": label_smoothing_factor_field,
+        "use_weighted_loss_switch": use_weighted_loss_switch,
         "use_imagenet_norm_switch": use_imagenet_norm_switch, "norm_mean_field": norm_mean_field, "norm_std_field": norm_std_field,
         "load_truncated_images_switch": load_truncated_images_switch,
         "mixed_precision_switch": mixed_precision_switch,
