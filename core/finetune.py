@@ -222,8 +222,13 @@ def main(args, progress_callback=None):
         # Use a more stable weight calculation: N / (C * n_c)
         # This prevents excessively large weights for rare classes.
         class_weights = [num_samples / (num_classes * class_counts[i]) if class_counts[i] > 0 else 0 for i in range(num_classes)]
+        
+        # Clip weights to prevent instability from extremely rare classes
+        max_weight = 20.0
+        class_weights = [min(w, max_weight) for w in class_weights]
+
         weights = torch.FloatTensor(class_weights).to(device)
-        log("Applied class weights.")
+        log(f"Applied class weights. Min: {min(w for w in class_weights if w > 0):.2f}, Max: {max(class_weights):.2f}, Mean: {sum(class_weights)/len(class_weights):.2f}")
 
     # PyTorch's CrossEntropyLoss supports both weights and label smoothing.
     # We use a weighted criterion for training and an unweighted one for validation.
