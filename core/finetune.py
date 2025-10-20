@@ -19,6 +19,12 @@ def main(args, progress_callback=None):
 
     log("Starting fine-tuning")
 
+    log("--- Fine-tuning parameters ---")
+    args_to_print = {k: v for k, v in args.items() if k != 'cancel_event'}
+    for key, value in sorted(args_to_print.items()):
+        log(f"{key}: {value}")
+    log("-----------------------------")
+
     load_truncated_images = args.get('load_truncated_images', True)
     ImageFile.LOAD_TRUNCATED_IMAGES = load_truncated_images
     
