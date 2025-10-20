@@ -27,7 +27,8 @@ def main(args, progress_callback=None):
     model_name = args.get('model_name', 'resnet18')
     num_epochs = args.get('num_epochs', 25)
     batch_size = args.get('batch_size', 32)
-    learning_rate = args.get('learning_rate', 0.001)
+    body_learning_rate = args.get('body_learning_rate', 1e-5)
+    head_learning_rate = args.get('head_learning_rate', 1e-3)
     dropout_rate = args.get('dropout_rate', 0.0)
     optimiser_name = args.get('optimiser', 'adamw')
     sgd_momentum = args.get('sgd_momentum', 0.9)
@@ -228,15 +229,39 @@ def main(args, progress_callback=None):
         val_criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing_factor)
     else:
         raise ValueError(f"Unsupported loss function: {loss_function}")
-    
-    params_to_update = filter(lambda p: p.requires_grad, model.parameters())
+
+    # Set up parameter groups for differential learning rates
+    param_groups = []
+    try:
+        classifier = model.get_classifier()
+        head_params = list(classifier.parameters())
+        head_param_ids = {id(p) for p in head_params}
+        body_params = [p for p in model.parameters() if id(p) not in head_param_ids]
+
+        trainable_body_params = [p for p in body_params if p.requires_grad]
+        trainable_head_params = [p for p in head_params if p.requires_grad]
+
+        if trainable_body_params:
+            param_groups.append({'params': trainable_body_params, 'lr': body_learning_rate})
+        if trainable_head_params:
+            param_groups.append({'params': trainable_head_params, 'lr': head_learning_rate})
+        
+        if not param_groups:
+             raise ValueError("No trainable parameters found. Check your tuning strategy and model structure.")
+
+        log(f"Using differential learning rates. Body LR: {body_learning_rate}, Head LR: {head_learning_rate}")
+
+    except AttributeError:
+        log(f"Warning: Model {model_name} does not have a standard `get_classifier` method. Using single learning rate ({head_learning_rate}) for all trainable parameters.")
+        params_to_update = filter(lambda p: p.requires_grad, model.parameters())
+        param_groups = [{'params': list(params_to_update), 'lr': head_learning_rate}]
     
     if optimiser_name == 'adam':
-        optimizer = optim.Adam(params_to_update, lr=learning_rate, betas=(adam_beta1, adam_beta2), eps=adam_eps, weight_decay=weight_decay)
+        optimizer = optim.Adam(param_groups, betas=(adam_beta1, adam_beta2), eps=adam_eps, weight_decay=weight_decay)
     elif optimiser_name == 'adamw':
-        optimizer = optim.AdamW(params_to_update, lr=learning_rate, betas=(adam_beta1, adam_beta2), eps=adam_eps, weight_decay=weight_decay)
+        optimizer = optim.AdamW(param_groups, betas=(adam_beta1, adam_beta2), eps=adam_eps, weight_decay=weight_decay)
     elif optimiser_name == 'sgd':
-        optimizer = optim.SGD(params_to_update, lr=learning_rate, momentum=sgd_momentum, weight_decay=weight_decay)
+        optimizer = optim.SGD(param_groups, momentum=sgd_momentum, weight_decay=weight_decay)
     else:
         raise ValueError(f"Unsupported optimiser: {optimiser_name}")
 
@@ -443,7 +468,8 @@ if __name__ == '__main__':
     parser.add_argument('--model_name', type=str, default='resnet18', help='Name of the model to fine-tune (from timm or Hugging Face)')
     parser.add_argument('--num_epochs', type=int, default=25, help='Number of epochs to train for')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training')
-    parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate for the optimizer')
+    parser.add_argument('--body_learning_rate', type=float, default=1e-5, help='Learning rate for the model body')
+    parser.add_argument('--head_learning_rate', type=float, default=1e-3, help='Learning rate for the classifier head')
     parser.add_argument('--dropout_rate', type=float, default=0.0, help='Dropout rate for the model classifier')
     parser.add_argument('--tuning_strategy', type=str, default='full', choices=['full', 'head_only'], help='Fine-tuning strategy')
     parser.add_argument('--optimiser', type=str, default='adamw', choices=['adam', 'adamw', 'sgd'], help='Optimiser to use for training')

@@ -151,7 +151,8 @@ def main(page: ft.Page):
     def reset_finetune_hyperparams(e):
         epochs_field.value = "25"
         batch_size_field.value = "32"
-        learning_rate_field.value = "0.001"
+        body_learning_rate_field.value = "1e-5"
+        head_learning_rate_field.value = "1e-3"
         input_size_field.value = "224"
         resize_size_field.value = "256"
         num_workers_field.value = "4"
@@ -309,7 +310,8 @@ def main(page: ft.Page):
                 'model_name': model_name_field.value or 'resnet18',
                 'num_epochs': int(epochs_field.value) if epochs_field.value else 25,
                 'batch_size': int(batch_size_field.value) if batch_size_field.value else 32,
-                'learning_rate': float(learning_rate_field.value) if learning_rate_field.value else 0.001,
+                'body_learning_rate': float(body_learning_rate_field.value) if body_learning_rate_field.value else 1e-5,
+                'head_learning_rate': float(head_learning_rate_field.value) if head_learning_rate_field.value else 1e-3,
                 'dropout_rate': float(dropout_rate_field.value) if dropout_rate_field.value else 0.0,
                 'optimiser': optimiser_dropdown.value or 'adamw',
                 'early_stopping_patience': int(early_stopping_patience_field.value) if early_stopping_switch.value and early_stopping_patience_field.value else 0,
@@ -553,7 +555,8 @@ def main(page: ft.Page):
     )
     epochs_field = ft.TextField(label="Number of epochs", value="25", height=TEXT_FIELD_HEIGHT)
     batch_size_field = ft.TextField(label="Batch size", value="32", height=TEXT_FIELD_HEIGHT)
-    learning_rate_field = ft.TextField(label="Learning rate", value="0.001", height=TEXT_FIELD_HEIGHT)
+    body_learning_rate_field = ft.TextField(label="Body learning rate", value="1e-5", height=TEXT_FIELD_HEIGHT, expand=True)
+    head_learning_rate_field = ft.TextField(label="Head learning rate", value="1e-3", height=TEXT_FIELD_HEIGHT, expand=True)
     input_size_field = ft.TextField(label="Input size (px)", value="224", height=TEXT_FIELD_HEIGHT)
     resize_size_field = ft.TextField(label="Resize size (px)", value="256", height=TEXT_FIELD_HEIGHT)
     num_workers_field = ft.TextField(label="Data loader workers", value="4", height=TEXT_FIELD_HEIGHT)
@@ -1048,7 +1051,7 @@ def main(page: ft.Page):
                                                 ft.Divider(),
                                                 epochs_field,
                                                 batch_size_field,
-                                                learning_rate_field,
+                                                ft.Row([body_learning_rate_field, head_learning_rate_field], spacing=10),
                                                 input_size_field,
                                                 resize_size_field,
                                                 num_workers_field,
@@ -1262,7 +1265,7 @@ def main(page: ft.Page):
         "image_extensions_field": image_extensions_field, "color_mode_dropdown": color_mode_dropdown, "overwrite_dest_switch": overwrite_dest_switch,
         "data_dir_path": data_dir_path, "save_model_path": save_model_path, "load_model_path": load_model_path,
         "model_name_field": model_name_field, "epochs_field": epochs_field,
-        "batch_size_field": batch_size_field, "learning_rate_field": learning_rate_field,
+        "batch_size_field": batch_size_field, "body_learning_rate_field": body_learning_rate_field, "head_learning_rate_field": head_learning_rate_field,
         "input_size_field": input_size_field, "resize_size_field": resize_size_field, "num_workers_field": num_workers_field, "device_field": device_field,
         "train_from_scratch_switch": train_from_scratch_switch,
         "strict_load_switch": strict_load_switch,
