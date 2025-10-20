@@ -152,7 +152,7 @@ def main(page: ft.Page):
         epochs_field.value = "25"
         batch_size_field.value = "32"
         body_learning_rate_field.value = "1e-5"
-        head_learning_rate_field.value = "1e-3"
+        head_learning_rate_field.value = "1e-4"
         input_size_field.value = "224"
         resize_size_field.value = "256"
         num_workers_field.value = "4"
@@ -311,7 +311,7 @@ def main(page: ft.Page):
                 'num_epochs': int(epochs_field.value) if epochs_field.value else 25,
                 'batch_size': int(batch_size_field.value) if batch_size_field.value else 32,
                 'body_learning_rate': float(body_learning_rate_field.value) if body_learning_rate_field.value else 1e-5,
-                'head_learning_rate': float(head_learning_rate_field.value) if head_learning_rate_field.value else 1e-3,
+                'head_learning_rate': float(head_learning_rate_field.value) if head_learning_rate_field.value else 1e-4,
                 'dropout_rate': float(dropout_rate_field.value) if dropout_rate_field.value else 0.0,
                 'optimiser': optimiser_dropdown.value or 'adamw',
                 'early_stopping_patience': int(early_stopping_patience_field.value) if early_stopping_switch.value and early_stopping_patience_field.value else 0,
@@ -556,7 +556,7 @@ def main(page: ft.Page):
     epochs_field = ft.TextField(label="Number of epochs", value="25", height=TEXT_FIELD_HEIGHT)
     batch_size_field = ft.TextField(label="Batch size", value="32", height=TEXT_FIELD_HEIGHT)
     body_learning_rate_field = ft.TextField(label="Body learning rate", value="1e-5", height=TEXT_FIELD_HEIGHT, expand=True)
-    head_learning_rate_field = ft.TextField(label="Head learning rate", value="1e-3", height=TEXT_FIELD_HEIGHT, expand=True)
+    head_learning_rate_field = ft.TextField(label="Head learning rate", value="1e-4", height=TEXT_FIELD_HEIGHT, expand=True)
     input_size_field = ft.TextField(label="Input size (px)", value="224", height=TEXT_FIELD_HEIGHT)
     resize_size_field = ft.TextField(label="Resize size (px)", value="256", height=TEXT_FIELD_HEIGHT)
     num_workers_field = ft.TextField(label="Data loader workers", value="4", height=TEXT_FIELD_HEIGHT)
