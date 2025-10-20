@@ -219,10 +219,13 @@ def main(args, progress_callback=None):
         log("Applied class weights.")
 
     # PyTorch's CrossEntropyLoss supports both weights and label smoothing.
+    # We use a weighted criterion for training and an unweighted one for validation.
     if loss_function == 'cross_entropy':
-        criterion = nn.CrossEntropyLoss(weight=weights)
+        train_criterion = nn.CrossEntropyLoss(weight=weights)
+        val_criterion = nn.CrossEntropyLoss()
     elif loss_function == 'label_smoothing':
-        criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=label_smoothing_factor)
+        train_criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=label_smoothing_factor)
+        val_criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing_factor)
     else:
         raise ValueError(f"Unsupported loss function: {loss_function}")
     
@@ -266,7 +269,7 @@ def main(args, progress_callback=None):
                 with torch.amp.autocast(device.type, enabled=use_amp):
                     outputs = model(inputs)
                     _, preds = torch.max(outputs, 1)
-                    loss = criterion(outputs, labels)
+                    loss = val_criterion(outputs, labels)
                 val_running_loss += loss.item() * inputs.size(0)
                 val_running_corrects += torch.sum(preds == labels.data)
         
@@ -299,7 +302,7 @@ def main(args, progress_callback=None):
                 with torch.amp.autocast(device.type, enabled=use_amp):
                     outputs = model(inputs)
                     _, preds = torch.max(outputs, 1)
-                    loss = criterion(outputs, labels)
+                    loss = train_criterion(outputs, labels)
 
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
@@ -331,7 +334,7 @@ def main(args, progress_callback=None):
                 with torch.amp.autocast(device.type, enabled=use_amp):
                     outputs = model(inputs)
                     _, preds = torch.max(outputs, 1)
-                    loss = criterion(outputs, labels)
+                    loss = val_criterion(outputs, labels)
 
                 if (i + 1) % 10 == 0 or i + 1 == num_batches:
                     log(f'Processing {val_dir_name} batch {i+1}/{num_batches}')
@@ -388,7 +391,7 @@ def main(args, progress_callback=None):
             with torch.amp.autocast(device.type, enabled=use_amp):
                 outputs = model(inputs)
                 _, preds = torch.max(outputs, 1)
-                loss = criterion(outputs, labels)
+                loss = val_criterion(outputs, labels)
             val_running_loss += loss.item() * inputs.size(0)
             val_running_corrects += torch.sum(preds == labels.data)
     
@@ -425,7 +428,8 @@ def main(args, progress_callback=None):
     del dataloaders
     del image_datasets
     del optimizer
-    del criterion
+    del train_criterion
+    del val_criterion
     if device.type == 'cuda':
         torch.cuda.empty_cache()
 
