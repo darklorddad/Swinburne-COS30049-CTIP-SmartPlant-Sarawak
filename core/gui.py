@@ -157,7 +157,7 @@ def main(page: ft.Page):
         num_workers_field.value = "4"
         device_field.value = "auto"
         dropout_rate_field.value = "0.2"
-        tuning_strategy_dropdown.value = "full"
+        tuning_strategy_dropdown.value = "head_only"
         optimiser_dropdown.value = "adamw"
         lr_scheduler_dropdown.value = "none"
         cosine_t_max_field.value = ""
@@ -563,7 +563,7 @@ def main(page: ft.Page):
     dropout_rate_field = ft.TextField(label="Dropout rate", value="0.2", height=TEXT_FIELD_HEIGHT)
     tuning_strategy_dropdown = ft.Dropdown(
         label="Tuning strategy",
-        value="full",
+        value="head_only",
         options=[
             ft.dropdown.Option("full", "Full (all layers)"),
             ft.dropdown.Option("head_only", "Head only (feature extraction)"),
