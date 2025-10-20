@@ -212,7 +212,9 @@ def main(args, progress_callback=None):
             class_counts[label] += 1
     
         num_samples = sum(class_counts)
-        class_weights = [num_samples / class_counts[i] if class_counts[i] > 0 else 0 for i in range(num_classes)]
+        # Use a more stable weight calculation: N / (C * n_c)
+        # This prevents excessively large weights for rare classes.
+        class_weights = [num_samples / (num_classes * class_counts[i]) if class_counts[i] > 0 else 0 for i in range(num_classes)]
         weights = torch.FloatTensor(class_weights).to(device)
         log("Applied class weights.")
 
