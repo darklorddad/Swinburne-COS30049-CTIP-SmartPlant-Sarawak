@@ -92,45 +92,43 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         )
 
     with gr.Tab("Dataset preparation"):
-        gr.Markdown("### Generate Manifest File")
-        with gr.Column():
-            dp_directory_path = gr.Textbox(
-                label="Dataset directory path",
-                placeholder="Enter the absolute path to your dataset directory..."
+        with gr.Accordion("Generate Manifest File", open=False):
+            with gr.Column():
+                dp_directory_path = gr.Textbox(
+                    label="Dataset directory path",
+                    placeholder="Enter the absolute path to your dataset directory..."
+                )
+                dp_manifest_save_path = gr.Textbox(
+                    label="Manifest file save path (optional)",
+                    placeholder="Optional. Path to file or directory. Defaults to 'core/manifest.txt'."
+                )
+                dp_generate_button = gr.Button("Generate manifest file", variant="primary")
+                dp_status_message = gr.Textbox(label="Status", interactive=False)
+            
+            dp_generate_button.click(
+                fn=generate_manifest,
+                inputs=[dp_directory_path, dp_manifest_save_path],
+                outputs=[dp_status_message]
             )
-            dp_manifest_save_path = gr.Textbox(
-                label="Manifest file save path (optional)",
-                placeholder="Optional. Path to file or directory. Defaults to 'core/manifest.txt'."
-            )
-            dp_generate_button = gr.Button("Generate manifest file", variant="primary")
-            dp_status_message = gr.Textbox(label="Status", interactive=False)
-        
-        dp_generate_button.click(
-            fn=generate_manifest,
-            inputs=[dp_directory_path, dp_manifest_save_path],
-            outputs=[dp_status_message]
-        )
 
-        gr.Markdown("---")
-        
-        gr.Markdown("### Organise Dataset Folders")
-        with gr.Column():
-            do_destination_dir = gr.Textbox(
-                label="Destination directory",
-                placeholder="Enter the path for your new dataset folder..."
-            )
-            do_class_names = gr.Textbox(
-                label="Class names",
-                placeholder="Enter comma-separated class names (e.g., rose, daisy, tulip)..."
-            )
-            do_create_button = gr.Button("Create folder structure", variant="primary")
-            do_status_message = gr.Textbox(label="Status", interactive=False)
+        with gr.Accordion("Organise Dataset Folders", open=False):
+            with gr.Column():
+                do_destination_dir = gr.Textbox(
+                    label="Destination directory",
+                    placeholder="Enter the path for your new dataset folder..."
+                )
+                do_class_names = gr.Textbox(
+                    label="Class names",
+                    placeholder="Enter comma-separated class names (e.g., rose, daisy, tulip)..."
+                )
+                do_create_button = gr.Button("Create folder structure", variant="primary")
+                do_status_message = gr.Textbox(label="Status", interactive=False)
 
-        do_create_button.click(
-            fn=organise_dataset_folders,
-            inputs=[do_destination_dir, do_class_names],
-            outputs=[do_status_message]
-        )
+            do_create_button.click(
+                fn=organise_dataset_folders,
+                inputs=[do_destination_dir, do_class_names],
+                outputs=[do_status_message]
+            )
 
     refresh_button.click(
         fn=update_model_choices,
