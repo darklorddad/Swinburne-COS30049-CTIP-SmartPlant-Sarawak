@@ -134,11 +134,14 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         with gr.Accordion("Split dataset", open=False):
             with gr.Column():
                 ds_source_dir = gr.Textbox(label="Source directory")
-                ds_manifest_output_dir = gr.Textbox(label="Manifest output directory")
                 with gr.Row():
-                    ds_train_output_dir = gr.Textbox(label="Train output path")
-                    ds_val_output_dir = gr.Textbox(label="Validate output path")
-                    ds_test_output_dir = gr.Textbox(label="Test output path", visible=False)
+                    ds_train_output_dir = gr.Textbox(label="Train zip output path")
+                    ds_val_output_dir = gr.Textbox(label="Validate zip output path")
+                    ds_test_output_dir = gr.Textbox(label="Test zip output path", visible=False)
+                with gr.Row():
+                    ds_train_manifest_path = gr.Textbox(label="Train manifest output path")
+                    ds_val_manifest_path = gr.Textbox(label="Validate manifest output path")
+                    ds_test_manifest_path = gr.Textbox(label="Test manifest output path", visible=False)
                 ds_split_type = gr.Radio(["Train/Validate", "Train/Test/Validate"], label="Split type", value="Train/Validate")
                 with gr.Row():
                     ds_train_ratio = gr.Slider(0, 100, value=80, step=1, label="Train %")
@@ -151,10 +154,10 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 is_test_visible = 'Test' in split_type
                 if is_test_visible:
                     # Set default ratios for Train/Test/Validate
-                    return gr.update(visible=True), gr.update(visible=True), gr.update(value=80), gr.update(value=10), gr.update(value=10)
+                    return gr.update(visible=True), gr.update(visible=True), gr.update(visible=True), gr.update(value=80), gr.update(value=10), gr.update(value=10)
                 else:
                     # Set default ratios for Train/Validate
-                    return gr.update(visible=False), gr.update(visible=False), gr.update(value=80), gr.update(value=20), gr.update(value=0)
+                    return gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(value=80), gr.update(value=20), gr.update(value=0)
 
             def update_ratios_from_train(train_r, test_r):
                 if train_r + test_r > 100:
@@ -171,14 +174,14 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
             ds_split_type.change(
                 fn=update_split_type,
                 inputs=ds_split_type,
-                outputs=[ds_test_ratio, ds_test_output_dir, ds_train_ratio, ds_val_ratio, ds_test_ratio]
+                outputs=[ds_test_ratio, ds_test_output_dir, ds_test_manifest_path, ds_train_ratio, ds_val_ratio, ds_test_ratio]
             )
             ds_train_ratio.input(fn=update_ratios_from_train, inputs=[ds_train_ratio, ds_test_ratio], outputs=[ds_val_ratio, ds_test_ratio])
             ds_test_ratio.input(fn=update_ratios_from_test, inputs=[ds_train_ratio, ds_test_ratio], outputs=[ds_val_ratio, ds_train_ratio])
 
             ds_split_button.click(
                 fn=split_dataset,
-                inputs=[ds_source_dir, ds_train_output_dir, ds_val_output_dir, ds_test_output_dir, ds_manifest_output_dir, ds_split_type, ds_train_ratio, ds_val_ratio, ds_test_ratio],
+                inputs=[ds_source_dir, ds_train_output_dir, ds_val_output_dir, ds_test_output_dir, ds_train_manifest_path, ds_val_manifest_path, ds_test_manifest_path, ds_split_type, ds_train_ratio, ds_val_ratio, ds_test_ratio],
                 outputs=ds_status_message
             )
 

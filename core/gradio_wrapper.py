@@ -240,21 +240,26 @@ def organise_dataset_folders(destination_dir: str, source_dir: str):
         raise gr.Error(f"Failed to organise dataset: {e}")
 
 
-def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, manifest_output_dir, split_type, train_ratio, val_ratio, test_ratio):
+def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train_manifest_path, val_manifest_path, test_manifest_path, split_type, train_ratio, val_ratio, test_ratio):
     """Splits a dataset into train, validation, and optional test sets."""
     # --- 1. Input Validation ---
     if not source_dir or not os.path.isdir(source_dir): raise gr.Error("Please provide a valid source directory.")
     if not train_zip_path: raise gr.Error("Please provide a training set output path.")
     if not val_zip_path: raise gr.Error("Please provide a validation set output path.")
     if 'Test' in split_type and not test_zip_path: raise gr.Error("Please provide a test set output path.")
-    if not manifest_output_dir: raise gr.Error("Please provide a manifest output directory.")
+    if not train_manifest_path: raise gr.Error("Please provide a train manifest output path.")
+    if not val_manifest_path: raise gr.Error("Please provide a validate manifest output path.")
+    if 'Test' in split_type and not test_manifest_path: raise gr.Error("Please provide a test manifest output path.")
 
     output_paths = {'train': train_zip_path, 'validate': val_zip_path}
-    if 'Test' in split_type: output_paths['test'] = test_zip_path
-    for p in output_paths.values():
+    manifest_paths = {'train': train_manifest_path, 'validate': val_manifest_path}
+    if 'Test' in split_type:
+        output_paths['test'] = test_zip_path
+        manifest_paths['test'] = test_manifest_path
+
+    for p in list(output_paths.values()) + list(manifest_paths.values()):
         if p:
             os.makedirs(os.path.dirname(p), exist_ok=True)
-    os.makedirs(manifest_output_dir, exist_ok=True)
 
     train_r, val_r, test_r = train_ratio / 100.0, val_ratio / 100.0, test_ratio / 100.0
     total_ratio = train_r + val_r + (test_r if 'Test' in split_type else 0)
@@ -332,7 +337,7 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, manif
                 f.write('\n'.join(sorted(manifest_content)))
 
             # Write manifest to external directory
-            external_manifest_path = os.path.join(manifest_output_dir, f"{set_name}_manifest.md")
+            external_manifest_path = manifest_paths[set_name]
             with open(external_manifest_path, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(sorted(manifest_content)))
 
