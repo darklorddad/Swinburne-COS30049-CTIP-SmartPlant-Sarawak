@@ -8,7 +8,7 @@ import threading
 def get_class_name_from_filename(filename):
     """
     Extracts class name from filename.
-    e.g. 'Black_footed_Albatross_0004_2731401028.jpg' -> 'Black_footed_Albatross'
+    e.g. 'rose_0001.jpg' -> 'rose'
     """
     match = re.match(r'(.+?)_\d{3,}', filename)
     if match:

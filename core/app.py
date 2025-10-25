@@ -1,6 +1,6 @@
 import gradio as gr
 from gradio_wrapper import (
-    classify_bird, run_organise_dataset, run_normalise_class_names,
+    classify_plant, run_organise_dataset, run_normalise_class_names,
     run_normalise_image_names, run_split_dataset, run_generate_manifest,
     run_check_balance, save_balance_analysis, run_count_classes,
     show_model_charts, get_model_choices, update_model_choices,
@@ -11,8 +11,8 @@ from gradio_wrapper import (
 # GRADIO UI
 # #############################################################################
 
-with gr.Blocks(theme=gr.themes.Monochrome(), title="Multi-Class Classification (Bird Species)", css="footer {display: none !important}") as demo:
-    gr.Markdown("# Multi-Class Classification (Bird Species)")
+with gr.Blocks(theme=gr.themes.Monochrome(), title="Multi-Class Classification (Plant Species)", css="footer {display: none !important}") as demo:
+    gr.Markdown("# Multi-Class Classification (Plant Species)")
 
     gr.HTML(
         """
@@ -35,11 +35,11 @@ with gr.Blocks(theme=gr.themes.Monochrome(), title="Multi-Class Classification (
         with gr.Row():
             with gr.Column(scale=1):
                 inf_model_path = gr.Dropdown(label="Select Model", choices=get_model_choices(), value=None)
-                inf_input_image = gr.Image(type="pil", label="Upload a bird image")
+                inf_input_image = gr.Image(type="pil", label="Upload a plant image")
             with gr.Column(scale=1):
                 inf_output_label = gr.Label(num_top_classes=5, label="Predictions")
                 inf_button = gr.Button("Classify", variant="primary")
-        inf_button.click(classify_bird, inputs=[inf_model_path, inf_input_image], outputs=inf_output_label)
+        inf_button.click(classify_plant, inputs=[inf_model_path, inf_input_image], outputs=inf_output_label)
 
     with gr.Tab("Training"):
         with gr.Row():

@@ -7,7 +7,7 @@ import numpy as np
 
 def get_class_from_line(line: str) -> str:
     """Extracts the class name from a line in the manifest file."""
-    # Example line: - acadian_flycatcher/acadian_flycatcher_0001.jpg
+    # Example line: - rose/rose_0001.jpg
     # The class is the part before the first '/'
     if '/' in line:
         # Strip leading '- ' and then split

@@ -25,7 +25,7 @@ from utils import (
 AUTOTRAIN_PROCESS = None
 
 
-def classify_bird(model_path: str, input_image: Image.Image) -> dict:
+def classify_plant(model_path: str, input_image: Image.Image) -> dict:
     if not model_path:
         raise gr.Error("Please select a model directory.")
 
