@@ -54,6 +54,9 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
             outputs=[train_launch_log, train_launch_button, train_stop_button]
         )
 
+    with gr.Tab("Dataset preparation"):
+        pass
+
     with gr.Tab("Training metrics"):
         metrics_model_path = gr.Dropdown(label="Select model", choices=get_model_choices(), value=None)
         with gr.Column(visible=False) as inf_plots_container:
