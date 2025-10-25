@@ -155,17 +155,10 @@ def generate_manifest(directory_path: str, manifest_save_path: str, manifest_typ
     """Generates a manifest file listing all subdirectories and/or files."""
     if not directory_path or not os.path.isdir(directory_path):
         raise gr.Error("Please provide a valid directory path.")
+    if not manifest_save_path:
+        raise gr.Error("Please provide a manifest output path.")
 
-    if manifest_save_path:
-        # If the provided path is a directory, append the default filename.
-        if os.path.isdir(manifest_save_path):
-            manifest_path = os.path.join(manifest_save_path, 'manifest.md')
-        else:
-            manifest_path = manifest_save_path
-    else:
-        # Default to saving manifest.md in the same directory as app.py
-        app_dir = os.path.dirname(os.path.abspath(__file__))
-        manifest_path = os.path.join(app_dir, 'manifest.md')
+    manifest_path = manifest_save_path
 
     # Ensure the directory for the manifest file exists
     manifest_dir = os.path.dirname(manifest_path)
@@ -254,13 +247,14 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, manif
     if not train_zip_path: raise gr.Error("Please provide a training set output path.")
     if not val_zip_path: raise gr.Error("Please provide a validation set output path.")
     if 'Test' in split_type and not test_zip_path: raise gr.Error("Please provide a test set output path.")
+    if not manifest_output_dir: raise gr.Error("Please provide a manifest output directory.")
 
     output_paths = {'train': train_zip_path, 'validate': val_zip_path}
     if 'Test' in split_type: output_paths['test'] = test_zip_path
     for p in output_paths.values():
         if p:
             os.makedirs(os.path.dirname(p), exist_ok=True)
-    if manifest_output_dir: os.makedirs(manifest_output_dir, exist_ok=True)
+    os.makedirs(manifest_output_dir, exist_ok=True)
 
     train_r, val_r, test_r = train_ratio / 100.0, val_ratio / 100.0, test_ratio / 100.0
     total_ratio = train_r + val_r + (test_r if 'Test' in split_type else 0)
@@ -337,11 +331,10 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, manif
             with open(os.path.join(set_dir, 'manifest.md'), 'w', encoding='utf-8') as f:
                 f.write('\n'.join(sorted(manifest_content)))
 
-            # Write manifest to external directory if provided
-            if manifest_output_dir:
-                external_manifest_path = os.path.join(manifest_output_dir, f"{set_name}_manifest.md")
-                with open(external_manifest_path, 'w', encoding='utf-8') as f:
-                    f.write('\n'.join(sorted(manifest_content)))
+            # Write manifest to external directory
+            external_manifest_path = os.path.join(manifest_output_dir, f"{set_name}_manifest.md")
+            with open(external_manifest_path, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(sorted(manifest_content)))
 
             # Create zip in its designated output directory
             zip_path = output_paths[set_name]
