@@ -2,6 +2,18 @@
 .aider*
 dld*
 
+---
+
+.env
+
+System-Design-Proposal.docx
+~$*
+
+iNaturalist/CSV
+iNaturalist/Images
+counts_cache.json
+
+---
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Environment variables (API keys, database credentials, secret tokens and etc. goes here)

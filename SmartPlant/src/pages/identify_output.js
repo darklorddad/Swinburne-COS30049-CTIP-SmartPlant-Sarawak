@@ -1,9 +1,10 @@
 import React from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, ActivityIndicato, Alert } from "react-native";
+import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, ActivityIndicator, Alert } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { addPlantIdentify } from '../firebase/plant_identify/addPlantIdentify.js';
 import { uploadImage } from '../firebase/plant_identify/uploadImage.js';
-import { serverTimestamp } from 'firebase/firestore';
+import { db } from "../firebase/FirebaseConfig";
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 import * as Location from 'expo-location'; //getting current device location
 import * as ImagePicker from 'expo-image-picker'; // for picking images with EXIF
@@ -40,6 +41,7 @@ export default function ResultScreen() {
       setLoading(true);
 
       const response = await fetch("http://10.69.215.149:3000/heatmap", {
+
         method: "POST",
         headers: { "Content-Type": "multipart/form-data" },
         body: formData,
@@ -87,7 +89,6 @@ export default function ResultScreen() {
     }
 
   };
-
  
   function dmsToDecimal(dms, ref) {
     const [deg, min, sec] = dms.map(parseFloat);
