@@ -185,22 +185,29 @@ def generate_manifest(directory_path: str, manifest_save_path: str):
         raise gr.Error(f"Failed to generate manifest file: {e}")
 
 
-def organise_dataset_folders(destination_dir: str, class_names_str: str):
-    """Creates a directory structure for a new dataset."""
+def organise_dataset_folders(destination_dir: str, source_dir: str):
+    """Creates a directory structure for a new dataset by scanning leaf directories from a source."""
     if not destination_dir:
         raise gr.Error("Please provide a destination directory path.")
-    if not class_names_str:
-        raise gr.Error("Please provide at least one class name.")
+    if not source_dir or not os.path.isdir(source_dir):
+        raise gr.Error("Please provide a valid source directory path.")
 
     try:
+        class_names = set()
+        for root, dirs, _ in os.walk(source_dir):
+            # A leaf directory has no subdirectories.
+            if not dirs:
+                # Exclude the source directory itself, only consider subdirectories.
+                if os.path.abspath(root) != os.path.abspath(source_dir):
+                    class_names.add(os.path.basename(root))
+
+        if not class_names:
+            raise gr.Error("No leaf subdirectories found in the source directory. These are needed for class names.")
+
         os.makedirs(destination_dir, exist_ok=True)
         
-        class_names = [name.strip() for name in class_names_str.split(',') if name.strip()]
-        if not class_names:
-            raise gr.Error("Please provide valid, comma-separated class names.")
-
         created_folders = []
-        for class_name in class_names:
+        for class_name in sorted(list(class_names)):
             class_path = os.path.join(destination_dir, class_name)
             os.makedirs(class_path, exist_ok=True)
             created_folders.append(class_name)

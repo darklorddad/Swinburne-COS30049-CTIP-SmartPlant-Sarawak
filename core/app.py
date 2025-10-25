@@ -113,20 +113,20 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
 
         with gr.Accordion("Organise dataset folders", open=False):
             with gr.Column():
+                do_source_dir = gr.Textbox(
+                    label="Source directory",
+                    placeholder="Path to directory to scan for leaf folders as class names."
+                )
                 do_destination_dir = gr.Textbox(
                     label="Destination directory",
-                    placeholder="Enter the path for your new dataset folder..."
-                )
-                do_class_names = gr.Textbox(
-                    label="Class names",
-                    placeholder="Enter comma-separated class names (e.g., rose, daisy, tulip)..."
+                    placeholder="Path to create the new dataset folder structure."
                 )
                 do_create_button = gr.Button("Create folder structure", variant="primary")
                 do_status_message = gr.Textbox(label="Status", interactive=False)
 
             do_create_button.click(
                 fn=organise_dataset_folders,
-                inputs=[do_destination_dir, do_class_names],
+                inputs=[do_destination_dir, do_source_dir],
                 outputs=[do_status_message]
             )
 
