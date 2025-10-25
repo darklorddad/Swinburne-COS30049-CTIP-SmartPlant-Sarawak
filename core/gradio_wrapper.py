@@ -9,6 +9,9 @@ import webbrowser
 import time
 import shutil
 import requests
+import random
+import zipfile
+import math
 
 from utils import (
     util_plot_training_metrics
@@ -230,6 +233,97 @@ def organise_dataset_folders(destination_dir: str, source_dir: str):
         return f"Successfully organised dataset at: {destination_dir}\nCreated subfolders: {', '.join(created_folders)}\nCopied {copied_files_count} files."
     except Exception as e:
         raise gr.Error(f"Failed to organise dataset: {e}")
+
+
+def split_dataset(source_dir, output_dir, split_type, train_ratio, val_ratio, test_ratio):
+    """Splits a dataset into train, validation, and optional test sets."""
+    # --- 1. Input Validation ---
+    if not source_dir or not os.path.isdir(source_dir): raise gr.Error("Please provide a valid source directory.")
+    if not output_dir: raise gr.Error("Please provide a valid output directory.")
+    os.makedirs(output_dir, exist_ok=True)
+
+    train_r, val_r, test_r = train_ratio / 100.0, val_ratio / 100.0, test_ratio / 100.0
+    total_ratio = train_r + val_r + (test_r if 'Test' in split_type else 0)
+    if not math.isclose(total_ratio, 1.0): raise gr.Error(f"Ratios must sum to 100. Current sum is {total_ratio*100:.0f}.")
+
+    # --- 2. Scan for classes and image files ---
+    class_files = {}
+    image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff']
+    for root, dirs, files in os.walk(source_dir):
+        if not dirs:  # It's a leaf directory
+            class_name = os.path.basename(root)
+            image_files = [os.path.join(root, f) for f in files if os.path.splitext(f)[1].lower() in image_extensions]
+            if image_files: class_files[class_name] = image_files
+
+    if not class_files: raise gr.Error("No leaf directories with images found in the source directory.")
+
+    # --- 3. Split files for each class ---
+    final_splits = {'train': {}, 'validate': {}}
+    if 'Test' in split_type: final_splits['test'] = {}
+    min_items_per_class, min_classes_per_set = 5, 2
+
+    for class_name, files in class_files.items():
+        random.shuffle(files)
+        n_total, start_index = len(files), 0
+
+        # Test split
+        if 'Test' in split_type:
+            n_test = round(n_total * test_r)
+            if 0 < n_test < min_items_per_class: n_test = min_items_per_class
+            if n_total - start_index >= n_test and n_test > 0:
+                final_splits['test'][class_name] = files[start_index : start_index + n_test]
+                start_index += n_test
+        
+        # Validation split
+        n_val = round(n_total * val_r)
+        if 0 < n_val < min_items_per_class: n_val = min_items_per_class
+        if n_total - start_index >= n_val and n_val > 0:
+            final_splits['validate'][class_name] = files[start_index : start_index + n_val]
+            start_index += n_val
+
+        # Train split (remaining files)
+        n_train = n_total - start_index
+        if n_train >= min_items_per_class:
+            final_splits['train'][class_name] = files[start_index:]
+
+    # --- 4. Post-split validation ---
+    for set_name, classes in final_splits.items():
+        if 0 < len(classes) < min_classes_per_set:
+            raise gr.Error(f"Could not create '{set_name}' split. It would have only {len(classes)} class(es), but the minimum is {min_classes_per_set}.")
+
+    # --- 5. Create zip archives ---
+    temp_base_dir = os.path.join(output_dir, f"temp_split_{int(time.time())}")
+    os.makedirs(temp_base_dir, exist_ok=True)
+    created_zips = []
+
+    try:
+        for set_name, classes in final_splits.items():
+            if not classes: continue
+            
+            set_dir = os.path.join(temp_base_dir, set_name)
+            os.makedirs(set_dir, exist_ok=True)
+            manifest_content = []
+
+            for class_name, files_to_copy in classes.items():
+                class_dir = os.path.join(set_dir, class_name)
+                os.makedirs(class_dir)
+                manifest_content.append(class_name)
+                for f in files_to_copy: shutil.copy2(f, class_dir)
+            
+            # Write manifest
+            with open(os.path.join(set_dir, 'manifest.txt'), 'w', encoding='utf-8') as f:
+                f.write('\n'.join(sorted(manifest_content)))
+
+            # Create zip
+            zip_path = os.path.join(output_dir, set_name)
+            shutil.make_archive(zip_path, 'zip', set_dir)
+            created_zips.append(f"{zip_path}.zip")
+
+    finally:
+        if os.path.exists(temp_base_dir): shutil.rmtree(temp_base_dir)
+
+    if not created_zips: return "No datasets were created. Check source data and split ratios."
+    return f"Successfully created dataset splits: {', '.join(created_zips)}"
 
 
 def get_model_choices():

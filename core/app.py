@@ -1,7 +1,8 @@
 import gradio as gr
 from gradio_wrapper import (
     classify_plant, show_model_charts, get_model_choices, update_model_choices,
-    launch_autotrain_ui, stop_autotrain_ui, generate_manifest, organise_dataset_folders
+    launch_autotrain_ui, stop_autotrain_ui, generate_manifest, organise_dataset_folders,
+    split_dataset
 )
 
 # #############################################################################
@@ -128,6 +129,29 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 fn=organise_dataset_folders,
                 inputs=[do_destination_dir, do_source_dir],
                 outputs=[do_status_message]
+            )
+
+        with gr.Accordion("Split dataset", open=False):
+            with gr.Column():
+                ds_source_dir = gr.Textbox(label="Source directory", placeholder="Path to the dataset to be split.")
+                ds_output_dir = gr.Textbox(label="Output directory", placeholder="Path to save the output zip files.")
+                ds_split_type = gr.Radio(["Train/Validate", "Train/Test/Validate"], label="Split type", value="Train/Validate")
+                with gr.Row():
+                    ds_train_ratio = gr.Slider(0, 100, value=80, step=1, label="Train %")
+                    ds_val_ratio = gr.Slider(0, 100, value=20, step=1, label="Validate %")
+                    ds_test_ratio = gr.Slider(0, 100, value=0, step=1, label="Test %", visible=False)
+                ds_split_button = gr.Button("Split dataset", variant="primary")
+                ds_status_message = gr.Textbox(label="Status", interactive=False)
+
+            ds_split_type.change(
+                fn=lambda x: gr.update(visible='Test' in x),
+                inputs=ds_split_type,
+                outputs=ds_test_ratio
+            )
+            ds_split_button.click(
+                fn=split_dataset,
+                inputs=[ds_source_dir, ds_output_dir, ds_split_type, ds_train_ratio, ds_val_ratio, ds_test_ratio],
+                outputs=ds_status_message
             )
 
     refresh_button.click(
