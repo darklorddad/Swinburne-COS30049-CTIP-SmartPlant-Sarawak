@@ -147,12 +147,21 @@ def show_model_charts(model_dir):
         return (None,) * 11 + (gr.update(visible=False), model_dir)
 
 
-def generate_manifest(directory_path: str):
+def generate_manifest(directory_path: str, manifest_save_path: str):
     """Generates a manifest file listing all subdirectories."""
     if not directory_path or not os.path.isdir(directory_path):
         raise gr.Error("Please provide a valid directory path.")
 
-    manifest_path = os.path.join(directory_path, 'manifest.txt')
+    if manifest_save_path:
+        manifest_path = manifest_save_path
+    else:
+        manifest_path = os.path.join(directory_path, 'manifest.txt')
+
+    # Ensure the directory for the manifest file exists
+    manifest_dir = os.path.dirname(manifest_path)
+    if manifest_dir:
+        os.makedirs(manifest_dir, exist_ok=True)
+
     try:
         subfolders = []
         for root, dirs, _ in os.walk(directory_path):

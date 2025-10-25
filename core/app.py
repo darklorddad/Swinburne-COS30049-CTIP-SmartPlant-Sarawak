@@ -97,12 +97,16 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 label="Dataset directory path",
                 placeholder="Enter the absolute path to your dataset directory..."
             )
+            dp_manifest_save_path = gr.Textbox(
+                label="Manifest file save path (optional)",
+                placeholder="Default: manifest.txt inside the dataset directory."
+            )
             dp_generate_button = gr.Button("Generate Manifest File", variant="primary")
             dp_status_message = gr.Textbox(label="Status", interactive=False)
         
         dp_generate_button.click(
             fn=generate_manifest,
-            inputs=[dp_directory_path],
+            inputs=[dp_directory_path, dp_manifest_save_path],
             outputs=[dp_status_message]
         )
 
