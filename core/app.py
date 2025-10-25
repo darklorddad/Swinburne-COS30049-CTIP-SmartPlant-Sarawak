@@ -101,7 +101,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 label="Manifest file save path (optional)",
                 placeholder="Default: manifest.txt inside the dataset directory."
             )
-            dp_generate_button = gr.Button("Generate Manifest File", variant="primary")
+            dp_generate_button = gr.Button("Generate manifest file", variant="primary")
             dp_status_message = gr.Textbox(label="Status", interactive=False)
         
         dp_generate_button.click(
