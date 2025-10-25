@@ -185,6 +185,31 @@ def generate_manifest(directory_path: str, manifest_save_path: str):
         raise gr.Error(f"Failed to generate manifest file: {e}")
 
 
+def organise_dataset_folders(destination_dir: str, class_names_str: str):
+    """Creates a directory structure for a new dataset."""
+    if not destination_dir:
+        raise gr.Error("Please provide a destination directory path.")
+    if not class_names_str:
+        raise gr.Error("Please provide at least one class name.")
+
+    try:
+        os.makedirs(destination_dir, exist_ok=True)
+        
+        class_names = [name.strip() for name in class_names_str.split(',') if name.strip()]
+        if not class_names:
+            raise gr.Error("Please provide valid, comma-separated class names.")
+
+        created_folders = []
+        for class_name in class_names:
+            class_path = os.path.join(destination_dir, class_name)
+            os.makedirs(class_path, exist_ok=True)
+            created_folders.append(class_name)
+        
+        return f"Successfully created dataset structure at: {destination_dir}\nCreated subfolders: {', '.join(created_folders)}"
+    except Exception as e:
+        raise gr.Error(f"Failed to create dataset folders: {e}")
+
+
 def get_model_choices():
     """Returns a list of directories in the current directory that start with 'Model-'."""
     try:
