@@ -3,7 +3,7 @@ import gradio as gr
 from gradio_wrapper import (
     classify_plant, show_model_charts, get_model_choices, update_model_choices,
     launch_autotrain_ui, stop_autotrain_ui, generate_manifest, organise_dataset_folders,
-    split_dataset
+    split_dataset, check_dataset_balance
 )
 
 DEFAULT_MANIFEST_PATH = os.path.join('core', 'manifest.md').replace(os.sep, '/')
@@ -96,22 +96,19 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         )
 
     with gr.Tab("Dataset preparation"):
-        with gr.Accordion("Generate directory manifest", open=False):
+        with gr.Accordion("Check dataset balance", open=False):
             with gr.Column():
-                dp_directory_path = gr.Textbox(
-                    label="Directory path"
-                )
-                dp_manifest_save_path = gr.Textbox(
-                    label="Manifest output path"
-                )
-                dp_manifest_type = gr.Radio(["Directories only", "Directories and files"], label="Manifest content", value="Directories only")
-                dp_generate_button = gr.Button("Generate", variant="primary")
-                dp_status_message = gr.Textbox(label="Status", interactive=False, lines=5)
-            
-            dp_generate_button.click(
-                fn=generate_manifest,
-                inputs=[dp_directory_path, dp_manifest_save_path, dp_manifest_type],
-                outputs=[dp_status_message]
+                db_source_dir = gr.Textbox(label="Source directory")
+                db_chart_save_path = gr.Textbox(label="Chart output path")
+                db_manifest_save_path = gr.Textbox(label="Manifest output path")
+                db_check_button = gr.Button("Check balance", variant="primary")
+                db_plot = gr.Plot(label="Class Distribution")
+                db_status_message = gr.Textbox(label="Status", interactive=False, lines=5)
+
+            db_check_button.click(
+                fn=check_dataset_balance,
+                inputs=[db_source_dir, db_chart_save_path, db_manifest_save_path],
+                outputs=[db_plot, db_status_message]
             )
 
         with gr.Accordion("Organise dataset", open=False):
@@ -183,6 +180,25 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 fn=split_dataset,
                 inputs=[ds_source_dir, ds_train_output_dir, ds_val_output_dir, ds_test_output_dir, ds_train_manifest_path, ds_val_manifest_path, ds_test_manifest_path, ds_split_type, ds_train_ratio, ds_val_ratio, ds_test_ratio],
                 outputs=ds_status_message
+            )
+
+    with gr.Tab("Utilities"):
+        with gr.Accordion("Generate directory manifest", open=False):
+            with gr.Column():
+                dp_directory_path = gr.Textbox(
+                    label="Directory path"
+                )
+                dp_manifest_save_path = gr.Textbox(
+                    label="Manifest output path"
+                )
+                dp_manifest_type = gr.Radio(["Directories only", "Directories and files"], label="Manifest content", value="Directories only")
+                dp_generate_button = gr.Button("Generate", variant="primary")
+                dp_status_message = gr.Textbox(label="Status", interactive=False, lines=5)
+            
+            dp_generate_button.click(
+                fn=generate_manifest,
+                inputs=[dp_directory_path, dp_manifest_save_path, dp_manifest_type],
+                outputs=[dp_status_message]
             )
 
     refresh_button.click(

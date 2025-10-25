@@ -12,6 +12,7 @@ import requests
 import random
 import zipfile
 import math
+import matplotlib.pyplot as plt
 
 from utils import (
     util_plot_training_metrics
@@ -381,6 +382,72 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
 
     if not created_zips: return "No datasets were created. Check source data and split ratios."
     return f"Successfully created dataset splits: {', '.join(created_zips)}"
+
+
+def check_dataset_balance(source_dir: str, chart_save_path: str, manifest_save_path: str):
+    """Checks the balance of a dataset by counting files in leaf directories."""
+    if not source_dir or not os.path.isdir(source_dir):
+        raise gr.Error("Please provide a valid source directory.")
+
+    try:
+        class_counts = {}
+        for root, dirs, files in os.walk(source_dir):
+            if not dirs:  # Leaf directory
+                if os.path.abspath(root) != os.path.abspath(source_dir):
+                    class_name = os.path.basename(root)
+                    class_counts[class_name] = len(files)
+
+        if not class_counts:
+            return None, "No leaf directories with items found in the source directory."
+
+        # Sort by class name for consistent plotting
+        sorted_classes = sorted(class_counts.keys())
+        sorted_counts = [class_counts[k] for k in sorted_classes]
+
+        # Create plot
+        fig, ax = plt.subplots(figsize=(12, 7))
+        ax.bar(sorted_classes, sorted_counts)
+        ax.set_title('Dataset Class Distribution')
+        ax.set_xlabel('Class')
+        ax.set_ylabel('Number of Items')
+        ax.grid(True, axis='y', linestyle='--', alpha=0.7)
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+
+        status_messages = ["Successfully generated balance chart."]
+
+        # Save chart if path is provided
+        if chart_save_path:
+            try:
+                chart_dir = os.path.dirname(chart_save_path)
+                if chart_dir:
+                    os.makedirs(chart_dir, exist_ok=True)
+                fig.savefig(chart_save_path)
+                status_messages.append(f"Chart saved to: {chart_save_path}")
+            except Exception as e:
+                status_messages.append(f"Warning: Could not save chart: {e}")
+
+        # Save manifest if path is provided
+        if manifest_save_path:
+            try:
+                manifest_dir = os.path.dirname(manifest_save_path)
+                if manifest_dir:
+                    os.makedirs(manifest_dir, exist_ok=True)
+
+                manifest_content = ["# Dataset Balance Manifest", "\n## Class Counts"]
+                for class_name in sorted_classes:
+                    manifest_content.append(f"- {class_name}: {class_counts[class_name]}")
+
+                with open(manifest_save_path, 'w', encoding='utf-8') as f:
+                    f.write('\n'.join(manifest_content))
+                status_messages.append(f"Manifest saved to: {manifest_save_path}")
+            except Exception as e:
+                status_messages.append(f"Warning: Could not save manifest: {e}")
+
+        return fig, '\n'.join(status_messages)
+
+    except Exception as e:
+        raise gr.Error(f"Failed to check dataset balance: {e}")
 
 
 def get_model_choices():
