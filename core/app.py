@@ -103,12 +103,13 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                     label="Manifest file save path (optional)",
                     placeholder="Optional. Path to file or directory. Defaults to 'core/manifest.txt'."
                 )
+                dp_manifest_type = gr.Radio(["Directories only", "Directories and files"], label="Manifest content", value="Directories only")
                 dp_generate_button = gr.Button("Generate manifest file", variant="primary")
                 dp_status_message = gr.Textbox(label="Status", interactive=False)
             
             dp_generate_button.click(
                 fn=generate_manifest,
-                inputs=[dp_directory_path, dp_manifest_save_path],
+                inputs=[dp_directory_path, dp_manifest_save_path, dp_manifest_type],
                 outputs=[dp_status_message]
             )
 
@@ -134,7 +135,10 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         with gr.Accordion("Split dataset", open=False):
             with gr.Column():
                 ds_source_dir = gr.Textbox(label="Source directory", placeholder="Path to the dataset to be split.")
-                ds_output_dir = gr.Textbox(label="Output directory", placeholder="Path to save the output zip files.")
+                with gr.Row():
+                    ds_train_output_dir = gr.Textbox(label="Train output directory", placeholder="Path to save train.zip")
+                    ds_val_output_dir = gr.Textbox(label="Validate output directory", placeholder="Path to save validate.zip")
+                    ds_test_output_dir = gr.Textbox(label="Test output directory", placeholder="Path to save test.zip", visible=False)
                 ds_split_type = gr.Radio(["Train/Validate", "Train/Test/Validate"], label="Split type", value="Train/Validate")
                 with gr.Row():
                     ds_train_ratio = gr.Slider(0, 100, value=80, step=1, label="Train %")
@@ -144,13 +148,13 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 ds_status_message = gr.Textbox(label="Status", interactive=False)
 
             ds_split_type.change(
-                fn=lambda x: gr.update(visible='Test' in x),
+                fn=lambda x: (gr.update(visible='Test' in x), gr.update(visible='Test' in x)),
                 inputs=ds_split_type,
-                outputs=ds_test_ratio
+                outputs=[ds_test_ratio, ds_test_output_dir]
             )
             ds_split_button.click(
                 fn=split_dataset,
-                inputs=[ds_source_dir, ds_output_dir, ds_split_type, ds_train_ratio, ds_val_ratio, ds_test_ratio],
+                inputs=[ds_source_dir, ds_train_output_dir, ds_val_output_dir, ds_test_output_dir, ds_split_type, ds_train_ratio, ds_val_ratio, ds_test_ratio],
                 outputs=ds_status_message
             )
 

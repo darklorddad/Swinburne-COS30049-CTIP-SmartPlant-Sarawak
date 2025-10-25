@@ -151,8 +151,8 @@ def show_model_charts(model_dir):
         return (None,) * 11 + (gr.update(visible=False), model_dir)
 
 
-def generate_manifest(directory_path: str, manifest_save_path: str):
-    """Generates a manifest file listing all subdirectories."""
+def generate_manifest(directory_path: str, manifest_save_path: str, manifest_type: str):
+    """Generates a manifest file listing all subdirectories and/or files."""
     if not directory_path or not os.path.isdir(directory_path):
         raise gr.Error("Please provide a valid directory path.")
 
@@ -173,16 +173,28 @@ def generate_manifest(directory_path: str, manifest_save_path: str):
         os.makedirs(manifest_dir, exist_ok=True)
 
     try:
-        subfolders = []
-        for root, dirs, _ in os.walk(directory_path):
-            dirs.sort()  # Sort in-place for deterministic order
+        manifest_items = []
+        for root, dirs, files in os.walk(directory_path):
+            # To ensure deterministic output, sort dirs and files
+            dirs.sort()
+            files.sort()
+            
+            # Add directories to manifest
             for d in dirs:
                 full_path = os.path.join(root, d)
                 relative_path = os.path.relpath(full_path, directory_path)
-                subfolders.append(relative_path.replace(os.sep, '/'))
+                manifest_items.append(relative_path.replace(os.sep, '/'))
+            
+            # Add files to manifest if requested
+            if manifest_type == "Directories and files":
+                for f in files:
+                    full_path = os.path.join(root, f)
+                    relative_path = os.path.relpath(full_path, directory_path)
+                    if relative_path != '.':
+                        manifest_items.append(relative_path.replace(os.sep, '/'))
 
         with open(manifest_path, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(subfolders))
+            f.write('\n'.join(sorted(manifest_items)))
         
         return f"Successfully generated manifest file at: {manifest_path}"
     except Exception as e:
@@ -235,12 +247,17 @@ def organise_dataset_folders(destination_dir: str, source_dir: str):
         raise gr.Error(f"Failed to organise dataset: {e}")
 
 
-def split_dataset(source_dir, output_dir, split_type, train_ratio, val_ratio, test_ratio):
+def split_dataset(source_dir, train_output_dir, val_output_dir, test_output_dir, split_type, train_ratio, val_ratio, test_ratio):
     """Splits a dataset into train, validation, and optional test sets."""
     # --- 1. Input Validation ---
     if not source_dir or not os.path.isdir(source_dir): raise gr.Error("Please provide a valid source directory.")
-    if not output_dir: raise gr.Error("Please provide a valid output directory.")
-    os.makedirs(output_dir, exist_ok=True)
+    if not train_output_dir: raise gr.Error("Please provide a training set output directory.")
+    if not val_output_dir: raise gr.Error("Please provide a validation set output directory.")
+    if 'Test' in split_type and not test_output_dir: raise gr.Error("Please provide a test set output directory.")
+
+    output_dirs = {'train': train_output_dir, 'validate': val_output_dir}
+    if 'Test' in split_type: output_dirs['test'] = test_output_dir
+    for d in output_dirs.values(): os.makedirs(d, exist_ok=True)
 
     train_r, val_r, test_r = train_ratio / 100.0, val_ratio / 100.0, test_ratio / 100.0
     total_ratio = train_r + val_r + (test_r if 'Test' in split_type else 0)
@@ -292,35 +309,39 @@ def split_dataset(source_dir, output_dir, split_type, train_ratio, val_ratio, te
             raise gr.Error(f"Could not create '{set_name}' split. It would have only {len(classes)} class(es), but the minimum is {min_classes_per_set}.")
 
     # --- 5. Create zip archives ---
-    temp_base_dir = os.path.join(output_dir, f"temp_split_{int(time.time())}")
-    os.makedirs(temp_base_dir, exist_ok=True)
+    temp_parent_dir = os.path.join(train_output_dir, f"temp_split_{int(time.time())}")
+    os.makedirs(temp_parent_dir, exist_ok=True)
     created_zips = []
 
     try:
         for set_name, classes in final_splits.items():
             if not classes: continue
             
-            set_dir = os.path.join(temp_base_dir, set_name)
+            set_dir = os.path.join(temp_parent_dir, set_name)
             os.makedirs(set_dir, exist_ok=True)
             manifest_content = []
 
             for class_name, files_to_copy in classes.items():
                 class_dir = os.path.join(set_dir, class_name)
                 os.makedirs(class_dir)
-                manifest_content.append(class_name)
-                for f in files_to_copy: shutil.copy2(f, class_dir)
+                for f in files_to_copy:
+                    shutil.copy2(f, class_dir)
+                    file_name = os.path.basename(f)
+                    manifest_path_in_zip = f"{class_name}/{file_name}".replace(os.sep, '/')
+                    manifest_content.append(manifest_path_in_zip)
             
-            # Write manifest
+            # Write manifest with relative file paths
             with open(os.path.join(set_dir, 'manifest.txt'), 'w', encoding='utf-8') as f:
                 f.write('\n'.join(sorted(manifest_content)))
 
-            # Create zip
-            zip_path = os.path.join(output_dir, set_name)
-            shutil.make_archive(zip_path, 'zip', set_dir)
-            created_zips.append(f"{zip_path}.zip")
+            # Create zip in its designated output directory
+            dest_dir = output_dirs[set_name]
+            zip_path_base = os.path.join(dest_dir, set_name)
+            shutil.make_archive(zip_path_base, 'zip', set_dir)
+            created_zips.append(f"{zip_path_base}.zip")
 
     finally:
-        if os.path.exists(temp_base_dir): shutil.rmtree(temp_base_dir)
+        if os.path.exists(temp_parent_dir): shutil.rmtree(temp_parent_dir)
 
     if not created_zips: return "No datasets were created. Check source data and split ratios."
     return f"Successfully created dataset splits: {', '.join(created_zips)}"
