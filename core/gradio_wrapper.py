@@ -153,7 +153,11 @@ def generate_manifest(directory_path: str, manifest_save_path: str):
         raise gr.Error("Please provide a valid directory path.")
 
     if manifest_save_path:
-        manifest_path = manifest_save_path
+        # If the provided path is a directory, append the default filename.
+        if os.path.isdir(manifest_save_path):
+            manifest_path = os.path.join(manifest_save_path, 'manifest.txt')
+        else:
+            manifest_path = manifest_save_path
     else:
         # Default to saving manifest.txt in the same directory as app.py
         app_dir = os.path.dirname(os.path.abspath(__file__))
