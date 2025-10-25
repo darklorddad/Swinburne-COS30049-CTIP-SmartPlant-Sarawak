@@ -37,26 +37,6 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 inf_button = gr.Button("Classify", variant="primary")
         inf_button.click(classify_plant, inputs=[inf_model_path, inf_input_image], outputs=inf_output_label)
 
-    with gr.Tab("Training"):
-        with gr.Row():
-            train_launch_button = gr.Button("Launch AutoTrain UI")
-            train_stop_button = gr.Button("Stop AutoTrain UI", visible=False)
-        train_launch_log = gr.Textbox(label="Status", interactive=False)
-        
-        train_launch_button.click(
-            fn=launch_autotrain_ui,
-            inputs=[],
-            outputs=[train_launch_log, train_launch_button, train_stop_button]
-        )
-        train_stop_button.click(
-            fn=stop_autotrain_ui,
-            inputs=[],
-            outputs=[train_launch_log, train_launch_button, train_stop_button]
-        )
-
-    with gr.Tab("Dataset preparation"):
-        pass
-
     with gr.Tab("Training metrics"):
         metrics_model_path = gr.Dropdown(label="Select model", choices=get_model_choices(), value=None)
         with gr.Column(visible=False) as inf_plots_container:
@@ -93,6 +73,26 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
             inputs=[metrics_model_path],
             outputs=inf_plots + [inf_plots_container, inf_model_path]
         )
+
+    with gr.Tab("Training"):
+        with gr.Row():
+            train_launch_button = gr.Button("Launch AutoTrain UI")
+            train_stop_button = gr.Button("Stop AutoTrain UI", visible=False)
+        train_launch_log = gr.Textbox(label="Status", interactive=False)
+        
+        train_launch_button.click(
+            fn=launch_autotrain_ui,
+            inputs=[],
+            outputs=[train_launch_log, train_launch_button, train_stop_button]
+        )
+        train_stop_button.click(
+            fn=stop_autotrain_ui,
+            inputs=[],
+            outputs=[train_launch_log, train_launch_button, train_stop_button]
+        )
+
+    with gr.Tab("Dataset preparation"):
+        pass
 
     refresh_button.click(
         fn=update_model_choices,
