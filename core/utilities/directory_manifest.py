@@ -11,7 +11,7 @@ class ManifestGeneratorApp:
         Initialise the application window and widgets.
         """
         self.root = root
-        self.root.title("Directory Manifest Generator")
+        self.root.title("Directory manifest generator")
         self.directory_path = tk.StringVar()
 
         # Frame for directory selection
@@ -19,7 +19,7 @@ class ManifestGeneratorApp:
         frame.pack(padx=10, pady=10)
 
         # Directory selection button
-        select_button = tk.Button(frame, text="Select Directory", command=self.select_directory)
+        select_button = tk.Button(frame, text="Select directory", command=self.select_directory)
         select_button.pack(side=tk.LEFT)
 
         # Label to display selected directory
@@ -27,7 +27,7 @@ class ManifestGeneratorApp:
         dir_label.pack(side=tk.LEFT, padx=10)
 
         # Generate manifest button
-        generate_button = tk.Button(root, text="Generate Manifest", command=self.generate_manifest)
+        generate_button = tk.Button(root, text="Generate manifest", command=self.generate_manifest)
         generate_button.pack(pady=5)
 
     def select_directory(self):

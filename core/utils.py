@@ -249,7 +249,7 @@ def util_analyse_balance(manifest_path):
         raise FileNotFoundError(f"Error: Manifest file not found at '{manifest_path}'")
     with open(manifest_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-    is_class_count_manifest = any('|---|' in line for line in lines[:5]) or (lines and lines[0].strip() == "# Class Count Manifest")
+    is_class_count_manifest = any('|---|' in line for line in lines[:5]) or (lines and lines[0].strip() == "# Class count manifest")
     class_counts = Counter()
     if is_class_count_manifest:
         for line in lines:
@@ -267,7 +267,7 @@ def util_analyse_balance(manifest_path):
     counts = list(class_counts.values())
     imbalance_ratio = max(counts) / min(counts)
     summary = (
-        f"Dataset Balance Analysis\n"
+        f"Dataset balance analysis\n"
         f"=========================\n"
         f"Total classes: {len(class_counts)}\n"
         f"Total images: {sum(counts)}\n"
@@ -282,7 +282,7 @@ def util_analyse_balance(manifest_path):
     sorted_counts = [class_counts[c] for c in sorted_classes]
     fig, ax = plt.subplots(figsize=(20, 10))
     ax.bar(sorted_classes, sorted_counts)
-    ax.set_xlabel('Class'); ax.set_ylabel('Number of Images'); ax.set_title('Image Distribution Across Classes')
+    ax.set_xlabel('Class'); ax.set_ylabel('Number of images'); ax.set_title('Image distribution across classes')
     plt.xticks(rotation=90, fontsize='small'); plt.tight_layout()
     return summary, fig
 
@@ -304,7 +304,7 @@ def util_count_classes(target_dir, save_to_manifest, manifest_path, log_capture)
         print("-" * 20, file=log_capture)
         if save_to_manifest:
             with open(manifest_path, 'w') as f:
-                f.write(f"# Class Count Manifest\n\n**Total classes:** {len(class_dirs)}\n\n| Class Name | Item Count |\n|---|---|\n")
+                f.write(f"# Class count manifest\n\n**Total classes:** {len(class_dirs)}\n\n| Class name | Item count |\n|---|---|\n")
                 for class_name, count in sorted_counts: f.write(f"| {class_name} | {count} |\n")
             print(f"Manifest saved to {manifest_path}", file=log_capture)
     except OSError as e:
@@ -319,67 +319,67 @@ def util_plot_training_metrics(json_path):
     eval_df = df[df['eval_loss'].notna()].copy()
     figures = {}
     # Plot Loss
-    fig_loss, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Training vs. Evaluation Loss')
-    if 'loss' in train_df: ax.plot(train_df['step'], train_df['loss'], label='Training Loss', marker='o')
-    if 'eval_loss' in eval_df: ax.plot(eval_df['step'], eval_df['eval_loss'], label='Evaluation Loss', marker='x')
+    fig_loss, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Training vs. evaluation loss')
+    if 'loss' in train_df: ax.plot(train_df['step'], train_df['loss'], label='Training loss', marker='o')
+    if 'eval_loss' in eval_df: ax.plot(eval_df['step'], eval_df['eval_loss'], label='Evaluation loss', marker='x')
     ax.set_xlabel('Step'); ax.set_ylabel('Loss')
     ax.legend(); ax.grid(True); figures['Loss'] = fig_loss
     # Plot Accuracy
-    fig_acc, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation Accuracy')
-    if 'eval_accuracy' in eval_df: ax.plot(eval_df['step'], eval_df['eval_accuracy'], label='Evaluation Accuracy', marker='o', color='g')
+    fig_acc, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation accuracy')
+    if 'eval_accuracy' in eval_df: ax.plot(eval_df['step'], eval_df['eval_accuracy'], label='Evaluation accuracy', marker='o', color='g')
     ax.set_xlabel('Step'); ax.set_ylabel('Accuracy')
     ax.legend(); ax.grid(True); figures['Accuracy'] = fig_acc
     # Plot Learning Rate
-    fig_lr, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Learning Rate Schedule')
-    if 'learning_rate' in train_df: ax.plot(train_df['step'], train_df['learning_rate'], label='Learning Rate', marker='o', color='r')
-    ax.set_xlabel('Step'); ax.set_ylabel('Learning Rate')
+    fig_lr, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Learning rate schedule')
+    if 'learning_rate' in train_df: ax.plot(train_df['step'], train_df['learning_rate'], label='Learning rate', marker='o', color='r')
+    ax.set_xlabel('Step'); ax.set_ylabel('Learning rate')
     ax.legend(); ax.grid(True); figures['Learning Rate'] = fig_lr
     # Plot Grad Norm
-    fig_gn, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Gradient Norm')
-    if 'grad_norm' in train_df: ax.plot(train_df['step'], train_df['grad_norm'], label='Grad Norm', marker='o', color='purple')
-    ax.set_xlabel('Step'); ax.set_ylabel('Gradient Norm')
+    fig_gn, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Gradient norm')
+    if 'grad_norm' in train_df: ax.plot(train_df['step'], train_df['grad_norm'], label='Grad norm', marker='o', color='purple')
+    ax.set_xlabel('Step'); ax.set_ylabel('Gradient norm')
     ax.legend(); ax.grid(True); figures['Gradient Norm'] = fig_gn
     # Plot F1
-    fig_f1, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation F1 Scores')
-    if 'eval_f1_macro' in eval_df: ax.plot(eval_df['step'], eval_df['eval_f1_macro'], label='F1 Macro', marker='o')
-    if 'eval_f1_micro' in eval_df: ax.plot(eval_df['step'], eval_df['eval_f1_micro'], label='F1 Micro', marker='x')
-    if 'eval_f1_weighted' in eval_df: ax.plot(eval_df['step'], eval_df['eval_f1_weighted'], label='F1 Weighted', marker='s')
-    ax.set_xlabel('Step'); ax.set_ylabel('F1 Score')
+    fig_f1, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation f1 scores')
+    if 'eval_f1_macro' in eval_df: ax.plot(eval_df['step'], eval_df['eval_f1_macro'], label='F1 macro', marker='o')
+    if 'eval_f1_micro' in eval_df: ax.plot(eval_df['step'], eval_df['eval_f1_micro'], label='F1 micro', marker='x')
+    if 'eval_f1_weighted' in eval_df: ax.plot(eval_df['step'], eval_df['eval_f1_weighted'], label='F1 weighted', marker='s')
+    ax.set_xlabel('Step'); ax.set_ylabel('F1 score')
     ax.legend(); ax.grid(True); figures['F1 Scores'] = fig_f1
     # Plot Precision
-    fig_prec, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation Precision Scores')
-    if 'eval_precision_macro' in eval_df: ax.plot(eval_df['step'], eval_df['eval_precision_macro'], label='Precision Macro', marker='o')
-    if 'eval_precision_micro' in eval_df: ax.plot(eval_df['step'], eval_df['eval_precision_micro'], label='Precision Micro', marker='x')
-    if 'eval_precision_weighted' in eval_df: ax.plot(eval_df['step'], eval_df['eval_precision_weighted'], label='Precision Weighted', marker='s')
+    fig_prec, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation precision scores')
+    if 'eval_precision_macro' in eval_df: ax.plot(eval_df['step'], eval_df['eval_precision_macro'], label='Precision macro', marker='o')
+    if 'eval_precision_micro' in eval_df: ax.plot(eval_df['step'], eval_df['eval_precision_micro'], label='Precision micro', marker='x')
+    if 'eval_precision_weighted' in eval_df: ax.plot(eval_df['step'], eval_df['eval_precision_weighted'], label='Precision weighted', marker='s')
     ax.set_xlabel('Step'); ax.set_ylabel('Precision')
     ax.legend(); ax.grid(True); figures['Precision'] = fig_prec
     # Plot Recall
-    fig_recall, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation Recall Scores')
-    if 'eval_recall_macro' in eval_df: ax.plot(eval_df['step'], eval_df['eval_recall_macro'], label='Recall Macro', marker='o')
-    if 'eval_recall_micro' in eval_df: ax.plot(eval_df['step'], eval_df['eval_recall_micro'], label='Recall Micro', marker='x')
-    if 'eval_recall_weighted' in eval_df: ax.plot(eval_df['step'], eval_df['eval_recall_weighted'], label='Recall Weighted', marker='s')
+    fig_recall, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation recall scores')
+    if 'eval_recall_macro' in eval_df: ax.plot(eval_df['step'], eval_df['eval_recall_macro'], label='Recall macro', marker='o')
+    if 'eval_recall_micro' in eval_df: ax.plot(eval_df['step'], eval_df['eval_recall_micro'], label='Recall micro', marker='x')
+    if 'eval_recall_weighted' in eval_df: ax.plot(eval_df['step'], eval_df['eval_recall_weighted'], label='Recall weighted', marker='s')
     ax.set_xlabel('Step'); ax.set_ylabel('Recall')
     ax.legend(); ax.grid(True); figures['Recall'] = fig_recall
     # Plot Epoch
-    fig_epoch, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Epoch Progression')
+    fig_epoch, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Epoch progression')
     if 'epoch' in df:
         epoch_df = df[['step', 'epoch']].dropna().drop_duplicates('step').sort_values('step')
         ax.plot(epoch_df['step'], epoch_df['epoch'], label='Epoch', marker='.')
     ax.set_xlabel('Step'); ax.set_ylabel('Epoch')
     ax.legend(); ax.grid(True); figures['Epoch'] = fig_epoch
     # Plot Eval Runtime
-    fig_runtime, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation Runtime')
-    if 'eval_runtime' in eval_df: ax.plot(eval_df['step'], eval_df['eval_runtime'], label='Eval Runtime', marker='o')
+    fig_runtime, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation runtime')
+    if 'eval_runtime' in eval_df: ax.plot(eval_df['step'], eval_df['eval_runtime'], label='Eval runtime', marker='o')
     ax.set_xlabel('Step'); ax.set_ylabel('Runtime (s)')
     ax.legend(); ax.grid(True); figures['Eval Runtime'] = fig_runtime
     # Plot Eval Samples Per Second
-    fig_sps, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation Samples Per Second')
-    if 'eval_samples_per_second' in eval_df: ax.plot(eval_df['step'], eval_df['eval_samples_per_second'], label='Eval Samples/sec', marker='o')
-    ax.set_xlabel('Step'); ax.set_ylabel('Samples / Second')
+    fig_sps, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation samples per second')
+    if 'eval_samples_per_second' in eval_df: ax.plot(eval_df['step'], eval_df['eval_samples_per_second'], label='Eval samples/sec', marker='o')
+    ax.set_xlabel('Step'); ax.set_ylabel('Samples / second')
     ax.legend(); ax.grid(True); figures['Eval Samples/sec'] = fig_sps
     # Plot Eval Steps Per Second
-    fig_steps_ps, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation Steps Per Second')
-    if 'eval_steps_per_second' in eval_df: ax.plot(eval_df['step'], eval_df['eval_steps_per_second'], label='Eval Steps/sec', marker='o')
-    ax.set_xlabel('Step'); ax.set_ylabel('Steps / Second')
+    fig_steps_ps, ax = plt.subplots(figsize=(10, 6)); ax.set_title('Evaluation steps per second')
+    if 'eval_steps_per_second' in eval_df: ax.plot(eval_df['step'], eval_df['eval_steps_per_second'], label='Eval steps/sec', marker='o')
+    ax.set_xlabel('Step'); ax.set_ylabel('Steps / second')
     ax.legend(); ax.grid(True); figures['Eval Steps/sec'] = fig_steps_ps
     return figures

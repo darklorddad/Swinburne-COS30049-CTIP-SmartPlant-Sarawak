@@ -10,7 +10,7 @@ class ClassCounterApp:
     """
     def __init__(self, root):
         self.root = root
-        self.root.title("Class Counter")
+        self.root.title("Class counter")
         self.root.geometry("600x450")
 
         self.target_dir = tk.StringVar()
@@ -21,7 +21,7 @@ class ClassCounterApp:
         dir_frame = tk.Frame(self.root, padx=10, pady=10)
         dir_frame.pack(fill=tk.X)
 
-        dir_label = tk.Label(dir_frame, text="Dataset Directory:")
+        dir_label = tk.Label(dir_frame, text="Dataset directory:")
         dir_label.pack(side=tk.LEFT)
 
         self.dir_entry = tk.Entry(dir_frame, textvariable=self.target_dir, width=50)
@@ -37,7 +37,7 @@ class ClassCounterApp:
         manifest_check = tk.Checkbutton(manifest_frame, text="Save to manifest file", variable=self.save_to_manifest)
         manifest_check.pack(side=tk.LEFT)
 
-        manifest_label = tk.Label(manifest_frame, text="Manifest File:")
+        manifest_label = tk.Label(manifest_frame, text="Manifest file:")
         manifest_label.pack(side=tk.LEFT, padx=(10, 0))
 
         self.manifest_entry = tk.Entry(manifest_frame, textvariable=self.manifest_path, width=40)
@@ -50,7 +50,7 @@ class ClassCounterApp:
         control_frame = tk.Frame(self.root, padx=10, pady=5)
         control_frame.pack(fill=tk.X)
 
-        run_button = tk.Button(control_frame, text="Count Classes", command=self.start_counting)
+        run_button = tk.Button(control_frame, text="Count classes", command=self.start_counting)
         run_button.pack(side=tk.LEFT)
 
         # Frame for logging
@@ -84,7 +84,7 @@ class ClassCounterApp:
             defaultextension=".md",
             filetypes=[("Markdown files", "*.md"), ("Text files", "*.txt"), ("All files", "*.*")],
             initialfile=self.manifest_path.get(),
-            title="Save Manifest As"
+            title="Save manifest as"
         )
         if filepath:
             self.manifest_path.set(filepath)
@@ -145,9 +145,9 @@ class ClassCounterApp:
                 self.log(f"Saving manifest to {manifest_path}...")
                 try:
                     with open(manifest_path, 'w') as f:
-                        f.write("# Class Count Manifest\n\n")
+                        f.write("# Class count manifest\n\n")
                         f.write(f"**Total classes:** {total_classes}\n\n")
-                        f.write("| Class Name | Item Count |\n")
+                        f.write("| Class name | Item count |\n")
                         f.write("|------------|------------|\n")
                         for class_name, count in sorted_counts:
                             f.write(f"| {class_name} | {count} |\n")

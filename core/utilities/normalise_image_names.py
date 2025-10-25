@@ -9,7 +9,7 @@ class ImageFilenameProcessorApp:
     """
     def __init__(self, root):
         self.root = root
-        self.root.title("Image Filename Processor")
+        self.root.title("Image filename processor")
         self.root.geometry("800x600")
 
         # --- Options ---
@@ -20,7 +20,7 @@ class ImageFilenameProcessorApp:
         dir_frame = tk.Frame(self.root)
         dir_frame.pack(padx=10, pady=5, fill=tk.X)
 
-        dir_label = tk.Label(dir_frame, text="Target Directory:")
+        dir_label = tk.Label(dir_frame, text="Target directory:")
         dir_label.pack(side=tk.LEFT, padx=(0, 5))
 
         self.dir_entry = tk.Entry(dir_frame)
@@ -44,7 +44,7 @@ class ImageFilenameProcessorApp:
         self.log_text.pack(padx=10, pady=5, fill=tk.BOTH, expand=True)
 
         # Action button
-        self.process_button = tk.Button(self.root, text="Process Image Names", command=self.start_processing)
+        self.process_button = tk.Button(self.root, text="Process image names", command=self.start_processing)
         self.process_button.pack(pady=10)
 
     def log(self, message):
@@ -105,7 +105,7 @@ class ImageFilenameProcessorApp:
             self.log(f"An unexpected error occurred: {e}")
             self.root.after(0, lambda e=e: messagebox.showerror("Error", f"An unexpected error occurred: {e}"))
         finally:
-            self.root.after(0, lambda: self.process_button.config(state=tk.NORMAL, text="Process Image Names"))
+            self.root.after(0, lambda: self.process_button.config(state=tk.NORMAL, text="Process image names"))
 
     def lowercase_filenames(self, target_dir):
         """

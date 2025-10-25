@@ -9,14 +9,14 @@ class NormaliseClassNamesApp:
     """
     def __init__(self, root):
         self.root = root
-        self.root.title("Class Name Normaliser")
+        self.root.title("Class name normaliser")
         self.root.geometry("800x600")
 
         # Directory selection frame
         dir_frame = tk.Frame(self.root)
         dir_frame.pack(padx=10, pady=5, fill=tk.X)
 
-        dir_label = tk.Label(dir_frame, text="Target Directory:")
+        dir_label = tk.Label(dir_frame, text="Target directory:")
         dir_label.pack(side=tk.LEFT, padx=(0, 5))
 
         self.dir_entry = tk.Entry(dir_frame)
@@ -30,7 +30,7 @@ class NormaliseClassNamesApp:
         self.log_text.pack(padx=10, pady=5, fill=tk.BOTH, expand=True)
 
         # Action button
-        self.normalise_button = tk.Button(self.root, text="Normalise Class Names", command=self.start_normalisation)
+        self.normalise_button = tk.Button(self.root, text="Normalise class names", command=self.start_normalisation)
         self.normalise_button.pack(pady=10)
 
     def log(self, message):
@@ -117,7 +117,7 @@ class NormaliseClassNamesApp:
             self.log(f"An unexpected error occurred: {e}")
             self.root.after(0, lambda e=e: messagebox.showerror("Error", f"An unexpected error occurred: {e}"))
         finally:
-            self.root.after(0, lambda: self.normalise_button.config(state=tk.NORMAL, text="Normalise Class Names"))
+            self.root.after(0, lambda: self.normalise_button.config(state=tk.NORMAL, text="Normalise class names"))
 
 def main():
     """Main function to run the GUI application."""

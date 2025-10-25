@@ -23,13 +23,13 @@ class DatasetBalanceApp:
         Initialise the application.
         """
         self.root = root
-        self.root.title("Dataset Balance Checker")
+        self.root.title("Dataset balance checker")
 
         self.frame = tk.Frame(root, padx=10, pady=10)
         self.frame.pack(padx=10, pady=10)
 
         # Manifest file selection
-        self.manifest_label = tk.Label(self.frame, text="Manifest File:")
+        self.manifest_label = tk.Label(self.frame, text="Manifest file:")
         self.manifest_label.grid(row=0, column=0, sticky=tk.W, pady=2)
 
         self.manifest_path_var = tk.StringVar()
@@ -40,7 +40,7 @@ class DatasetBalanceApp:
         self.browse_button.grid(row=0, column=2, padx=5, pady=2)
 
         # Run button
-        self.run_button = tk.Button(self.frame, text="Analyse Balance", command=self.run_analysis)
+        self.run_button = tk.Button(self.frame, text="Analyse balance", command=self.run_analysis)
         self.run_button.grid(row=1, column=0, columnspan=3, pady=10)
 
         # Log area
@@ -59,7 +59,7 @@ class DatasetBalanceApp:
         Open a file dialog to select the manifest file.
         """
         filepath = filedialog.askopenfilename(
-            title="Select Manifest File",
+            title="Select manifest file",
             filetypes=(("Markdown files", "*.md"), ("Text files", "*.txt"), ("All files", "*.*"))
         )
         if filepath:
@@ -102,7 +102,7 @@ class DatasetBalanceApp:
         std_dev = np.std(counts)
         imbalance_ratio = max_count / min_count
 
-        self.log("Dataset Balance Analysis")
+        self.log("Dataset balance analysis")
         self.log("="*25)
         self.log(f"Manifest file: {manifest_path}")
         self.log(f"Total classes: {num_classes}")
@@ -121,8 +121,8 @@ class DatasetBalanceApp:
         plt.figure(figsize=(20, 10))
         plt.bar(sorted_classes, sorted_counts)
         plt.xlabel('Class')
-        plt.ylabel('Number of Images')
-        plt.title('Image Distribution Across Classes')
+        plt.ylabel('Number of images')
+        plt.title('Image distribution across classes')
         plt.xticks(rotation=90, fontsize='small')
         plt.tight_layout()
         

@@ -80,13 +80,13 @@ class OrganiseDatasetApp:
     """
     def __init__(self, root):
         self.root = root
-        self.root.title("Dataset Organiser")
+        self.root.title("Dataset organiser")
         self.root.geometry("800x600")
 
         self.log_text = scrolledtext.ScrolledText(self.root, wrap=tk.WORD, state='disabled')
         self.log_text.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
 
-        self.organise_button = tk.Button(self.root, text="Organise Dataset", command=self.start_organisation)
+        self.organise_button = tk.Button(self.root, text="Organise dataset", command=self.start_organisation)
         self.organise_button.pack(pady=10)
 
     def log(self, message):
@@ -138,7 +138,7 @@ class OrganiseDatasetApp:
         
         self.log("\nDataset organisation complete.")
         self.log(f"Files are now in subdirectories inside {processed_dir}")
-        self.organise_button.config(state=tk.NORMAL, text="Organise Dataset")
+        self.organise_button.config(state=tk.NORMAL, text="Organise dataset")
         messagebox.showinfo("Complete", f"Dataset organisation complete.\nFiles are in {processed_dir}")
 
 def main():

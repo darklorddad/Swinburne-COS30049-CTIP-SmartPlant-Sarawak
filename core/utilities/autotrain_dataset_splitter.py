@@ -185,7 +185,7 @@ if __name__ == "__main__":
         thread.start()
 
     root = tk.Tk()
-    root.title("AutoTrain Dataset Splitter")
+    root.title("Autotrain dataset splitter")
 
     frame = ttk.Frame(root, padding="10")
     frame.grid(row=0, column=0, sticky="nsew")
@@ -193,25 +193,25 @@ if __name__ == "__main__":
     root.grid_rowconfigure(0, weight=1)
 
     # Source Directory
-    ttk.Label(frame, text="Source Directory:").grid(column=0, row=0, sticky="w")
+    ttk.Label(frame, text="Source directory:").grid(column=0, row=0, sticky="w")
     source_dir_entry = ttk.Entry(frame, width=50)
     source_dir_entry.grid(column=1, row=0, sticky="ew")
     ttk.Button(frame, text="Browse...", command=lambda: browse_directory(source_dir_entry)).grid(column=2, row=0)
 
     # Output Directory
-    ttk.Label(frame, text="Output Directory:").grid(column=0, row=1, sticky="w")
+    ttk.Label(frame, text="Output directory:").grid(column=0, row=1, sticky="w")
     output_dir_entry = ttk.Entry(frame, width=50)
     output_dir_entry.grid(column=1, row=1, sticky="ew")
     ttk.Button(frame, text="Browse...", command=lambda: browse_directory(output_dir_entry)).grid(column=2, row=1)
 
     # Min Images Per Split
-    ttk.Label(frame, text="Min Images Per Split:").grid(column=0, row=2, sticky="w")
+    ttk.Label(frame, text="Min images per split:").grid(column=0, row=2, sticky="w")
     min_images_entry = ttk.Entry(frame)
     min_images_entry.grid(column=1, row=2, sticky="w")
     min_images_entry.insert(0, "5")
 
     # Start Button
-    start_button = ttk.Button(frame, text="Start Splitting", command=start_splitting)
+    start_button = ttk.Button(frame, text="Start splitting", command=start_splitting)
     start_button.grid(column=1, row=3, pady=10)
 
     # Log

@@ -51,7 +51,7 @@ def plot_training_metrics(json_path):
         ax_loss.plot(eval_df['step'], eval_df['eval_loss'], label='Evaluation Loss', marker='x', linestyle='--')
     ax_loss.set_xlabel('Step')
     ax_loss.set_ylabel('Loss')
-    ax_loss.set_title('Training vs. Evaluation Loss')
+    ax_loss.set_title('Training vs. evaluation loss')
     ax_loss.legend()
     ax_loss.grid(True)
     figures['Loss'] = fig_loss
@@ -62,7 +62,7 @@ def plot_training_metrics(json_path):
         ax_acc.plot(eval_df['step'], eval_df['eval_accuracy'], label='Evaluation Accuracy', marker='o', linestyle='-', color='g')
     ax_acc.set_xlabel('Step')
     ax_acc.set_ylabel('Accuracy')
-    ax_acc.set_title('Evaluation Accuracy')
+    ax_acc.set_title('Evaluation accuracy')
     ax_acc.legend()
     ax_acc.grid(True)
     figures['Accuracy'] = fig_acc
@@ -73,7 +73,7 @@ def plot_training_metrics(json_path):
         ax_lr.plot(train_df['step'], train_df['learning_rate'], label='Learning Rate', marker='o', linestyle='-', color='r')
     ax_lr.set_xlabel('Step')
     ax_lr.set_ylabel('Learning Rate')
-    ax_lr.set_title('Learning Rate Schedule')
+    ax_lr.set_title('Learning rate schedule')
     ax_lr.legend()
     ax_lr.grid(True)
     figures['Learning Rate'] = fig_lr
@@ -84,7 +84,7 @@ def plot_training_metrics(json_path):
         ax_gn.plot(train_df['step'], train_df['grad_norm'], label='Grad Norm', marker='o', linestyle='-', color='purple')
     ax_gn.set_xlabel('Step')
     ax_gn.set_ylabel('Grad Norm')
-    ax_gn.set_title('Gradient Norm')
+    ax_gn.set_title('Gradient norm')
     ax_gn.legend()
     ax_gn.grid(True)
     figures['Gradient Norm'] = fig_gn
@@ -100,7 +100,7 @@ def plot_training_metrics(json_path):
             ax_f1.plot(eval_df['step'], eval_df['eval_f1_weighted'], label='F1 Weighted', marker='s', linestyle=':')
     ax_f1.set_xlabel('Step')
     ax_f1.set_ylabel('F1 Score')
-    ax_f1.set_title('Evaluation F1 Scores')
+    ax_f1.set_title('Evaluation f1 scores')
     ax_f1.legend()
     ax_f1.grid(True)
     figures['F1 Scores'] = fig_f1
@@ -116,7 +116,7 @@ def plot_training_metrics(json_path):
             ax_prec.plot(eval_df['step'], eval_df['eval_precision_weighted'], label='Precision Weighted', marker='s', linestyle=':')
     ax_prec.set_xlabel('Step')
     ax_prec.set_ylabel('Precision Score')
-    ax_prec.set_title('Evaluation Precision Scores')
+    ax_prec.set_title('Evaluation precision scores')
     ax_prec.legend()
     ax_prec.grid(True)
     figures['Precision'] = fig_prec
@@ -132,7 +132,7 @@ def plot_training_metrics(json_path):
             ax_recall.plot(eval_df['step'], eval_df['eval_recall_weighted'], label='Recall Weighted', marker='s', linestyle=':')
     ax_recall.set_xlabel('Step')
     ax_recall.set_ylabel('Recall Score')
-    ax_recall.set_title('Evaluation Recall Scores')
+    ax_recall.set_title('Evaluation recall scores')
     ax_recall.legend()
     ax_recall.grid(True)
     figures['Recall'] = fig_recall
@@ -144,7 +144,7 @@ def plot_training_metrics(json_path):
         ax_epoch.plot(epoch_df['step'], epoch_df['epoch'], label='Epoch', marker='.', linestyle='-')
     ax_epoch.set_xlabel('Step')
     ax_epoch.set_ylabel('Epoch')
-    ax_epoch.set_title('Epoch Progression')
+    ax_epoch.set_title('Epoch progression')
     ax_epoch.legend()
     ax_epoch.grid(True)
     figures['Epoch'] = fig_epoch
@@ -155,7 +155,7 @@ def plot_training_metrics(json_path):
         ax_runtime.plot(eval_df['step'], eval_df['eval_runtime'], label='Eval Runtime', marker='o', linestyle='-')
     ax_runtime.set_xlabel('Step')
     ax_runtime.set_ylabel('Runtime (s)')
-    ax_runtime.set_title('Evaluation Runtime')
+    ax_runtime.set_title('Evaluation runtime')
     ax_runtime.legend()
     ax_runtime.grid(True)
     figures['Eval Runtime'] = fig_runtime
@@ -166,7 +166,7 @@ def plot_training_metrics(json_path):
         ax_sps.plot(eval_df['step'], eval_df['eval_samples_per_second'], label='Eval Samples/sec', marker='o', linestyle='-')
     ax_sps.set_xlabel('Step')
     ax_sps.set_ylabel('Samples/sec')
-    ax_sps.set_title('Evaluation Samples Per Second')
+    ax_sps.set_title('Evaluation samples per second')
     ax_sps.legend()
     ax_sps.grid(True)
     figures['Eval Samples/sec'] = fig_sps
@@ -177,7 +177,7 @@ def plot_training_metrics(json_path):
         ax_steps_ps.plot(eval_df['step'], eval_df['eval_steps_per_second'], label='Eval Steps/sec', marker='o', linestyle='-')
     ax_steps_ps.set_xlabel('Step')
     ax_steps_ps.set_ylabel('Steps/sec')
-    ax_steps_ps.set_title('Evaluation Steps Per Second')
+    ax_steps_ps.set_title('Evaluation steps per second')
     ax_steps_ps.legend()
     ax_steps_ps.grid(True)
     figures['Eval Steps/sec'] = fig_steps_ps
@@ -203,7 +203,7 @@ if __name__ == '__main__':
 
     def display_charts_in_tabs(figures, parent):
         chart_window = tk.Toplevel(parent)
-        chart_window.title("Training & Evaluation Metrics")
+        chart_window.title("Training and evaluation metrics")
         chart_window.geometry("800x600")
 
         notebook = ttk.Notebook(chart_window)
@@ -245,7 +245,7 @@ if __name__ == '__main__':
             status_label.config(text=f"Error: {e}", fg="red")
 
     root = tk.Tk()
-    root.title("Training Metrics Plotter")
+    root.title("Training metrics plotter")
 
     frame = tk.Frame(root, padx=10, pady=10)
     frame.pack()
@@ -271,7 +271,7 @@ if __name__ == '__main__':
     save_dir_browse_button.grid(row=1, column=2, padx=5, pady=2)
 
     # Generate button
-    generate_button = tk.Button(frame, text="Generate Charts", command=generate_charts)
+    generate_button = tk.Button(frame, text="Generate charts", command=generate_charts)
     generate_button.grid(row=2, column=1, pady=10)
 
     # Status label
