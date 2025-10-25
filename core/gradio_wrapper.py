@@ -7,6 +7,7 @@ import subprocess
 import sys
 import webbrowser
 import time
+import shutil
 import requests
 
 from utils import (
@@ -186,35 +187,49 @@ def generate_manifest(directory_path: str, manifest_save_path: str):
 
 
 def organise_dataset_folders(destination_dir: str, source_dir: str):
-    """Creates a directory structure for a new dataset by scanning leaf directories from a source."""
+    """Creates a directory structure for a new dataset by scanning leaf directories from a source and copying files."""
     if not destination_dir:
         raise gr.Error("Please provide a destination directory path.")
     if not source_dir or not os.path.isdir(source_dir):
         raise gr.Error("Please provide a valid source directory path.")
 
     try:
-        class_names = set()
+        leaf_dirs = []
         for root, dirs, _ in os.walk(source_dir):
             # A leaf directory has no subdirectories.
             if not dirs:
-                # Exclude the source directory itself, only consider subdirectories.
+                # Exclude the source directory itself if it's a leaf.
                 if os.path.abspath(root) != os.path.abspath(source_dir):
-                    class_names.add(os.path.basename(root))
+                    leaf_dirs.append(root)
 
-        if not class_names:
+        if not leaf_dirs:
             raise gr.Error("No leaf subdirectories found in the source directory. These are needed for class names.")
 
-        os.makedirs(destination_dir, exist_ok=True)
-        
+        # Get unique class names from leaf directory basenames
+        class_names = sorted(list(set(os.path.basename(d) for d in leaf_dirs)))
+
+        # Create class directories in destination
         created_folders = []
-        for class_name in sorted(list(class_names)):
+        for class_name in class_names:
             class_path = os.path.join(destination_dir, class_name)
             os.makedirs(class_path, exist_ok=True)
             created_folders.append(class_name)
         
-        return f"Successfully created dataset structure at: {destination_dir}\nCreated subfolders: {', '.join(created_folders)}"
+        copied_files_count = 0
+        # Copy files from each leaf directory to the corresponding new class directory
+        for src_leaf_dir in leaf_dirs:
+            class_name = os.path.basename(src_leaf_dir)
+            dest_class_dir = os.path.join(destination_dir, class_name)
+            
+            for filename in os.listdir(src_leaf_dir):
+                src_file_path = os.path.join(src_leaf_dir, filename)
+                if os.path.isfile(src_file_path):
+                    shutil.copy2(src_file_path, dest_class_dir)
+                    copied_files_count += 1
+        
+        return f"Successfully organised dataset at: {destination_dir}\nCreated subfolders: {', '.join(created_folders)}\nCopied {copied_files_count} files."
     except Exception as e:
-        raise gr.Error(f"Failed to create dataset folders: {e}")
+        raise gr.Error(f"Failed to organise dataset: {e}")
 
 
 def get_model_choices():
