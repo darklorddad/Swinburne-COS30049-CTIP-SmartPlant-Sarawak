@@ -281,6 +281,8 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
     if 'Test' in split_type: final_splits['test'] = {}
     min_items_per_class, min_classes_per_set = 5, 2
 
+    split_summary = {set_name: {'included': [], 'skipped': []} for set_name in final_splits.keys()}
+
     for class_name, files in class_files.items():
         random.shuffle(files)
         n_total, start_index = len(files), 0
@@ -289,21 +291,35 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
         if 'Test' in split_type:
             n_test = round(n_total * test_r)
             if 0 < n_test < min_items_per_class: n_test = min_items_per_class
-            if n_total - start_index >= n_test and n_test > 0:
+            
+            is_included = n_total - start_index >= n_test and n_test > 0
+            if is_included:
                 final_splits['test'][class_name] = files[start_index : start_index + n_test]
                 start_index += n_test
+                split_summary['test']['included'].append(class_name)
+            elif n_test > 0: # Was supposed to be included but failed condition
+                split_summary['test']['skipped'].append(class_name)
         
         # Validation split
         n_val = round(n_total * val_r)
         if 0 < n_val < min_items_per_class: n_val = min_items_per_class
-        if n_total - start_index >= n_val and n_val > 0:
+        
+        is_included = n_total - start_index >= n_val and n_val > 0
+        if is_included:
             final_splits['validate'][class_name] = files[start_index : start_index + n_val]
             start_index += n_val
+            split_summary['validate']['included'].append(class_name)
+        elif n_val > 0: # Was supposed to be included but failed condition
+            split_summary['validate']['skipped'].append(class_name)
 
         # Train split (remaining files)
         n_train = n_total - start_index
-        if n_train >= min_items_per_class:
+        is_included = n_train >= min_items_per_class
+        if is_included:
             final_splits['train'][class_name] = files[start_index:]
+            split_summary['train']['included'].append(class_name)
+        elif n_train > 0: # There were files left, but not enough
+            split_summary['train']['skipped'].append(class_name)
 
     # --- 4. Post-split validation ---
     for set_name, classes in final_splits.items():
@@ -321,7 +337,7 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
             
             set_dir = os.path.join(temp_parent_dir, set_name)
             os.makedirs(set_dir, exist_ok=True)
-            manifest_content = []
+            manifest_files = []
 
             for class_name, files_to_copy in classes.items():
                 class_dir = os.path.join(set_dir, class_name)
@@ -330,16 +346,29 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                     shutil.copy2(f, class_dir)
                     file_name = os.path.basename(f)
                     manifest_path_in_zip = f"{class_name}/{file_name}".replace(os.sep, '/')
-                    manifest_content.append(manifest_path_in_zip)
+                    manifest_files.append(manifest_path_in_zip)
             
+            # Build manifest content with summary
+            manifest_content = []
+            manifest_content.append(f"# {set_name.capitalize()} Set Manifest")
+            manifest_content.append("\n## Included Classes")
+            manifest_content.extend(sorted(split_summary[set_name]['included']))
+            
+            if split_summary[set_name]['skipped']:
+                manifest_content.append("\n## Skipped Classes (due to minimum item rule)")
+                manifest_content.extend(sorted(split_summary[set_name]['skipped']))
+
+            manifest_content.append("\n## File List")
+            manifest_content.extend(sorted(manifest_files))
+
             # Write manifest with relative file paths
             with open(os.path.join(set_dir, 'manifest.md'), 'w', encoding='utf-8') as f:
-                f.write('\n'.join(sorted(manifest_content)))
+                f.write('\n'.join(manifest_content))
 
             # Write manifest to external directory
             external_manifest_path = manifest_paths[set_name]
             with open(external_manifest_path, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(sorted(manifest_content)))
+                f.write('\n'.join(manifest_content))
 
             # Create zip in its designated output directory
             zip_path = output_paths[set_name]
