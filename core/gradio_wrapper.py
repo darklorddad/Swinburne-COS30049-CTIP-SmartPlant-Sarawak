@@ -159,13 +159,13 @@ def generate_manifest(directory_path: str, manifest_save_path: str, manifest_typ
     if manifest_save_path:
         # If the provided path is a directory, append the default filename.
         if os.path.isdir(manifest_save_path):
-            manifest_path = os.path.join(manifest_save_path, 'manifest.txt')
+            manifest_path = os.path.join(manifest_save_path, 'manifest.md')
         else:
             manifest_path = manifest_save_path
     else:
-        # Default to saving manifest.txt in the same directory as app.py
+        # Default to saving manifest.md in the same directory as app.py
         app_dir = os.path.dirname(os.path.abspath(__file__))
-        manifest_path = os.path.join(app_dir, 'manifest.txt')
+        manifest_path = os.path.join(app_dir, 'manifest.md')
 
     # Ensure the directory for the manifest file exists
     manifest_dir = os.path.dirname(manifest_path)
@@ -332,12 +332,12 @@ def split_dataset(source_dir, train_output_dir, val_output_dir, test_output_dir,
                     manifest_content.append(manifest_path_in_zip)
             
             # Write manifest with relative file paths
-            with open(os.path.join(set_dir, 'manifest.txt'), 'w', encoding='utf-8') as f:
+            with open(os.path.join(set_dir, 'manifest.md'), 'w', encoding='utf-8') as f:
                 f.write('\n'.join(sorted(manifest_content)))
 
             # Write manifest to external directory if provided
             if manifest_output_dir:
-                external_manifest_path = os.path.join(manifest_output_dir, f"{set_name}_manifest.txt")
+                external_manifest_path = os.path.join(manifest_output_dir, f"{set_name}_manifest.md")
                 with open(external_manifest_path, 'w', encoding='utf-8') as f:
                     f.write('\n'.join(sorted(manifest_content)))
 

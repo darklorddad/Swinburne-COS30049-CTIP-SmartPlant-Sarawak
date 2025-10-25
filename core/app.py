@@ -6,7 +6,7 @@ from gradio_wrapper import (
     split_dataset
 )
 
-DEFAULT_MANIFEST_PATH = os.path.join('core', 'manifest.txt').replace(os.sep, '/')
+DEFAULT_MANIFEST_PATH = os.path.join('core', 'manifest.md').replace(os.sep, '/')
 
 # #############################################################################
 # GRADIO UI
@@ -120,11 +120,11 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
             with gr.Column():
                 do_source_dir = gr.Textbox(
                     label="Source directory",
-                    placeholder="Path to directory to scan for leaf folders as class names."
+                    placeholder="Path to the source directory containing class subfolders."
                 )
                 do_destination_dir = gr.Textbox(
                     label="Destination directory",
-                    placeholder="Path to create the new dataset folder structure."
+                    placeholder="Path for the new organised dataset folder."
                 )
                 do_create_button = gr.Button("Organise", variant="primary")
                 do_status_message = gr.Textbox(label="Status", interactive=False)
@@ -138,7 +138,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         with gr.Accordion("Split dataset", open=False):
             with gr.Column():
                 ds_source_dir = gr.Textbox(label="Source directory", placeholder="Path to the dataset to be split.")
-                ds_manifest_output_dir = gr.Textbox(label="Manifest output directory (optional)", placeholder="Path to save manifest files (e.g., train_manifest.txt).")
+                ds_manifest_output_dir = gr.Textbox(label="Manifest output directory (optional)", placeholder="Optional. Path to save manifest files (e.g., train_manifest.md).")
                 with gr.Row():
                     ds_train_output_dir = gr.Textbox(label="Train output directory", placeholder="Path to save train.zip")
                     ds_val_output_dir = gr.Textbox(label="Validate output directory", placeholder="Path to save validate.zip")
@@ -154,20 +154,31 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
             def update_split_type(split_type):
                 is_test_visible = 'Test' in split_type
                 if is_test_visible:
+                    # Set default ratios for Train/Test/Validate
                     return gr.update(visible=True), gr.update(visible=True), gr.update(value=80), gr.update(value=10), gr.update(value=10)
                 else:
+                    # Set default ratios for Train/Validate
                     return gr.update(visible=False), gr.update(visible=False), gr.update(value=80), gr.update(value=20), gr.update(value=0)
 
-            def update_val_ratio(train_r, test_r):
-                return gr.update(value=100 - train_r - test_r)
+            def update_ratios_from_train(train_r, test_r):
+                if train_r + test_r > 100:
+                    test_r = 100 - train_r
+                val_r = 100 - train_r - test_r
+                return gr.update(value=val_r), gr.update(value=test_r)
+
+            def update_ratios_from_test(train_r, test_r):
+                if train_r + test_r > 100:
+                    train_r = 100 - test_r
+                val_r = 100 - train_r - test_r
+                return gr.update(value=val_r), gr.update(value=train_r)
 
             ds_split_type.change(
                 fn=update_split_type,
                 inputs=ds_split_type,
                 outputs=[ds_test_ratio, ds_test_output_dir, ds_train_ratio, ds_val_ratio, ds_test_ratio]
             )
-            ds_train_ratio.input(fn=update_val_ratio, inputs=[ds_train_ratio, ds_test_ratio], outputs=ds_val_ratio)
-            ds_test_ratio.input(fn=update_val_ratio, inputs=[ds_train_ratio, ds_test_ratio], outputs=ds_val_ratio)
+            ds_train_ratio.input(fn=update_ratios_from_train, inputs=[ds_train_ratio, ds_test_ratio], outputs=[ds_val_ratio, ds_test_ratio])
+            ds_test_ratio.input(fn=update_ratios_from_test, inputs=[ds_train_ratio, ds_test_ratio], outputs=[ds_val_ratio, ds_train_ratio])
 
             ds_split_button.click(
                 fn=split_dataset,
