@@ -99,7 +99,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
             )
             dp_manifest_save_path = gr.Textbox(
                 label="Manifest file save path (optional)",
-                placeholder="Default: manifest.txt inside the dataset directory."
+                placeholder="Default: manifest.txt in the same directory as app.py."
             )
             dp_generate_button = gr.Button("Generate manifest file", variant="primary")
             dp_status_message = gr.Textbox(label="Status", interactive=False)

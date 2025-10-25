@@ -155,7 +155,9 @@ def generate_manifest(directory_path: str, manifest_save_path: str):
     if manifest_save_path:
         manifest_path = manifest_save_path
     else:
-        manifest_path = os.path.join(directory_path, 'manifest.txt')
+        # Default to saving manifest.txt in the same directory as app.py
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        manifest_path = os.path.join(app_dir, 'manifest.txt')
 
     # Ensure the directory for the manifest file exists
     manifest_dir = os.path.dirname(manifest_path)
