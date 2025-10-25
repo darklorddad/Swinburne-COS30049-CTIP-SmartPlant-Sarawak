@@ -92,7 +92,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         )
 
     with gr.Tab("Dataset preparation"):
-        with gr.Accordion("Generate Manifest File", open=False):
+        with gr.Accordion("Generate manifest file", open=False):
             with gr.Column():
                 dp_directory_path = gr.Textbox(
                     label="Dataset directory path",
@@ -111,7 +111,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 outputs=[dp_status_message]
             )
 
-        with gr.Accordion("Organise Dataset Folders", open=False):
+        with gr.Accordion("Organise dataset folders", open=False):
             with gr.Column():
                 do_destination_dir = gr.Textbox(
                     label="Destination directory",
