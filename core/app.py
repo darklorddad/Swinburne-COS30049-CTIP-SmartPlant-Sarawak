@@ -1,7 +1,7 @@
 import gradio as gr
 from gradio_wrapper import (
     classify_plant, show_model_charts, get_model_choices, update_model_choices,
-    launch_autotrain_ui, stop_autotrain_ui
+    launch_autotrain_ui, stop_autotrain_ui, generate_manifest
 )
 
 # #############################################################################
@@ -92,7 +92,19 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         )
 
     with gr.Tab("Dataset preparation"):
-        pass
+        with gr.Column():
+            dp_directory_path = gr.Textbox(
+                label="Dataset directory path",
+                placeholder="Enter the absolute path to your dataset directory..."
+            )
+            dp_generate_button = gr.Button("Generate Manifest File", variant="primary")
+            dp_status_message = gr.Textbox(label="Status", interactive=False)
+        
+        dp_generate_button.click(
+            fn=generate_manifest,
+            inputs=[dp_directory_path],
+            outputs=[dp_status_message]
+        )
 
     refresh_button.click(
         fn=update_model_choices,

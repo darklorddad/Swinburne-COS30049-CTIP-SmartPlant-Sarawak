@@ -147,6 +147,28 @@ def show_model_charts(model_dir):
         return (None,) * 11 + (gr.update(visible=False), model_dir)
 
 
+def generate_manifest(directory_path: str):
+    """Generates a manifest file listing all subdirectories."""
+    if not directory_path or not os.path.isdir(directory_path):
+        raise gr.Error("Please provide a valid directory path.")
+
+    manifest_path = os.path.join(directory_path, 'manifest.txt')
+    try:
+        subfolders = []
+        for root, dirs, _ in os.walk(directory_path):
+            dirs.sort()  # Sort in-place for deterministic order
+            for d in dirs:
+                full_path = os.path.join(root, d)
+                relative_path = os.path.relpath(full_path, directory_path)
+                subfolders.append(relative_path.replace(os.sep, '/'))
+
+        with open(manifest_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(subfolders))
+        
+        return f"Successfully generated manifest file at: {manifest_path}"
+    except Exception as e:
+        raise gr.Error(f"Failed to generate manifest file: {e}")
+
 
 def get_model_choices():
     """Returns a list of directories in the current directory that start with 'Model-'."""
