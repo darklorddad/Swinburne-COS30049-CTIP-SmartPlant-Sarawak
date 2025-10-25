@@ -247,17 +247,19 @@ def organise_dataset_folders(destination_dir: str, source_dir: str):
         raise gr.Error(f"Failed to organise dataset: {e}")
 
 
-def split_dataset(source_dir, train_output_dir, val_output_dir, test_output_dir, manifest_output_dir, split_type, train_ratio, val_ratio, test_ratio):
+def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, manifest_output_dir, split_type, train_ratio, val_ratio, test_ratio):
     """Splits a dataset into train, validation, and optional test sets."""
     # --- 1. Input Validation ---
     if not source_dir or not os.path.isdir(source_dir): raise gr.Error("Please provide a valid source directory.")
-    if not train_output_dir: raise gr.Error("Please provide a training set output directory.")
-    if not val_output_dir: raise gr.Error("Please provide a validation set output directory.")
-    if 'Test' in split_type and not test_output_dir: raise gr.Error("Please provide a test set output directory.")
+    if not train_zip_path: raise gr.Error("Please provide a training set output path.")
+    if not val_zip_path: raise gr.Error("Please provide a validation set output path.")
+    if 'Test' in split_type and not test_zip_path: raise gr.Error("Please provide a test set output path.")
 
-    output_dirs = {'train': train_output_dir, 'validate': val_output_dir}
-    if 'Test' in split_type: output_dirs['test'] = test_output_dir
-    for d in output_dirs.values(): os.makedirs(d, exist_ok=True)
+    output_paths = {'train': train_zip_path, 'validate': val_zip_path}
+    if 'Test' in split_type: output_paths['test'] = test_zip_path
+    for p in output_paths.values():
+        if p:
+            os.makedirs(os.path.dirname(p), exist_ok=True)
     if manifest_output_dir: os.makedirs(manifest_output_dir, exist_ok=True)
 
     train_r, val_r, test_r = train_ratio / 100.0, val_ratio / 100.0, test_ratio / 100.0
@@ -310,7 +312,7 @@ def split_dataset(source_dir, train_output_dir, val_output_dir, test_output_dir,
             raise gr.Error(f"Could not create '{set_name}' split. It would have only {len(classes)} class(es), but the minimum is {min_classes_per_set}.")
 
     # --- 5. Create zip archives ---
-    temp_parent_dir = os.path.join(train_output_dir, f"temp_split_{int(time.time())}")
+    temp_parent_dir = os.path.join(os.path.dirname(train_zip_path), f"temp_split_{int(time.time())}")
     os.makedirs(temp_parent_dir, exist_ok=True)
     created_zips = []
 
@@ -342,10 +344,10 @@ def split_dataset(source_dir, train_output_dir, val_output_dir, test_output_dir,
                     f.write('\n'.join(sorted(manifest_content)))
 
             # Create zip in its designated output directory
-            dest_dir = output_dirs[set_name]
-            zip_path_base = os.path.join(dest_dir, set_name)
-            shutil.make_archive(zip_path_base, 'zip', set_dir)
-            created_zips.append(f"{zip_path_base}.zip")
+            zip_path = output_paths[set_name]
+            zip_path_base = os.path.splitext(zip_path)[0]
+            archive_path = shutil.make_archive(zip_path_base, 'zip', set_dir)
+            created_zips.append(archive_path)
 
     finally:
         if os.path.exists(temp_parent_dir): shutil.rmtree(temp_parent_dir)

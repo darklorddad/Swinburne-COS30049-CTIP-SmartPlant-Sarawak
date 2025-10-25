@@ -96,19 +96,17 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         )
 
     with gr.Tab("Dataset preparation"):
-        with gr.Accordion("Generate manifest file", open=False):
+        with gr.Accordion("Generate directory manifest", open=False):
             with gr.Column():
                 dp_directory_path = gr.Textbox(
-                    label="Dataset directory path",
-                    placeholder="Enter the absolute path to your dataset directory..."
+                    label="Directory path"
                 )
                 dp_manifest_save_path = gr.Textbox(
-                    label="Manifest file save path (optional)",
-                    placeholder=f"Optional. Path to file or directory. Defaults to '{DEFAULT_MANIFEST_PATH}'."
+                    label="Manifest output directory"
                 )
                 dp_manifest_type = gr.Radio(["Directories only", "Directories and files"], label="Manifest content", value="Directories only")
                 dp_generate_button = gr.Button("Generate", variant="primary")
-                dp_status_message = gr.Textbox(label="Status", interactive=False)
+                dp_status_message = gr.Textbox(label="Status", interactive=False, lines=3)
             
             dp_generate_button.click(
                 fn=generate_manifest,
@@ -119,15 +117,13 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         with gr.Accordion("Organise dataset", open=False):
             with gr.Column():
                 do_source_dir = gr.Textbox(
-                    label="Source directory",
-                    placeholder="Path to the source directory containing class subfolders."
+                    label="Source directory"
                 )
                 do_destination_dir = gr.Textbox(
-                    label="Destination directory",
-                    placeholder="Path for the new organised dataset folder."
+                    label="Destination directory"
                 )
                 do_create_button = gr.Button("Organise", variant="primary")
-                do_status_message = gr.Textbox(label="Status", interactive=False)
+                do_status_message = gr.Textbox(label="Status", interactive=False, lines=3)
 
             do_create_button.click(
                 fn=organise_dataset_folders,
@@ -137,19 +133,19 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
 
         with gr.Accordion("Split dataset", open=False):
             with gr.Column():
-                ds_source_dir = gr.Textbox(label="Source directory", placeholder="Path to the dataset to be split.")
-                ds_manifest_output_dir = gr.Textbox(label="Manifest output directory (optional)", placeholder="Optional. Path to save manifest files (e.g., train_manifest.md).")
+                ds_source_dir = gr.Textbox(label="Source directory")
+                ds_manifest_output_dir = gr.Textbox(label="Manifest output directory")
                 with gr.Row():
-                    ds_train_output_dir = gr.Textbox(label="Train output directory", placeholder="Path to save train.zip")
-                    ds_val_output_dir = gr.Textbox(label="Validate output directory", placeholder="Path to save validate.zip")
-                    ds_test_output_dir = gr.Textbox(label="Test output directory", placeholder="Path to save test.zip", visible=False)
+                    ds_train_output_dir = gr.Textbox(label="Train output path")
+                    ds_val_output_dir = gr.Textbox(label="Validate output path")
+                    ds_test_output_dir = gr.Textbox(label="Test output path", visible=False)
                 ds_split_type = gr.Radio(["Train/Validate", "Train/Test/Validate"], label="Split type", value="Train/Validate")
                 with gr.Row():
                     ds_train_ratio = gr.Slider(0, 100, value=80, step=1, label="Train %")
                     ds_val_ratio = gr.Slider(0, 100, value=20, step=1, label="Validate %", interactive=False)
                     ds_test_ratio = gr.Slider(0, 100, value=0, step=1, label="Test %", visible=False)
                 ds_split_button = gr.Button("Split", variant="primary")
-                ds_status_message = gr.Textbox(label="Status", interactive=False)
+                ds_status_message = gr.Textbox(label="Status", interactive=False, lines=3)
 
             def update_split_type(split_type):
                 is_test_visible = 'Test' in split_type
