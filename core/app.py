@@ -1,9 +1,6 @@
 import gradio as gr
 from gradio_wrapper import (
-    classify_plant, run_organise_dataset, run_normalise_class_names,
-    run_normalise_image_names, run_split_dataset, run_generate_manifest,
-    run_check_balance, save_balance_analysis, run_count_classes,
-    show_model_charts, get_model_choices, update_model_choices,
+    classify_plant, show_model_charts, get_model_choices, update_model_choices,
     launch_autotrain_ui, stop_autotrain_ui
 )
 
@@ -93,78 +90,6 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
             inputs=[metrics_model_path],
             outputs=inf_plots + [inf_plots_container, inf_model_path]
         )
-    with gr.Tab("Data preparation"):
-        with gr.Accordion("Organise raw dataset", open=False):
-            with gr.Row():
-                prep_org_train_zip = gr.File(label="Train images zip file")
-                prep_org_test_zip = gr.File(label="Test images zip file")
-            with gr.Row():
-                prep_org_train_txt = gr.File(label="Train annotations file")
-                prep_org_test_txt = gr.File(label="Test annotations file")
-            prep_org_output_dir = gr.Textbox(label="Output directory name", value="processed_dataset", placeholder="A name for the output directory")
-            prep_org_button = gr.Button("Organise dataset")
-            prep_org_log = gr.Textbox(label="Log", interactive=False, lines=10)
-            prep_org_button.click(run_organise_dataset, inputs=[prep_org_train_zip, prep_org_test_zip, prep_org_train_txt, prep_org_test_txt, prep_org_output_dir], outputs=prep_org_log)
-        with gr.Accordion("Normalise class directory names", open=False):
-            prep_norm_class_dir = gr.Textbox(label="Target directory name", value="processed_dataset", placeholder="Enter the name of the directory containing class subdirectories")
-            prep_norm_class_button = gr.Button("Normalise class names")
-            prep_norm_class_log = gr.Textbox(label="Log", interactive=False, lines=10)
-            prep_norm_class_button.click(run_normalise_class_names, inputs=[prep_norm_class_dir], outputs=prep_norm_class_log)
-        with gr.Accordion("Normalise image filenames", open=False):
-            prep_norm_img_dir = gr.Textbox(label="Target directory name", value="processed_dataset", placeholder="Enter the name of the directory to process")
-            prep_norm_img_lower = gr.Checkbox(label="Convert filenames to lowercase", value=True)
-            prep_norm_img_std = gr.Checkbox(label="Standardise filenames (e.g., class_0001.jpg)", value=True)
-            prep_norm_img_button = gr.Button("Process image names")
-            prep_norm_img_log = gr.Textbox(label="Log", interactive=False, lines=10)
-            prep_norm_img_button.click(run_normalise_image_names, inputs=[prep_norm_img_dir, prep_norm_img_lower, prep_norm_img_std], outputs=prep_norm_img_log)
-        with gr.Accordion("Split dataset for autotrain", open=False):
-            prep_split_source = gr.Textbox(label="Source directory name", value="processed_dataset", placeholder="Enter the name of the directory to split")
-            prep_split_output = gr.Textbox(label="Output directory name", placeholder="e.g., 'autotrain_dataset'")
-            prep_split_min = gr.Number(label="Min images per split", value=5)
-            prep_split_button = gr.Button("Split dataset")
-            prep_split_log = gr.Textbox(label="Log", interactive=False, lines=10)
-            prep_split_button.click(run_split_dataset, inputs=[prep_split_source, prep_split_output, prep_split_min], outputs=prep_split_log)
-
-    with gr.Tab("Analysis and utilities"):
-        with gr.Accordion("Check dataset balance", open=False):
-            analysis_balance_path = gr.Textbox(label="Path to manifest file", placeholder="e.g., 'autotrain_dataset/Dataset-manifest.json'")
-            analysis_balance_button = gr.Button("Analyse balance")
-            analysis_balance_summary = gr.Textbox(label="Summary", interactive=False, lines=10)
-            analysis_balance_plot = gr.Plot(label="Class distribution")
-            
-            analysis_summary_state = gr.State()
-            analysis_plot_state = gr.State()
-
-            with gr.Column(visible=False) as analysis_save_container:
-                analysis_save_path = gr.Textbox(label="Save basename", value="analysis_balance", placeholder="e.g., my_dataset_balance")
-                analysis_save_button = gr.Button("Save analysis")
-                analysis_save_log = gr.Textbox(label="Save log", interactive=False, lines=3)
-
-            analysis_balance_button.click(
-                fn=run_check_balance,
-                inputs=[analysis_balance_path],
-                outputs=[analysis_balance_summary, analysis_balance_plot, analysis_summary_state, analysis_plot_state, analysis_save_container]
-            )
-            analysis_save_button.click(
-                fn=save_balance_analysis,
-                inputs=[analysis_summary_state, analysis_plot_state, analysis_save_path],
-                outputs=[analysis_save_log]
-            )
-        with gr.Accordion("Count classes in directory", open=False):
-            util_count_dir = gr.Textbox(label="Dataset directory name", value="processed_dataset", placeholder="Enter the name of the directory to count")
-            util_count_save = gr.Checkbox(label="Save to manifest file")
-            util_count_path = gr.Textbox(label="Manifest file path", value="class_counts.md")
-            util_count_button = gr.Button("Count classes")
-            util_count_log = gr.Textbox(label="Log", interactive=False, lines=10)
-            util_count_button.click(run_count_classes, inputs=[util_count_dir, util_count_save, util_count_path], outputs=util_count_log)
-        with gr.Accordion("Generate directory manifest", open=False):
-            util_manifest_dir = gr.Textbox(label="Target directory name", value=".", placeholder="Enter the name of the directory to scan")
-            util_manifest_save = gr.Checkbox(label="Save manifest to file", value=False)
-            util_manifest_path = gr.Textbox(label="Save manifest as", value="manifest.md", visible=False)
-            util_manifest_button = gr.Button("Generate manifest")
-            util_manifest_log = gr.Textbox(label="Manifest content and log", interactive=False, lines=20)
-            util_manifest_save.change(fn=lambda x: gr.update(visible=x), inputs=util_manifest_save, outputs=util_manifest_path)
-            util_manifest_button.click(run_generate_manifest, inputs=[util_manifest_dir, util_manifest_save, util_manifest_path], outputs=util_manifest_log)
 
     refresh_button.click(
         fn=update_model_choices,
