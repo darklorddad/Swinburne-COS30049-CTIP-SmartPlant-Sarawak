@@ -247,7 +247,7 @@ def organise_dataset_folders(destination_dir: str, source_dir: str):
         raise gr.Error(f"Failed to organise dataset: {e}")
 
 
-def split_dataset(source_dir, train_output_dir, val_output_dir, test_output_dir, split_type, train_ratio, val_ratio, test_ratio):
+def split_dataset(source_dir, train_output_dir, val_output_dir, test_output_dir, manifest_output_dir, split_type, train_ratio, val_ratio, test_ratio):
     """Splits a dataset into train, validation, and optional test sets."""
     # --- 1. Input Validation ---
     if not source_dir or not os.path.isdir(source_dir): raise gr.Error("Please provide a valid source directory.")
@@ -258,6 +258,7 @@ def split_dataset(source_dir, train_output_dir, val_output_dir, test_output_dir,
     output_dirs = {'train': train_output_dir, 'validate': val_output_dir}
     if 'Test' in split_type: output_dirs['test'] = test_output_dir
     for d in output_dirs.values(): os.makedirs(d, exist_ok=True)
+    if manifest_output_dir: os.makedirs(manifest_output_dir, exist_ok=True)
 
     train_r, val_r, test_r = train_ratio / 100.0, val_ratio / 100.0, test_ratio / 100.0
     total_ratio = train_r + val_r + (test_r if 'Test' in split_type else 0)
@@ -333,6 +334,12 @@ def split_dataset(source_dir, train_output_dir, val_output_dir, test_output_dir,
             # Write manifest with relative file paths
             with open(os.path.join(set_dir, 'manifest.txt'), 'w', encoding='utf-8') as f:
                 f.write('\n'.join(sorted(manifest_content)))
+
+            # Write manifest to external directory if provided
+            if manifest_output_dir:
+                external_manifest_path = os.path.join(manifest_output_dir, f"{set_name}_manifest.txt")
+                with open(external_manifest_path, 'w', encoding='utf-8') as f:
+                    f.write('\n'.join(sorted(manifest_content)))
 
             # Create zip in its designated output directory
             dest_dir = output_dirs[set_name]

@@ -1,9 +1,12 @@
+import os
 import gradio as gr
 from gradio_wrapper import (
     classify_plant, show_model_charts, get_model_choices, update_model_choices,
     launch_autotrain_ui, stop_autotrain_ui, generate_manifest, organise_dataset_folders,
     split_dataset
 )
+
+DEFAULT_MANIFEST_PATH = os.path.join('core', 'manifest.txt').replace(os.sep, '/')
 
 # #############################################################################
 # GRADIO UI
@@ -101,10 +104,10 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 )
                 dp_manifest_save_path = gr.Textbox(
                     label="Manifest file save path (optional)",
-                    placeholder="Optional. Path to file or directory. Defaults to 'core/manifest.txt'."
+                    placeholder=f"Optional. Path to file or directory. Defaults to '{DEFAULT_MANIFEST_PATH}'."
                 )
                 dp_manifest_type = gr.Radio(["Directories only", "Directories and files"], label="Manifest content", value="Directories only")
-                dp_generate_button = gr.Button("Generate manifest file", variant="primary")
+                dp_generate_button = gr.Button("Generate", variant="primary")
                 dp_status_message = gr.Textbox(label="Status", interactive=False)
             
             dp_generate_button.click(
@@ -113,7 +116,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 outputs=[dp_status_message]
             )
 
-        with gr.Accordion("Organise dataset folders", open=False):
+        with gr.Accordion("Organise dataset", open=False):
             with gr.Column():
                 do_source_dir = gr.Textbox(
                     label="Source directory",
@@ -123,7 +126,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                     label="Destination directory",
                     placeholder="Path to create the new dataset folder structure."
                 )
-                do_create_button = gr.Button("Create folder structure", variant="primary")
+                do_create_button = gr.Button("Organise", variant="primary")
                 do_status_message = gr.Textbox(label="Status", interactive=False)
 
             do_create_button.click(
@@ -135,6 +138,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         with gr.Accordion("Split dataset", open=False):
             with gr.Column():
                 ds_source_dir = gr.Textbox(label="Source directory", placeholder="Path to the dataset to be split.")
+                ds_manifest_output_dir = gr.Textbox(label="Manifest output directory (optional)", placeholder="Path to save manifest files (e.g., train_manifest.txt).")
                 with gr.Row():
                     ds_train_output_dir = gr.Textbox(label="Train output directory", placeholder="Path to save train.zip")
                     ds_val_output_dir = gr.Textbox(label="Validate output directory", placeholder="Path to save validate.zip")
@@ -142,19 +146,32 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 ds_split_type = gr.Radio(["Train/Validate", "Train/Test/Validate"], label="Split type", value="Train/Validate")
                 with gr.Row():
                     ds_train_ratio = gr.Slider(0, 100, value=80, step=1, label="Train %")
-                    ds_val_ratio = gr.Slider(0, 100, value=20, step=1, label="Validate %")
+                    ds_val_ratio = gr.Slider(0, 100, value=20, step=1, label="Validate %", interactive=False)
                     ds_test_ratio = gr.Slider(0, 100, value=0, step=1, label="Test %", visible=False)
-                ds_split_button = gr.Button("Split dataset", variant="primary")
+                ds_split_button = gr.Button("Split", variant="primary")
                 ds_status_message = gr.Textbox(label="Status", interactive=False)
 
+            def update_split_type(split_type):
+                is_test_visible = 'Test' in split_type
+                if is_test_visible:
+                    return gr.update(visible=True), gr.update(visible=True), gr.update(value=80), gr.update(value=10), gr.update(value=10)
+                else:
+                    return gr.update(visible=False), gr.update(visible=False), gr.update(value=80), gr.update(value=20), gr.update(value=0)
+
+            def update_val_ratio(train_r, test_r):
+                return gr.update(value=100 - train_r - test_r)
+
             ds_split_type.change(
-                fn=lambda x: (gr.update(visible='Test' in x), gr.update(visible='Test' in x)),
+                fn=update_split_type,
                 inputs=ds_split_type,
-                outputs=[ds_test_ratio, ds_test_output_dir]
+                outputs=[ds_test_ratio, ds_test_output_dir, ds_train_ratio, ds_val_ratio, ds_test_ratio]
             )
+            ds_train_ratio.input(fn=update_val_ratio, inputs=[ds_train_ratio, ds_test_ratio], outputs=ds_val_ratio)
+            ds_test_ratio.input(fn=update_val_ratio, inputs=[ds_train_ratio, ds_test_ratio], outputs=ds_val_ratio)
+
             ds_split_button.click(
                 fn=split_dataset,
-                inputs=[ds_source_dir, ds_train_output_dir, ds_val_output_dir, ds_test_output_dir, ds_split_type, ds_train_ratio, ds_val_ratio, ds_test_ratio],
+                inputs=[ds_source_dir, ds_train_output_dir, ds_val_output_dir, ds_test_output_dir, ds_manifest_output_dir, ds_split_type, ds_train_ratio, ds_val_ratio, ds_test_ratio],
                 outputs=ds_status_message
             )
 
