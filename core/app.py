@@ -11,8 +11,7 @@ from gradio_wrapper import (
 # GRADIO UI
 # #############################################################################
 
-with gr.Blocks(theme=gr.themes.Monochrome(), title="Multi-Class Classification (Plant Species)", css="footer {display: none !important}") as demo:
-    gr.Markdown("# Multi-Class Classification (Plant Species)")
+with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !important}") as demo:
 
     gr.HTML(
         """
