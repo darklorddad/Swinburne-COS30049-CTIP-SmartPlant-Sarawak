@@ -284,45 +284,46 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
     if 'Test' in split_type: final_splits['test'] = {}
     min_items_per_class, min_classes_per_set = 5, 2
 
-    split_summary = {set_name: {'included': [], 'skipped': []} for set_name in final_splits.keys()}
+    included_classes, skipped_classes = [], []
 
     for class_name, files in class_files.items():
         random.shuffle(files)
-        n_total, start_index = len(files), 0
-
-        # Test split
+        n_total = len(files)
+        
+        # Calculate required items for each split
+        n_test = 0
         if 'Test' in split_type:
             n_test = round(n_total * test_r)
             if 0 < n_test < min_items_per_class: n_test = min_items_per_class
-            
-            is_included = n_total - start_index >= n_test and n_test > 0
-            if is_included:
-                final_splits['test'][class_name] = files[start_index : start_index + n_test]
-                start_index += n_test
-                split_summary['test']['included'].append(class_name)
-            elif n_test > 0: # Was supposed to be included but failed condition
-                split_summary['test']['skipped'].append(class_name)
-        
-        # Validation split
+
         n_val = round(n_total * val_r)
         if 0 < n_val < min_items_per_class: n_val = min_items_per_class
         
-        is_included = n_total - start_index >= n_val and n_val > 0
-        if is_included:
-            final_splits['validate'][class_name] = files[start_index : start_index + n_val]
-            start_index += n_val
-            split_summary['validate']['included'].append(class_name)
-        elif n_val > 0: # Was supposed to be included but failed condition
-            split_summary['validate']['skipped'].append(class_name)
+        # Calculate remaining for train
+        n_train = n_total - n_test - n_val
 
-        # Train split (remaining files)
-        n_train = n_total - start_index
-        is_included = n_train >= min_items_per_class
-        if is_included:
+        # "All-or-nothing" check
+        if (n_test == 0 or n_test >= min_items_per_class) and \
+           (n_val == 0 or n_val >= min_items_per_class) and \
+           (n_train >= min_items_per_class) and \
+           (n_train + n_val + n_test <= n_total):
+            
+            start_index = 0
+            if n_test > 0:
+                final_splits['test'][class_name] = files[start_index : start_index + n_test]
+                start_index += n_test
+            if n_val > 0:
+                final_splits['validate'][class_name] = files[start_index : start_index + n_val]
+                start_index += n_val
             final_splits['train'][class_name] = files[start_index:]
-            split_summary['train']['included'].append(class_name)
-        elif n_train > 0: # There were files left, but not enough
-            split_summary['train']['skipped'].append(class_name)
+            included_classes.append(class_name)
+        else:
+            skipped_classes.append(class_name)
+
+    split_summary = {
+        set_name: {'included': included_classes, 'skipped': skipped_classes}
+        for set_name in final_splits.keys()
+    }
 
     # --- 4. Post-split validation ---
     for set_name, classes in final_splits.items():
