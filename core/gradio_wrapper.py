@@ -302,12 +302,13 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
         # Calculate remaining for train
         n_train = n_total - n_test - n_val
 
-        # "All-or-nothing" check
-        if (n_test == 0 or n_test >= min_items_per_class) and \
-           (n_val == 0 or n_val >= min_items_per_class) and \
-           (n_train >= min_items_per_class) and \
-           (n_train + n_val + n_test <= n_total):
-            
+        # "All-or-nothing" check: A class is included only if every requested set
+        # (i.e., ratio > 0) can be created with the minimum number of items.
+        is_test_valid = (test_r == 0) or (n_test >= min_items_per_class)
+        is_val_valid = (val_r == 0) or (n_val >= min_items_per_class)
+        is_train_valid = (train_r == 0) or (n_train >= min_items_per_class)
+
+        if is_test_valid and is_val_valid and is_train_valid and (n_train + n_val + n_test <= n_total):
             start_index = 0
             if n_test > 0:
                 final_splits['test'][class_name] = files[start_index : start_index + n_test]
@@ -315,7 +316,8 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
             if n_val > 0:
                 final_splits['validate'][class_name] = files[start_index : start_index + n_val]
                 start_index += n_val
-            final_splits['train'][class_name] = files[start_index:]
+            if n_train > 0:
+                final_splits['train'][class_name] = files[start_index:]
             included_classes.append(class_name)
         else:
             skipped_classes.append(class_name)
@@ -538,10 +540,6 @@ def check_dataset_splittability(source_dir, split_type, train_ratio, val_ratio, 
     min_items_per_class, min_classes_per_set = 5, 2
 
     for class_name, n_total in class_counts.items():
-        rem_items = n_total
-        is_skippable = False
-        reason = ""
-        
         # Calculate required items for each split
         n_test = 0
         if 'Test' in split_type:
@@ -550,31 +548,31 @@ def check_dataset_splittability(source_dir, split_type, train_ratio, val_ratio, 
 
         n_val = round(n_total * val_r)
         if 0 < n_val < min_items_per_class: n_val = min_items_per_class
+        
+        n_train = n_total - n_test - n_val
 
-        # Check if class has enough items for each split in sequence
-        if 'Test' in split_type and n_test > 0:
-            if rem_items < n_test:
-                is_skippable = True
-                reason = f"needs {n_test} for test set, but only has {rem_items} total."
-            else:
-                rem_items -= n_test
+        # "All-or-nothing" check
+        is_test_valid = (test_r == 0) or (n_test >= min_items_per_class)
+        is_val_valid = (val_r == 0) or (n_val >= min_items_per_class)
+        is_train_valid = (train_r == 0) or (n_train >= min_items_per_class)
+        
+        is_sufficient = (n_train + n_val + n_test <= n_total)
 
-        if not is_skippable and n_val > 0:
-            if rem_items < n_val:
-                is_skippable = True
-                reason = f"needs {n_val} for validation set, but only has {rem_items} left."
-            else:
-                rem_items -= n_val
-
-        n_train = rem_items
-        if not is_skippable and n_train > 0 and n_train < min_items_per_class:
-            is_skippable = True
-            reason = f"needs {min_items_per_class} for train set, but only has {n_train} left."
-
-        if is_skippable:
-            skipped_classes[class_name] = {'count': n_total, 'reason': reason}
-        else:
+        if is_test_valid and is_val_valid and is_train_valid and is_sufficient:
             included_classes[class_name] = {'count': n_total, 'splits': {'train': n_train, 'validate': n_val, 'test': n_test}}
+        else:
+            reasons = []
+            if test_r > 0 and n_test < min_items_per_class:
+                reasons.append(f"test set (needs {min_items_per_class})")
+            if val_r > 0 and n_val < min_items_per_class:
+                reasons.append(f"validation set (needs {min_items_per_class})")
+            if train_r > 0 and n_train < min_items_per_class:
+                reasons.append(f"train set (needs {min_items_per_class})")
+            if not is_sufficient:
+                reasons.append("total item count is too low for the required splits")
+            
+            reason_str = "insufficient items for " + ", ".join(reasons) if reasons else "an unknown reason"
+            skipped_classes[class_name] = {'count': n_total, 'reason': reason_str}
 
     # --- 4. Generate report ---
     report_lines = ["# Splittability Report"]
