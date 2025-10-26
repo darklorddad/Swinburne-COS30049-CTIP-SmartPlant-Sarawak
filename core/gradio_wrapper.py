@@ -306,9 +306,9 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
         # (i.e., ratio > 0) can be created with the minimum number of items.
         is_test_valid = (test_r == 0) or (n_test >= min_items_per_class)
         is_val_valid = (val_r == 0) or (n_val >= min_items_per_class)
-        is_train_valid = (train_r == 0) or (n_train >= min_items_per_class)
+        is_train_valid = ((train_r == 0) or (n_train >= min_items_per_class)) and n_train >= 0
 
-        if is_test_valid and is_val_valid and is_train_valid and (n_train + n_val + n_test <= n_total):
+        if is_test_valid and is_val_valid and is_train_valid:
             start_index = 0
             if n_test > 0:
                 final_splits['test'][class_name] = files[start_index : start_index + n_test]
@@ -540,13 +540,15 @@ def check_dataset_splittability(source_dir, split_type, train_ratio, val_ratio, 
     min_items_per_class, min_classes_per_set = 5, 2
 
     for class_name, n_total in class_counts.items():
-        # Calculate required items for each split
-        n_test = 0
+        # Calculate required items for each split, storing raw ratio-based values
+        n_test, n_test_raw = 0, 0
         if 'Test' in split_type:
-            n_test = round(n_total * test_r)
+            n_test_raw = round(n_total * test_r)
+            n_test = n_test_raw
             if 0 < n_test < min_items_per_class: n_test = min_items_per_class
 
-        n_val = round(n_total * val_r)
+        n_val_raw = round(n_total * val_r)
+        n_val = n_val_raw
         if 0 < n_val < min_items_per_class: n_val = min_items_per_class
         
         n_train = n_total - n_test - n_val
@@ -554,24 +556,29 @@ def check_dataset_splittability(source_dir, split_type, train_ratio, val_ratio, 
         # "All-or-nothing" check
         is_test_valid = (test_r == 0) or (n_test >= min_items_per_class)
         is_val_valid = (val_r == 0) or (n_val >= min_items_per_class)
-        is_train_valid = (train_r == 0) or (n_train >= min_items_per_class)
-        
-        is_sufficient = (n_train + n_val + n_test <= n_total)
+        is_train_valid = ((train_r == 0) or (n_train >= min_items_per_class)) and n_train >= 0
 
-        if is_test_valid and is_val_valid and is_train_valid and is_sufficient:
+        if is_test_valid and is_val_valid and is_train_valid:
             included_classes[class_name] = {'count': n_total, 'splits': {'train': n_train, 'validate': n_val, 'test': n_test}}
         else:
             reasons = []
-            if test_r > 0 and n_test < min_items_per_class:
-                reasons.append(f"test set (needs {min_items_per_class})")
-            if val_r > 0 and n_val < min_items_per_class:
-                reasons.append(f"validation set (needs {min_items_per_class})")
-            if train_r > 0 and n_train < min_items_per_class:
-                reasons.append(f"train set (needs {min_items_per_class})")
-            if not is_sufficient:
-                reasons.append("total item count is too low for the required splits")
+            if n_train < 0:
+                reasons.append(f"total items are too low (needs {n_test + n_val} for test/val, has {n_total})")
+            else:
+                if test_r > 0 and not is_test_valid:
+                    reason = f"test set needs {min_items_per_class}"
+                    if n_test_raw < min_items_per_class:
+                        reason += f" (ratio gave {n_test_raw})"
+                    reasons.append(reason)
+                if val_r > 0 and not is_val_valid:
+                    reason = f"validation set needs {min_items_per_class}"
+                    if n_val_raw < min_items_per_class:
+                        reason += f" (ratio gave {n_val_raw})"
+                    reasons.append(reason)
+                if train_r > 0 and not is_train_valid:
+                    reasons.append(f"train set needs {min_items_per_class} (only {n_train} left)")
             
-            reason_str = "insufficient items for " + ", ".join(reasons) if reasons else "an unknown reason"
+            reason_str = "insufficient items: " + ", ".join(reasons) if reasons else "an unknown reason"
             skipped_classes[class_name] = {'count': n_total, 'reason': reason_str}
 
     # --- 4. Generate report ---
