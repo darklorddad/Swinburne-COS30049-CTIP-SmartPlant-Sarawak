@@ -160,6 +160,8 @@ def generate_manifest(directory_path: str, manifest_save_path: str, manifest_typ
         raise gr.Error("Please provide a manifest output path.")
 
     manifest_path = manifest_save_path
+    if os.path.isdir(manifest_path):
+        manifest_path = os.path.join(manifest_path, 'manifest.md')
 
     # Ensure the directory for the manifest file exists
     manifest_dir = os.path.dirname(manifest_path)
