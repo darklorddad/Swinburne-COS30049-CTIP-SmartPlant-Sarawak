@@ -400,15 +400,16 @@ def check_dataset_balance(source_dir: str, save_files: bool, chart_save_path: st
         if not class_counts:
             return None, "No leaf directories with items found in the source directory."
 
-        # Sort by class name for consistent plotting
-        sorted_classes = sorted(class_counts.keys())
-        sorted_counts = [class_counts[k] for k in sorted_classes]
+        # Sort by count (descending) for the report and plot
+        sorted_class_counts = sorted(class_counts.items(), key=lambda item: item[1], reverse=True)
+        sorted_classes = [item[0] for item in sorted_class_counts]
+        sorted_counts = [item[1] for item in sorted_class_counts]
         total_items = sum(sorted_counts)
 
         # Create plot
         fig, ax = plt.subplots(figsize=(12, 7))
         ax.bar(sorted_classes, sorted_counts)
-        ax.set_title('Dataset Class distribution')
+        ax.set_title('Dataset Class Distribution')
         ax.set_xlabel('Class')
         ax.set_ylabel('Number of Items')
         ax.grid(True, axis='y', linestyle='--', alpha=0.7)
@@ -420,8 +421,7 @@ def check_dataset_balance(source_dir: str, save_files: bool, chart_save_path: st
         # Generate report content
         report_lines = ["\n## Class Counts and Ratios"]
         if total_items > 0:
-            for class_name in sorted_classes:
-                count = class_counts[class_name]
+            for class_name, count in sorted_class_counts:
                 ratio = (count / total_items) * 100
                 report_lines.append(f"- {class_name}: {count} items ({ratio:.2f}%)")
         else:

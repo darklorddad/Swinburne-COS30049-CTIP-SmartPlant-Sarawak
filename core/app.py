@@ -96,29 +96,6 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         )
 
     with gr.Tab("Dataset preparation"):
-        with gr.Accordion("Check dataset balance", open=False):
-            with gr.Column():
-                db_source_dir = gr.Textbox(label="Source directory")
-                db_save_files = gr.Checkbox(label="Save chart and manifest", value=False)
-                with gr.Column(visible=False) as db_save_paths_container:
-                    db_chart_save_path = gr.Textbox(label="Chart output path")
-                    db_manifest_save_path = gr.Textbox(label="Manifest output path")
-                db_check_button = gr.Button("Check", variant="primary")
-                db_plot = gr.Plot(label="Class distribution")
-                db_status_message = gr.Textbox(label="Status", interactive=False, lines=5)
-
-            db_save_files.change(
-                fn=lambda x: gr.update(visible=x),
-                inputs=db_save_files,
-                outputs=db_save_paths_container
-            )
-
-            db_check_button.click(
-                fn=check_dataset_balance,
-                inputs=[db_source_dir, db_save_files, db_chart_save_path, db_manifest_save_path],
-                outputs=[db_plot, db_status_message]
-            )
-
         with gr.Accordion("Organise dataset", open=False):
             with gr.Column():
                 do_source_dir = gr.Textbox(
@@ -191,6 +168,29 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
             )
 
     with gr.Tab("Utilities"):
+        with gr.Accordion("Check dataset balance", open=False):
+            with gr.Column():
+                db_source_dir = gr.Textbox(label="Source directory")
+                db_save_files = gr.Checkbox(label="Save chart and manifest", value=False)
+                with gr.Column(visible=False) as db_save_paths_container:
+                    db_chart_save_path = gr.Textbox(label="Chart output path")
+                    db_manifest_save_path = gr.Textbox(label="Manifest output path")
+                db_check_button = gr.Button("Check", variant="primary")
+                db_plot = gr.Plot(label="Class distribution")
+                db_status_message = gr.Textbox(label="Status", interactive=False, lines=5)
+
+            db_save_files.change(
+                fn=lambda x: gr.update(visible=x),
+                inputs=db_save_files,
+                outputs=db_save_paths_container
+            )
+
+            db_check_button.click(
+                fn=check_dataset_balance,
+                inputs=[db_source_dir, db_save_files, db_chart_save_path, db_manifest_save_path],
+                outputs=[db_plot, db_status_message]
+            )
+
         with gr.Accordion("Generate directory manifest", open=False):
             with gr.Column():
                 dp_directory_path = gr.Textbox(
