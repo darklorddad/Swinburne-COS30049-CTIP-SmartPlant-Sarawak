@@ -425,6 +425,15 @@ def check_dataset_balance(source_dir: str, save_files: bool, chart_save_path: st
         if total_items > 0:
             report_lines.append(f"Total Classes: {len(sorted_class_counts)}")
             report_lines.append(f"Total Items: {total_items}")
+            
+            # Add most and least common classes
+            most_common_name, most_common_count = sorted_class_counts[0]
+            least_common_name, least_common_count = sorted_class_counts[-1]
+            most_common_ratio = (most_common_count / total_items) * 100
+            least_common_ratio = (least_common_count / total_items) * 100
+            report_lines.append(f"Most Common: '{most_common_name}' with {most_common_count} items ({most_common_ratio:.2f}%)")
+            report_lines.append(f"Least Common: '{least_common_name}' with {least_common_count} items ({least_common_ratio:.2f}%)")
+
             report_lines.append("\n### Class Counts and Ratios")
             for class_name, count in sorted_class_counts:
                 ratio = (count / total_items) * 100
@@ -464,6 +473,104 @@ def check_dataset_balance(source_dir: str, save_files: bool, chart_save_path: st
 
     except Exception as e:
         raise gr.Error(f"Failed to check dataset balance: {e}")
+
+
+def check_dataset_splittability(source_dir, split_type, train_ratio, val_ratio, test_ratio):
+    """Simulates dataset splitting to check for potential issues."""
+    # --- 1. Input Validation ---
+    if not source_dir or not os.path.isdir(source_dir):
+        raise gr.Error("Please provide a valid source directory.")
+    
+    train_r, val_r, test_r = train_ratio / 100.0, val_ratio / 100.0, test_ratio / 100.0
+    total_ratio = train_r + val_r + (test_r if 'Test' in split_type else 0)
+    if not math.isclose(total_ratio, 1.0):
+        raise gr.Error(f"Ratios must sum to 100. Current sum is {total_ratio*100:.0f}.")
+
+    # --- 2. Scan for classes and file counts ---
+    class_counts = {}
+    image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff']
+    for root, dirs, files in os.walk(source_dir):
+        if not dirs:  # It's a leaf directory
+            class_name = os.path.basename(root)
+            image_files = [f for f in files if os.path.splitext(f)[1].lower() in image_extensions]
+            if image_files:
+                class_counts[class_name] = len(image_files)
+
+    if not class_counts:
+        return "No leaf directories with images found in the source directory."
+
+    # --- 3. Simulate splitting for each class ---
+    set_names = ['train', 'validate']
+    if 'Test' in split_type:
+        set_names.append('test')
+    min_items_per_class, min_classes_per_set = 5, 2
+
+    split_summary = {set_name: {'included': [], 'skipped': [], 'counts': {}} for set_name in set_names}
+
+    for class_name, n_total in class_counts.items():
+        rem_items = n_total
+
+        # Test split
+        if 'Test' in split_type:
+            n_test = round(n_total * test_r)
+            if 0 < n_test < min_items_per_class: n_test = min_items_per_class
+            
+            is_included = rem_items >= n_test and n_test > 0
+            if is_included:
+                split_summary['test']['included'].append(class_name)
+                split_summary['test']['counts'][class_name] = n_test
+                rem_items -= n_test
+            elif n_test > 0:
+                split_summary['test']['skipped'].append(f"{class_name} (needs {n_test}, has {rem_items})")
+        
+        # Validation split
+        n_val = round(n_total * val_r)
+        if 0 < n_val < min_items_per_class: n_val = min_items_per_class
+        
+        is_included = rem_items >= n_val and n_val > 0
+        if is_included:
+            split_summary['validate']['included'].append(class_name)
+            split_summary['validate']['counts'][class_name] = n_val
+            rem_items -= n_val
+        elif n_val > 0:
+            split_summary['validate']['skipped'].append(f"{class_name} (needs {n_val}, has {rem_items})")
+
+        # Train split (remaining files)
+        n_train = rem_items
+        is_included = n_train >= min_items_per_class
+        if is_included:
+            split_summary['train']['included'].append(class_name)
+            split_summary['train']['counts'][class_name] = n_train
+        elif n_train > 0:
+            split_summary['train']['skipped'].append(f"{class_name} (needs {min_items_per_class}, has {n_train})")
+
+    # --- 4. Generate report ---
+    report_lines = ["# Splittability Report"]
+    
+    for set_name in set_names:
+        report_lines.append(f"\n## {set_name.capitalize()} Set")
+        
+        num_included = len(split_summary[set_name]['included'])
+        if 0 < num_included < min_classes_per_set:
+            report_lines.append(f"WARNING: This set would not be created. It has only {num_included} class(es), but the minimum is {min_classes_per_set}.")
+        
+        total_items_in_set = sum(split_summary[set_name]['counts'].values())
+        report_lines.append(f"Total classes: {num_included}")
+        report_lines.append(f"Total items: {total_items_in_set}")
+
+        if split_summary[set_name]['included']:
+            report_lines.append("\n### Included Classes & Item Counts")
+            for class_name in sorted(split_summary[set_name]['included']):
+                count = split_summary[set_name]['counts'][class_name]
+                report_lines.append(f"- {class_name}: {count} items")
+        
+        if split_summary[set_name]['skipped']:
+            report_lines.append("\n### Skipped Classes")
+            report_lines.append("Classes are skipped if they don't meet the minimum item requirement for this split.")
+            for skipped_info in sorted(split_summary[set_name]['skipped']):
+                report_lines.append(f"- {skipped_info}")
+
+    return '\n'.join(report_lines)
 
 
 def get_model_choices():

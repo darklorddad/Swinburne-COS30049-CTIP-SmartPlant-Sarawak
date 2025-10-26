@@ -3,7 +3,7 @@ import gradio as gr
 from gradio_wrapper import (
     classify_plant, show_model_charts, get_model_choices, update_model_choices,
     launch_autotrain_ui, stop_autotrain_ui, generate_manifest, organise_dataset_folders,
-    split_dataset, check_dataset_balance
+    split_dataset, check_dataset_balance, check_dataset_splittability
 )
 
 DEFAULT_MANIFEST_PATH = os.path.join('core', 'manifest.md').replace(os.sep, '/')
@@ -189,6 +189,52 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 fn=check_dataset_balance,
                 inputs=[db_source_dir, db_save_files, db_chart_save_path, db_manifest_save_path],
                 outputs=[db_plot, db_status_message]
+            )
+
+        with gr.Accordion("Check dataset splittability", open=False):
+            with gr.Column():
+                dss_source_dir = gr.Textbox(label="Source directory")
+                dss_split_type = gr.Radio(["Train/Validate", "Train/Validate/Test"], label="Split type", value="Train/Validate")
+                with gr.Row():
+                    dss_train_ratio = gr.Slider(0, 100, value=80, step=1, label="Train %")
+                    dss_val_ratio = gr.Slider(0, 100, value=20, step=1, label="Validate %", interactive=False)
+                    dss_test_ratio = gr.Slider(0, 100, value=0, step=1, label="Test %", visible=False)
+                dss_check_button = gr.Button("Check Splittability", variant="primary")
+                dss_status_message = gr.Textbox(label="Status", interactive=False, lines=10)
+
+            def dss_update_split_type(split_type):
+                is_test_visible = 'Test' in split_type
+                if is_test_visible:
+                    # Set default ratios for Train/Validate/Test
+                    return gr.update(visible=True), gr.update(value=80), gr.update(value=10), gr.update(value=10)
+                else:
+                    # Set default ratios for Train/Validate
+                    return gr.update(visible=False), gr.update(value=80), gr.update(value=20), gr.update(value=0)
+
+            def dss_update_ratios_from_train(train_r, test_r):
+                if train_r + test_r > 100:
+                    test_r = 100 - train_r
+                val_r = 100 - train_r - test_r
+                return gr.update(value=val_r), gr.update(value=test_r)
+
+            def dss_update_ratios_from_test(train_r, test_r):
+                if train_r + test_r > 100:
+                    train_r = 100 - test_r
+                val_r = 100 - train_r - test_r
+                return gr.update(value=val_r), gr.update(value=train_r)
+
+            dss_split_type.change(
+                fn=dss_update_split_type,
+                inputs=dss_split_type,
+                outputs=[dss_test_ratio, dss_train_ratio, dss_val_ratio, dss_test_ratio]
+            )
+            dss_train_ratio.input(fn=dss_update_ratios_from_train, inputs=[dss_train_ratio, dss_test_ratio], outputs=[dss_val_ratio, dss_test_ratio])
+            dss_test_ratio.input(fn=dss_update_ratios_from_test, inputs=[dss_train_ratio, dss_test_ratio], outputs=[dss_val_ratio, dss_train_ratio])
+
+            dss_check_button.click(
+                fn=check_dataset_splittability,
+                inputs=[dss_source_dir, dss_split_type, dss_train_ratio, dss_val_ratio, dss_test_ratio],
+                outputs=dss_status_message
             )
 
         with gr.Accordion("Generate directory manifest", open=False):
