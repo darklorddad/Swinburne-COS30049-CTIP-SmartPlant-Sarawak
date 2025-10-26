@@ -103,7 +103,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                 with gr.Column(visible=False) as db_save_paths_container:
                     db_chart_save_path = gr.Textbox(label="Chart output path")
                     db_manifest_save_path = gr.Textbox(label="Manifest output path")
-                db_check_button = gr.Button("Check balance", variant="primary")
+                db_check_button = gr.Button("Check", variant="primary")
                 db_plot = gr.Plot(label="Class distribution")
                 db_status_message = gr.Textbox(label="Status", interactive=False, lines=5)
 
@@ -147,7 +147,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                     ds_train_manifest_path = gr.Textbox(label="Train manifest output path")
                     ds_val_manifest_path = gr.Textbox(label="Validate manifest output path")
                     ds_test_manifest_path = gr.Textbox(label="Test manifest output path", visible=False)
-                ds_split_type = gr.Radio(["Train/Validate", "Train/Test/Validate"], label="Split type", value="Train/Validate")
+                ds_split_type = gr.Radio(["Train/Validate", "Train/Validate/Test"], label="Split type", value="Train/Validate")
                 with gr.Row():
                     ds_train_ratio = gr.Slider(0, 100, value=80, step=1, label="Train %")
                     ds_val_ratio = gr.Slider(0, 100, value=20, step=1, label="Validate %", interactive=False)
@@ -158,7 +158,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
             def update_split_type(split_type):
                 is_test_visible = 'Test' in split_type
                 if is_test_visible:
-                    # Set default ratios for Train/Test/Validate
+                    # Set default ratios for Train/Validate/Test
                     return gr.update(visible=True), gr.update(visible=True), gr.update(visible=True), gr.update(value=80), gr.update(value=10), gr.update(value=10)
                 else:
                     # Set default ratios for Train/Validate
