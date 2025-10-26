@@ -433,6 +433,9 @@ def check_dataset_balance(source_dir: str, save_files: bool, chart_save_path: st
             least_common_ratio = (least_common_count / total_items) * 100
             report_lines.append(f"Most Common: '{most_common_name}' with {most_common_count} items ({most_common_ratio:.2f}%)")
             report_lines.append(f"Least Common: '{least_common_name}' with {least_common_count} items ({least_common_ratio:.2f}%)")
+            if least_common_count > 0:
+                imbalance_ratio = most_common_count / least_common_count
+                report_lines.append(f"Imbalance Ratio (Most/Least): {imbalance_ratio:.1f}:1")
 
             report_lines.append("\n### Class Counts and Ratios")
             for class_name, count in sorted_class_counts:
