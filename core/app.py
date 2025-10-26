@@ -199,7 +199,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                     dss_train_ratio = gr.Slider(0, 100, value=80, step=1, label="Train %")
                     dss_val_ratio = gr.Slider(0, 100, value=20, step=1, label="Validate %", interactive=False)
                     dss_test_ratio = gr.Slider(0, 100, value=0, step=1, label="Test %", visible=False)
-                dss_check_button = gr.Button("Check Splittability", variant="primary")
+                dss_check_button = gr.Button("Check", variant="primary")
                 dss_status_message = gr.Textbox(label="Status", interactive=False, lines=10)
 
             def dss_update_split_type(split_type):

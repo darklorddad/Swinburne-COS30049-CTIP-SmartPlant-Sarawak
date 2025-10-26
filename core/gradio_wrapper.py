@@ -478,7 +478,38 @@ def check_dataset_balance(source_dir: str, save_files: bool, chart_save_path: st
 
 
 def check_dataset_splittability(source_dir, split_type, train_ratio, val_ratio, test_ratio):
-    """Simulates dataset splitting to check for potential issues."""
+    """Simulates dataset splitting and provides a detailed report on included and skipped classes."""
+    
+    def _generate_category_stats(class_dict, category_name):
+        """Helper to generate summary statistics for a dictionary of classes."""
+        report_lines = [f"\n## {category_name} Classes"]
+        if not class_dict:
+            report_lines.append("None.")
+            return report_lines
+
+        num_classes = len(class_dict)
+        total_items = sum(d['count'] for d in class_dict.values())
+        
+        report_lines.append(f"Total Classes: {num_classes}")
+        report_lines.append(f"Total Items: {total_items}")
+
+        if num_classes > 1:
+            sorted_by_count = sorted(class_dict.items(), key=lambda item: item[1]['count'], reverse=True)
+            most_common_name, most_common_data = sorted_by_count[0]
+            least_common_name, least_common_data = sorted_by_count[-1]
+            
+            report_lines.append(f"Most Common: '{most_common_name}' with {most_common_data['count']} items")
+            report_lines.append(f"Least Common: '{least_common_name}' with {least_common_data['count']} items")
+            
+            if least_common_data['count'] > 0:
+                ratio = most_common_data['count'] / least_common_data['count']
+                report_lines.append(f"Imbalance Ratio (Most/Least): {ratio:.1f}:1")
+        elif num_classes == 1:
+            class_name, data = list(class_dict.items())[0]
+            report_lines.append(f"Only one class: '{class_name}' with {data['count']} items")
+
+        return report_lines
+
     # --- 1. Input Validation ---
     if not source_dir or not os.path.isdir(source_dir):
         raise gr.Error("Please provide a valid source directory.")
@@ -501,76 +532,82 @@ def check_dataset_splittability(source_dir, split_type, train_ratio, val_ratio, 
     if not class_counts:
         return "No leaf directories with images found in the source directory."
 
-    # --- 3. Simulate splitting for each class ---
-    set_names = ['train', 'validate']
-    if 'Test' in split_type:
-        set_names.append('test')
+    # --- 3. Simulate splitting to categorise classes ---
+    included_classes, skipped_classes = {}, {}
     min_items_per_class, min_classes_per_set = 5, 2
-
-    split_summary = {set_name: {'included': [], 'skipped': [], 'counts': {}} for set_name in set_names}
 
     for class_name, n_total in class_counts.items():
         rem_items = n_total
-
-        # Test split
+        is_skippable = False
+        reason = ""
+        
+        # Calculate required items for each split
+        n_test = 0
         if 'Test' in split_type:
             n_test = round(n_total * test_r)
             if 0 < n_test < min_items_per_class: n_test = min_items_per_class
-            
-            is_included = rem_items >= n_test and n_test > 0
-            if is_included:
-                split_summary['test']['included'].append(class_name)
-                split_summary['test']['counts'][class_name] = n_test
-                rem_items -= n_test
-            elif n_test > 0:
-                split_summary['test']['skipped'].append(f"{class_name} (needs {n_test}, has {rem_items})")
-        
-        # Validation split
+
         n_val = round(n_total * val_r)
         if 0 < n_val < min_items_per_class: n_val = min_items_per_class
-        
-        is_included = rem_items >= n_val and n_val > 0
-        if is_included:
-            split_summary['validate']['included'].append(class_name)
-            split_summary['validate']['counts'][class_name] = n_val
-            rem_items -= n_val
-        elif n_val > 0:
-            split_summary['validate']['skipped'].append(f"{class_name} (needs {n_val}, has {rem_items})")
 
-        # Train split (remaining files)
+        # Check if class has enough items for each split in sequence
+        if 'Test' in split_type and n_test > 0:
+            if rem_items < n_test:
+                is_skippable = True
+                reason = f"needs {n_test} for test set, but only has {rem_items} total."
+            else:
+                rem_items -= n_test
+
+        if not is_skippable and n_val > 0:
+            if rem_items < n_val:
+                is_skippable = True
+                reason = f"needs {n_val} for validation set, but only has {rem_items} left."
+            else:
+                rem_items -= n_val
+
         n_train = rem_items
-        is_included = n_train >= min_items_per_class
-        if is_included:
-            split_summary['train']['included'].append(class_name)
-            split_summary['train']['counts'][class_name] = n_train
-        elif n_train > 0:
-            split_summary['train']['skipped'].append(f"{class_name} (needs {min_items_per_class}, has {n_train})")
+        if not is_skippable and n_train > 0 and n_train < min_items_per_class:
+            is_skippable = True
+            reason = f"needs {min_items_per_class} for train set, but only has {n_train} left."
+
+        if is_skippable:
+            skipped_classes[class_name] = {'count': n_total, 'reason': reason}
+        else:
+            included_classes[class_name] = {'count': n_total, 'splits': {'train': n_train, 'validate': n_val, 'test': n_test}}
 
     # --- 4. Generate report ---
     report_lines = ["# Splittability Report"]
-    
-    for set_name in set_names:
-        report_lines.append(f"\n## {set_name.capitalize()} Set")
-        
-        num_included = len(split_summary[set_name]['included'])
-        if 0 < num_included < min_classes_per_set:
-            report_lines.append(f"WARNING: This set would not be created. It has only {num_included} class(es), but the minimum is {min_classes_per_set}.")
-        
-        total_items_in_set = sum(split_summary[set_name]['counts'].values())
-        report_lines.append(f"Total classes: {num_included}")
-        report_lines.append(f"Total items: {total_items_in_set}")
+    report_lines.extend(_generate_category_stats(included_classes, "Included"))
+    report_lines.extend(_generate_category_stats(skipped_classes, "Skipped"))
 
-        if split_summary[set_name]['included']:
-            report_lines.append("\n### Included Classes & Item Counts")
-            for class_name in sorted(split_summary[set_name]['included']):
-                count = split_summary[set_name]['counts'][class_name]
+    if included_classes:
+        report_lines.append("\n## Included Set Breakdown")
+        set_names = ['train', 'validate']
+        if 'Test' in split_type: set_names.append('test')
+
+        for set_name in set_names:
+            report_lines.append(f"\n### {set_name.capitalize()} Set")
+            set_class_counts = {name: data['splits'][set_name] for name, data in included_classes.items() if data['splits'][set_name] > 0}
+            
+            num_included = len(set_class_counts)
+            if 0 < num_included < min_classes_per_set:
+                report_lines.append(f"WARNING: This set would not be created. It has only {num_included} class(es), but the minimum is {min_classes_per_set}.")
+            
+            if not set_class_counts:
+                report_lines.append("No classes will be included in this set.")
+                continue
+
+            report_lines.append(f"Total classes: {num_included}")
+            report_lines.append(f"Total items: {sum(set_class_counts.values())}")
+            report_lines.append("\n#### Class Counts")
+            for class_name, count in sorted(set_class_counts.items()):
                 report_lines.append(f"- {class_name}: {count} items")
-        
-        if split_summary[set_name]['skipped']:
-            report_lines.append("\n### Skipped Classes")
-            report_lines.append("Classes are skipped if they don't meet the minimum item requirement for this split.")
-            for skipped_info in sorted(split_summary[set_name]['skipped']):
-                report_lines.append(f"- {skipped_info}")
+
+    if skipped_classes:
+        report_lines.append("\n## Skipped Class Details")
+        report_lines.append("Classes are skipped if they don't have enough items for the required splits.")
+        for name, data in sorted(skipped_classes.items()):
+            report_lines.append(f"- {name} ({data['count']} items): Skipped because it {data['reason']}")
 
     return '\n'.join(report_lines)
 
