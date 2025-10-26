@@ -402,15 +402,14 @@ def check_dataset_balance(source_dir: str, save_files: bool, chart_save_path: st
         if not class_counts:
             return None, "No leaf directories with items found in the source directory."
 
-        # Sort by count (descending) for the report and plot
+        # Sort by count (descending) for the report
         sorted_class_counts = sorted(class_counts.items(), key=lambda item: item[1], reverse=True)
-        sorted_classes = [item[0] for item in sorted_class_counts]
-        sorted_counts = [item[1] for item in sorted_class_counts]
-        total_items = sum(sorted_counts)
+        total_items = sum(class_counts.values())
 
-        # Create plot
+        # Create plot with classes sorted alphabetically
+        plot_classes, plot_counts = zip(*sorted(class_counts.items()))
         fig, ax = plt.subplots(figsize=(12, 7))
-        ax.bar(sorted_classes, sorted_counts)
+        ax.bar(plot_classes, plot_counts)
         ax.set_title('Dataset Class Distribution')
         ax.set_xlabel('Class')
         ax.set_ylabel('Number of Items')
