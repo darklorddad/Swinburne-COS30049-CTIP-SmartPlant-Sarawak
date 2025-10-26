@@ -421,8 +421,11 @@ def check_dataset_balance(source_dir: str, save_files: bool, chart_save_path: st
         status_messages = ["Successfully generated balance chart and statistics."]
         
         # Generate report content
-        report_lines = ["\n## Class Counts and Ratios"]
+        report_lines = ["\n## Dataset Statistics"]
         if total_items > 0:
+            report_lines.append(f"Total Classes: {len(sorted_class_counts)}")
+            report_lines.append(f"Total Items: {total_items}")
+            report_lines.append("\n### Class Counts and Ratios")
             for class_name, count in sorted_class_counts:
                 ratio = (count / total_items) * 100
                 report_lines.append(f"- {class_name}: {count} items ({ratio:.2f}%)")
