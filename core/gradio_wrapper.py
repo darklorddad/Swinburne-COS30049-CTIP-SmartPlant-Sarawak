@@ -97,6 +97,7 @@ def launch_autotrain_ui(autotrain_path: str):
         reader_thread = threading.Thread(target=_enqueue_output, args=(AUTOTRAIN_PROCESS.stdout, output_queue))
         reader_thread.daemon = True
         reader_thread.start()
+        print("Started thread to read AutoTrain output.")
 
         start_time = time.time()
         timeout = 30
