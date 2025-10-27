@@ -14,12 +14,23 @@ import random
 import zipfile
 import math
 import matplotlib.pyplot as plt
+import queue
+import threading
 
 from utils import (
     util_plot_training_metrics
 )
 
 AUTOTRAIN_PROCESS = None
+
+
+def _enqueue_output(stream, queue_obj):
+    """Reads from a stream and puts lines into a queue."""
+    try:
+        for line in iter(stream.readline, ''):
+            queue_obj.put(line)
+    finally:
+        stream.close()
 
 
 def classify_plant(model_path: str, input_image: Image.Image) -> dict:
@@ -43,97 +54,108 @@ def classify_plant(model_path: str, input_image: Image.Image) -> dict:
 
 
 def launch_autotrain_ui(autotrain_path: str):
-    """Launches the AutoTrain Gradio UI and opens it in a new browser tab."""
+    """Launches the AutoTrain Gradio UI, streams its output, and opens it in a new browser tab."""
     if not autotrain_path or not os.path.isdir(autotrain_path):
-        raise gr.Error("Please provide a valid path to the AutoTrain folder.")
+        yield "Error: Please provide a valid path to the AutoTrain folder.", gr.update(visible=True), gr.update(visible=False)
+        return
 
     global AUTOTRAIN_PROCESS
+    if AUTOTRAIN_PROCESS and AUTOTRAIN_PROCESS.poll() is None:
+        yield "AutoTrain UI is already running.", gr.update(visible=False), gr.update(visible=True)
+        return
 
-    # The launch script needs the parent directory of the 'autotrain' package in the PYTHONPATH.
-    # The UI asks for the 'autotrain' folder, so we get its parent directory.
     module_parent_dir = os.path.dirname(autotrain_path)
-
-    # Set up the environment for the subprocess
     env = os.environ.copy()
     env['PYTHONPATH'] = f"{module_parent_dir}{os.pathsep}{env.get('PYTHONPATH', '')}"
-
     command = [sys.executable, os.path.join('core', 'launch_autotrain.py')]
     autotrain_url = "http://localhost:7861"
+    
+    log_output = "Launching AutoTrain UI...\n"
+    yield log_output, gr.update(interactive=False), gr.update(visible=False)
+
     try:
-        # Redirect stdout/stderr to prevent blocking and hide console window on Windows
         startupinfo = None
         if sys.platform == "win32":
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-        # We set the PYTHONPATH in the environment for the subprocess.
-        # We also don't need to set the CWD.
         popen_kwargs = {
             "stdout": subprocess.PIPE,
-            "stderr": subprocess.PIPE,
+            "stderr": subprocess.STDOUT,
             "text": True,
+            "encoding": "utf-8",
+            "bufsize": 1,
             "env": env,
         }
 
         if sys.platform == "win32":
             popen_kwargs["startupinfo"] = startupinfo
         else:
-            # Create a new process group to ensure all child processes can be terminated together.
             popen_kwargs["preexec_fn"] = os.setsid
 
         AUTOTRAIN_PROCESS = subprocess.Popen(command, **popen_kwargs)
         
-        # Poll for the server to be ready
+        output_queue = queue.Queue()
+        reader_thread = threading.Thread(target=_enqueue_output, args=(AUTOTRAIN_PROCESS.stdout, output_queue))
+        reader_thread.daemon = True
+        reader_thread.start()
+
         start_time = time.time()
-        timeout = 30  # seconds
+        timeout = 30
         server_ready = False
         
-        print("Waiting for AutoTrain UI to start...")
-        
-        while time.time() - start_time < timeout:
-            if AUTOTRAIN_PROCESS.poll() is not None:
-                # Process terminated prematurely
-                break
+        while AUTOTRAIN_PROCESS.poll() is None:
             try:
-                response = requests.get(autotrain_url, timeout=1)
-                if response.status_code == 200:
-                    print("AutoTrain UI is ready.")
-                    server_ready = True
-                    break
-            except requests.ConnectionError:
-                time.sleep(1)
-            except requests.Timeout:
-                pass # Ignore timeouts and continue polling
-        
-        if server_ready:
-            webbrowser.open(autotrain_url)
-            message = f"Successfully launched AutoTrain UI. It should now be open in your web browser at {autotrain_url}."
-            print(message)
-            return message, gr.update(visible=False), gr.update(visible=True)
-        else:
-            # Server failed to start within timeout, or process died.
-            error_details = ""
-            # Check if process is still running
-            if AUTOTRAIN_PROCESS.poll() is None:
-                # Process is still running, but we timed out. Stop it.
-                stop_autotrain_ui()
-                message = f"AutoTrain UI failed to start within {timeout} seconds. The process has been stopped."
-            else:
-                # Process terminated. Get the error.
-                stdout, stderr = AUTOTRAIN_PROCESS.communicate()
-                if stderr:
-                    error_details = f"\n\nError details:\n{stderr}"
-                message = f"AutoTrain UI process terminated unexpectedly with exit code {AUTOTRAIN_PROCESS.returncode}.{error_details}"
-                # Ensure global is cleared
-                AUTOTRAIN_PROCESS = None
+                while True:
+                    line = output_queue.get_nowait()
+                    print(line, end='')
+                    log_output += line
+                    yield log_output, gr.update(interactive=False), gr.update(visible=False)
+            except queue.Empty:
+                pass
 
-            print(message)
-            return message, gr.update(visible=True), gr.update(visible=False)
+            if not server_ready:
+                try:
+                    response = requests.get(autotrain_url, timeout=0.2)
+                    if response.status_code == 200:
+                        server_ready = True
+                        webbrowser.open(autotrain_url)
+                        message = f"\nSuccessfully launched AutoTrain UI. It should now be open at {autotrain_url}."
+                        print(message)
+                        log_output += message
+                        yield log_output, gr.update(visible=False), gr.update(visible=True)
+                except (requests.ConnectionError, requests.Timeout):
+                    pass
+
+            if not server_ready and time.time() - start_time > timeout:
+                stop_autotrain_ui()
+                message = f"\nAutoTrain UI failed to start within {timeout} seconds. The process has been stopped."
+                print(message)
+                log_output += message
+                yield log_output, gr.update(visible=True), gr.update(visible=False)
+                return
+
+            time.sleep(0.1)
+
+        reader_thread.join(timeout=1)
+        try:
+            while True:
+                line = output_queue.get_nowait()
+                print(line, end='')
+                log_output += line
+        except queue.Empty:
+            pass
+        
+        message = f"\nAutoTrain UI process terminated with exit code {AUTOTRAIN_PROCESS.returncode}."
+        print(message)
+        log_output += message
+        AUTOTRAIN_PROCESS = None
+        yield log_output, gr.update(visible=True), gr.update(visible=False)
 
     except Exception as e:
         message = f"Failed to launch AutoTrain UI: {e}"
         print(message)
-        return message, gr.update(visible=True), gr.update(visible=False)
+        yield message, gr.update(visible=True), gr.update(visible=False)
 
 def stop_autotrain_ui():
     """Stops the AutoTrain UI process and its children."""
