@@ -56,9 +56,13 @@ def launch_autotrain_ui(autotrain_path: str):
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
+        # The path for PYTHONPATH and CWD should be the directory *containing* the 'autotrain' package.
+        # We'll assume the user is pointing to the 'autotrain' package folder itself.
+        module_parent_dir = os.path.dirname(autotrain_path)
+
         # Create a copy of the current environment and update PYTHONPATH
         env = os.environ.copy()
-        env['PYTHONPATH'] = f"{autotrain_path}{os.pathsep}{env.get('PYTHONPATH', '')}"
+        env['PYTHONPATH'] = f"{module_parent_dir}{os.pathsep}{env.get('PYTHONPATH', '')}"
 
         AUTOTRAIN_PROCESS = subprocess.Popen(
             command,
@@ -66,7 +70,7 @@ def launch_autotrain_ui(autotrain_path: str):
             stderr=subprocess.PIPE,
             text=True,
             startupinfo=startupinfo,
-            cwd=autotrain_path,
+            cwd=module_parent_dir,
             env=env
         )
         
