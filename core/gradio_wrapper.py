@@ -776,11 +776,12 @@ def check_dataset_splittability(source_dir, split_type, train_ratio, val_ratio, 
 
 
 def get_model_choices():
-    """Returns a list of directories in the current directory that start with 'Model-'."""
+    """Returns a list of directories in the app's directory that start with 'Model-'."""
     try:
-        return [d for d in os.listdir('.') if os.path.isdir(d) and d.startswith('Model-')]
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        return [d for d in os.listdir(app_dir) if os.path.isdir(os.path.join(app_dir, d)) and d.startswith('Model-')]
     except FileNotFoundError:
-        print("Warning: Could not find the current directory to scan for models.")
+        print("Warning: Could not find the app directory to scan for models.")
         return []
 
 def update_model_choices():
