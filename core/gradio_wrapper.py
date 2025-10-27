@@ -823,7 +823,7 @@ def get_model_choices():
             if checkpoints:
                 latest_checkpoint = sorted(checkpoints, key=lambda x: x[0], reverse=True)[0]
                 step, path = latest_checkpoint
-                display_name = f"{model_dir_name} (step {step})"
+                display_name = model_dir_name
                 choices.append((display_name, path))
             else:
                 # If no checkpoints, maybe the model is in the root. Add it as a choice.

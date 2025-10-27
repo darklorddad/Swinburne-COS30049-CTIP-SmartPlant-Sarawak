@@ -34,7 +34,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
     with gr.Tab("Inference"):
         with gr.Row():
             with gr.Column(scale=1):
-                inf_model_path = gr.Dropdown(label="Select model", choices=get_model_choices(), value=None)
+                inf_model_path = gr.Dropdown(label="Select model", choices=get_model_choices(), value=None, filterable=False)
                 inf_input_image = gr.Image(type="pil", label="Upload a plant image")
             with gr.Column(scale=1):
                 inf_output_label = gr.Label(num_top_classes=5, label="Predictions")
@@ -42,7 +42,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         inf_button.click(classify_plant, inputs=[inf_model_path, inf_input_image], outputs=inf_output_label)
 
     with gr.Tab("Training metrics"):
-        metrics_model_path = gr.Dropdown(label="Select model", choices=get_model_choices(), value=None)
+        metrics_model_path = gr.Dropdown(label="Select model", choices=get_model_choices(), value=None, filterable=False)
         with gr.Column(visible=False) as inf_plots_container:
             with gr.Row():
                 inf_plot_loss = gr.Plot(label="Loss")
