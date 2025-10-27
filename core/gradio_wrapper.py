@@ -58,8 +58,9 @@ def launch_autotrain_ui(autotrain_path: str):
 
         AUTOTRAIN_PROCESS = subprocess.Popen(
             command,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
             startupinfo=startupinfo
         )
         
@@ -71,6 +72,9 @@ def launch_autotrain_ui(autotrain_path: str):
         print("Waiting for AutoTrain UI to start...")
         
         while time.time() - start_time < timeout:
+            if AUTOTRAIN_PROCESS.poll() is not None:
+                # Process terminated prematurely
+                break
             try:
                 response = requests.get(autotrain_url, timeout=1)
                 if response.status_code == 200:
@@ -88,9 +92,22 @@ def launch_autotrain_ui(autotrain_path: str):
             print(message)
             return message, gr.update(visible=False), gr.update(visible=True)
         else:
-            # Server failed to start within timeout, so we should stop the zombie process.
-            stop_autotrain_ui()
-            message = f"AutoTrain UI failed to start within {timeout} seconds. The process has been stopped."
+            # Server failed to start within timeout, or process died.
+            error_details = ""
+            # Check if process is still running
+            if AUTOTRAIN_PROCESS.poll() is None:
+                # Process is still running, but we timed out. Stop it.
+                stop_autotrain_ui()
+                message = f"AutoTrain UI failed to start within {timeout} seconds. The process has been stopped."
+            else:
+                # Process terminated. Get the error.
+                stdout, stderr = AUTOTRAIN_PROCESS.communicate()
+                if stderr:
+                    error_details = f"\n\nError details:\n{stderr}"
+                message = f"AutoTrain UI process terminated unexpectedly with exit code {AUTOTRAIN_PROCESS.returncode}.{error_details}"
+                # Ensure global is cleared
+                AUTOTRAIN_PROCESS = None
+
             print(message)
             return message, gr.update(visible=True), gr.update(visible=False)
 
