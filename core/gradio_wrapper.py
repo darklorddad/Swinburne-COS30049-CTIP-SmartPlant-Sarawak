@@ -47,7 +47,7 @@ def launch_autotrain_ui(autotrain_path: str):
         raise gr.Error("Please provide a valid path to the AutoTrain folder.")
 
     global AUTOTRAIN_PROCESS
-    command = [sys.executable, "launch_autotrain.py", autotrain_path]
+    command = [sys.executable, os.path.join('core', 'launch_autotrain.py'), autotrain_path]
     autotrain_url = "http://localhost:7861"
     try:
         # Redirect stdout/stderr to prevent blocking and hide console window on Windows
