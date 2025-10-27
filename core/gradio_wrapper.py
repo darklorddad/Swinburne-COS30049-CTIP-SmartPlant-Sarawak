@@ -78,7 +78,7 @@ def launch_autotrain_ui(autotrain_path: str):
 
     global AUTOTRAIN_PROCESS
     if AUTOTRAIN_PROCESS and AUTOTRAIN_PROCESS.poll() is None:
-        yield "AutoTrain UI is already running.", gr.update(visible=False), gr.update(visible=True)
+        yield "AutoTrain UI is already running.", gr.update(interactive=False), gr.update(visible=True)
         return
 
     module_parent_dir = os.path.dirname(autotrain_path)
@@ -88,7 +88,7 @@ def launch_autotrain_ui(autotrain_path: str):
     autotrain_url = "http://localhost:7861"
     
     log_output = "Launching AutoTrain UI...\n"
-    yield log_output, gr.update(interactive=False), gr.update(visible=False)
+    yield log_output, gr.update(interactive=False), gr.update(visible=True)
 
     try:
         startupinfo = None
@@ -126,7 +126,7 @@ def launch_autotrain_ui(autotrain_path: str):
                     line = output_queue.get_nowait()
                     print(line, end='')
                     log_output += line
-                    yield log_output, gr.update(interactive=False), gr.update(visible=False)
+                    yield log_output, gr.update(interactive=False), gr.update(visible=True)
             except queue.Empty:
                 pass
 
@@ -139,7 +139,7 @@ def launch_autotrain_ui(autotrain_path: str):
                         message = f"\nSuccessfully launched AutoTrain UI. It should now be open at {autotrain_url}."
                         print(message)
                         log_output += message
-                        yield log_output, gr.update(visible=False), gr.update(visible=True)
+                        yield log_output, gr.update(interactive=False), gr.update(visible=True)
                 except (requests.ConnectionError, requests.Timeout):
                     pass
 

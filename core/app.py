@@ -83,7 +83,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         with gr.Row():
             train_launch_button = gr.Button("Launch AutoTrain UI")
             train_stop_button = gr.Button("Stop AutoTrain UI", visible=False)
-        train_launch_log = gr.Textbox(label="Status", interactive=False)
+        train_launch_log = gr.Textbox(label="Status", interactive=False, lines=10)
         
         train_launch_button.click(
             fn=launch_autotrain_ui,
