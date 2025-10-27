@@ -41,11 +41,28 @@ def classify_plant(model_path: str, input_image: Image.Image) -> dict:
     if os.path.isfile(model_path):
         model_dir = os.path.dirname(model_path)
 
+    checkpoint_dir = model_dir
+    checkpoints = []
+    if os.path.isdir(model_dir):
+        for item in os.listdir(model_dir):
+            path = os.path.join(model_dir, item)
+            if os.path.isdir(path) and item.startswith('checkpoint-'):
+                try:
+                    step = int(item.split('-')[-1])
+                    checkpoints.append((step, path))
+                except (ValueError, IndexError):
+                    continue  # Not a valid checkpoint folder name
+
+    if checkpoints:
+        latest_checkpoint_path = sorted(checkpoints, key=lambda x: x[0], reverse=True)[0][1]
+        checkpoint_dir = latest_checkpoint_path
+        print(f"Found latest checkpoint for '{model_dir}': '{checkpoint_dir}'")
+
     try:
-        image_processor = AutoImageProcessor.from_pretrained(model_dir)
-        model = AutoModelForImageClassification.from_pretrained(model_dir)
+        image_processor = AutoImageProcessor.from_pretrained(checkpoint_dir)
+        model = AutoModelForImageClassification.from_pretrained(checkpoint_dir)
     except Exception as e:
-        raise gr.Error(f"Error loading model from {model_dir}. Check path and files. Original error: {e}")
+        raise gr.Error(f"Error loading model from {checkpoint_dir}. Check path and files. Original error: {e}")
     inputs = image_processor(images=input_image, return_tensors="pt")
     with torch.no_grad(): outputs = model(**inputs)
     probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)[0]
@@ -204,14 +221,20 @@ def show_model_charts(model_dir):
     if not model_dir:
         return (None,) * 11 + (gr.update(visible=False), None)
 
+    # The model_dir might be a checkpoint. trainer_state.json is usually in the parent.
+    search_dir = model_dir
+    if os.path.basename(search_dir).startswith('checkpoint-'):
+        search_dir = os.path.dirname(search_dir)
+
     json_path = None
-    for root, _, files in os.walk(model_dir):
+    # Look for trainer_state.json in the (potentially adjusted) search directory.
+    for root, _, files in os.walk(search_dir):
         if 'trainer_state.json' in files:
             json_path = os.path.join(root, 'trainer_state.json')
             break
 
     if not json_path:
-        print(f"trainer_state.json not found in {model_dir}")
+        print(f"trainer_state.json not found in '{search_dir}' or its subdirectories.")
         return (None,) * 11 + (gr.update(visible=False), model_dir)
 
     try:
@@ -776,13 +799,42 @@ def check_dataset_splittability(source_dir, split_type, train_ratio, val_ratio, 
 
 
 def get_model_choices():
-    """Returns a list of directories in the app's directory that start with 'Model-'."""
+    """
+    Finds model directories, identifies the latest checkpoint in each, and returns
+    a list of (display_name, path_to_checkpoint) tuples for the dropdown.
+    """
+    choices = []
     try:
         app_dir = os.path.dirname(os.path.abspath(__file__))
-        return [d for d in os.listdir(app_dir) if os.path.isdir(os.path.join(app_dir, d)) and d.startswith('Model-')]
+        model_parent_dirs = [d for d in os.listdir(app_dir) if os.path.isdir(os.path.join(app_dir, d)) and d.startswith('Model-')]
+
+        for model_dir_name in model_parent_dirs:
+            model_dir_path = os.path.join(app_dir, model_dir_name)
+            checkpoints = []
+            for item in os.listdir(model_dir_path):
+                path = os.path.join(model_dir_path, item)
+                if os.path.isdir(path) and item.startswith('checkpoint-'):
+                    try:
+                        step = int(item.split('-')[-1])
+                        checkpoints.append((step, path))
+                    except (ValueError, IndexError):
+                        continue
+            
+            if checkpoints:
+                latest_checkpoint = sorted(checkpoints, key=lambda x: x[0], reverse=True)[0]
+                step, path = latest_checkpoint
+                display_name = f"{model_dir_name} (step {step})"
+                choices.append((display_name, path))
+            else:
+                # If no checkpoints, maybe the model is in the root. Add it as a choice.
+                # Check for a config file to be sure it's a model directory.
+                if os.path.exists(os.path.join(model_dir_path, 'config.json')):
+                    choices.append((model_dir_name, model_dir_path))
+
     except FileNotFoundError:
         print("Warning: Could not find the app directory to scan for models.")
-        return []
+    
+    return sorted(choices, key=lambda x: x[0])
 
 def update_model_choices():
     """Refreshes the list of available models in the dropdowns."""
