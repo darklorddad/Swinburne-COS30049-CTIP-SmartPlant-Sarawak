@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import webbrowser
+import signal
 import time
 import shutil
 import requests
@@ -64,15 +65,21 @@ def launch_autotrain_ui(autotrain_path: str):
         env = os.environ.copy()
         env['PYTHONPATH'] = f"{module_parent_dir}{os.pathsep}{env.get('PYTHONPATH', '')}"
 
-        AUTOTRAIN_PROCESS = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            startupinfo=startupinfo,
-            cwd=module_parent_dir,
-            env=env
-        )
+        popen_kwargs = {
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "text": True,
+            "cwd": module_parent_dir,
+            "env": env
+        }
+
+        if sys.platform == "win32":
+            popen_kwargs["startupinfo"] = startupinfo
+        else:
+            # Create a new process group to ensure all child processes can be terminated together.
+            popen_kwargs["preexec_fn"] = os.setsid
+
+        AUTOTRAIN_PROCESS = subprocess.Popen(command, **popen_kwargs)
         
         # Poll for the server to be ready
         start_time = time.time()
@@ -127,30 +134,47 @@ def launch_autotrain_ui(autotrain_path: str):
         return message, gr.update(visible=True), gr.update(visible=False)
 
 def stop_autotrain_ui():
-    """Stops the AutoTrain UI process."""
+    """Stops the AutoTrain UI process and its children."""
     global AUTOTRAIN_PROCESS
     process = AUTOTRAIN_PROCESS
-    if process and process.poll() is None:
-        try:
-            process.terminate()
-            process.wait(timeout=5)
-            message = "AutoTrain UI process has been stopped."
-        except subprocess.TimeoutExpired:
-            process.kill()
-            message = "AutoTrain UI process did not stop gracefully and was killed."
-        except Exception as e:
-            message = f"Error stopping AutoTrain UI: {e}"
-            print(message)
-            return message, gr.update(visible=False), gr.update(visible=True)
-        
-        print(message)
-        AUTOTRAIN_PROCESS = None
-        return message, gr.update(visible=True), gr.update(visible=False)
-    else:
+    if not process or process.poll() is not None:
         message = "AutoTrain UI process is not running or was already stopped."
         print(message)
         AUTOTRAIN_PROCESS = None
         return message, gr.update(visible=True), gr.update(visible=False)
+
+    try:
+        if sys.platform == "win32":
+            # On Windows, use taskkill to forcefully terminate the process tree.
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            message = "AutoTrain UI process has been stopped."
+        else:
+            # On Unix-like systems, send SIGTERM to the process group.
+            pgid = os.getpgid(process.pid)
+            os.killpg(pgid, signal.SIGTERM)
+            try:
+                process.wait(timeout=5)
+                message = "AutoTrain UI process has been stopped."
+            except subprocess.TimeoutExpired:
+                os.killpg(pgid, signal.SIGKILL)
+                message = "AutoTrain UI process did not stop gracefully and was killed."
+    except (ProcessLookupError, subprocess.CalledProcessError):
+        # ProcessLookupError: process already died (Unix).
+        # CalledProcessError: taskkill failed, likely because process died (Windows).
+        message = "AutoTrain UI process was already stopped."
+    except Exception as e:
+        message = f"An unexpected error occurred while stopping AutoTrain UI: {e}"
+        print(message)
+        return message, gr.update(visible=False), gr.update(visible=True)
+
+    print(message)
+    AUTOTRAIN_PROCESS = None
+    return message, gr.update(visible=True), gr.update(visible=False)
 
 def show_model_charts(model_dir):
     """Finds trainer_state.json, returns metric plots, and the model_dir for sync."""
