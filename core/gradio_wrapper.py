@@ -245,6 +245,37 @@ def organise_dataset_folders(destination_dir: str, source_dir: str):
 
 def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train_manifest_path, val_manifest_path, test_manifest_path, split_type, train_ratio, val_ratio, test_ratio):
     """Splits a dataset into train, validation, and optional test sets."""
+    
+    def _generate_category_stats(class_dict, category_name):
+        """Helper to generate summary statistics for a dictionary of classes."""
+        report_lines = [f"\n## {category_name}"]
+        if not class_dict:
+            report_lines.append("None.")
+            return report_lines
+
+        num_classes = len(class_dict)
+        total_items = sum(d['count'] for d in class_dict.values())
+        
+        report_lines.append(f"Total Classes: {num_classes}")
+        report_lines.append(f"Total Items: {total_items}")
+
+        if num_classes > 1:
+            sorted_by_count = sorted(class_dict.items(), key=lambda item: item[1]['count'], reverse=True)
+            most_common_name, most_common_data = sorted_by_count[0]
+            least_common_name, least_common_data = sorted_by_count[-1]
+            
+            report_lines.append(f"Most Common: '{most_common_name}' with {most_common_data['count']} items")
+            report_lines.append(f"Least Common: '{least_common_name}' with {least_common_data['count']} items")
+            
+            if least_common_data['count'] > 0:
+                ratio = most_common_data['count'] / least_common_data['count']
+                report_lines.append(f"Imbalance Ratio (Most/Least): {ratio:.1f}:1")
+        elif num_classes == 1:
+            class_name, data = list(class_dict.items())[0]
+            report_lines.append(f"Only one class: '{class_name}' with {data['count']} items")
+
+        return report_lines
+
     # --- 1. Input Validation ---
     if not source_dir or not os.path.isdir(source_dir): raise gr.Error("Please provide a valid source directory.")
     if not train_zip_path: raise gr.Error("Please provide a training set output path.")
@@ -284,31 +315,32 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
     if 'Test' in split_type: final_splits['test'] = {}
     min_items_per_class, min_classes_per_set = 5, 2
 
-    included_classes, skipped_classes = [], []
+    included_classes, skipped_classes = {}, {}
 
     for class_name, files in class_files.items():
         random.shuffle(files)
         n_total = len(files)
         
-        # Calculate required items for each split
-        n_test = 0
+        # Calculate required items for each split, storing raw ratio-based values
+        n_test, n_test_raw = 0, 0
         if 'Test' in split_type:
-            n_test = round(n_total * test_r)
+            n_test_raw = round(n_total * test_r)
+            n_test = n_test_raw
             if 0 < n_test < min_items_per_class: n_test = min_items_per_class
 
-        n_val = round(n_total * val_r)
+        n_val_raw = round(n_total * val_r)
+        n_val = n_val_raw
         if 0 < n_val < min_items_per_class: n_val = min_items_per_class
         
-        # Calculate remaining for train
         n_train = n_total - n_test - n_val
 
-        # "All-or-nothing" check: A class is included only if every requested set
-        # (i.e., ratio > 0) can be created with the minimum number of items.
+        # "All-or-nothing" check
         is_test_valid = (test_r == 0) or (n_test >= min_items_per_class)
         is_val_valid = (val_r == 0) or (n_val >= min_items_per_class)
         is_train_valid = ((train_r == 0) or (n_train >= min_items_per_class)) and n_train >= 0
 
         if is_test_valid and is_val_valid and is_train_valid:
+            included_classes[class_name] = {'count': n_total, 'splits': {'train': n_train, 'validate': n_val, 'test': n_test}}
             start_index = 0
             if n_test > 0:
                 final_splits['test'][class_name] = files[start_index : start_index + n_test]
@@ -318,14 +350,26 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                 start_index += n_val
             if n_train > 0:
                 final_splits['train'][class_name] = files[start_index:]
-            included_classes.append(class_name)
         else:
-            skipped_classes.append(class_name)
-
-    split_summary = {
-        set_name: {'included': included_classes, 'skipped': skipped_classes}
-        for set_name in final_splits.keys()
-    }
+            reasons = []
+            if n_train < 0:
+                reasons.append(f"total items are too low (needs {n_test + n_val} for test/val, has {n_total})")
+            else:
+                if test_r > 0 and not is_test_valid:
+                    reason = f"test set needs {min_items_per_class}"
+                    if n_test_raw < min_items_per_class:
+                        reason += f" (ratio gave {n_test_raw})"
+                    reasons.append(reason)
+                if val_r > 0 and not is_val_valid:
+                    reason = f"validation set needs {min_items_per_class}"
+                    if n_val_raw < min_items_per_class:
+                        reason += f" (ratio gave {n_val_raw})"
+                    reasons.append(reason)
+                if train_r > 0 and not is_train_valid:
+                    reasons.append(f"train set needs {min_items_per_class} (only {n_train} left)")
+            
+            reason_str = "insufficient items: " + ", ".join(reasons) if reasons else "an unknown reason"
+            skipped_classes[class_name] = {'count': n_total, 'reason': reason_str}
 
     # --- 4. Post-split validation ---
     for set_name, classes in final_splits.items():
@@ -355,14 +399,31 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                     manifest_files.append(manifest_path_in_zip)
             
             # Build manifest content with summary
-            manifest_content = []
-            manifest_content.append(f"# {set_name.capitalize()} Set Manifest")
-            manifest_content.append("\n## Included Classes")
-            manifest_content.extend(sorted(split_summary[set_name]['included']))
+            manifest_content = [f"# {set_name.capitalize()} Set Manifest"]
+
+            # --- Detailed Breakdown for this set ---
+            set_class_counts = {name: data['splits'][set_name] for name, data in included_classes.items() if data['splits'][set_name] > 0}
             
-            if split_summary[set_name]['skipped']:
-                manifest_content.append("\n## Skipped Classes (due to minimum item rule)")
-                manifest_content.extend(sorted(split_summary[set_name]['skipped']))
+            manifest_content.append("\n## Set Summary")
+            if not set_class_counts:
+                manifest_content.append("No classes were included in this set.")
+            else:
+                num_included = len(set_class_counts)
+                manifest_content.append(f"Total classes: {num_included}")
+                manifest_content.append(f"Total items: {sum(set_class_counts.values())}")
+                manifest_content.append("\n### Class Counts")
+                for class_name, count in sorted(set_class_counts.items()):
+                    manifest_content.append(f"- {class_name}: {count} items")
+
+            # --- Overall Split Information ---
+            manifest_content.extend(_generate_category_stats(included_classes, "All Included Classes (from source)"))
+            manifest_content.extend(_generate_category_stats(skipped_classes, "All Skipped Classes (from source)"))
+
+            if skipped_classes:
+                manifest_content.append("\n## Skipped Class Details")
+                manifest_content.append("Classes are skipped if they don't have enough items for the required splits.")
+                for name, data in sorted(skipped_classes.items()):
+                    manifest_content.append(f"- {name} ({data['count']} items): Skipped because {data['reason']}")
 
             manifest_content.append("\n## File List")
             manifest_content.extend(sorted(manifest_files))
