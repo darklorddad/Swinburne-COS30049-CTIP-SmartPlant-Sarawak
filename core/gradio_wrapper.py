@@ -481,7 +481,7 @@ def check_dataset_balance(source_dir: str, save_files: bool, chart_save_path: st
 
 
 def check_dataset_splittability(source_dir, split_type, train_ratio, val_ratio, test_ratio):
-    """Simulates dataset splitting and provides a detailed report on included and skipped classes."""
+    """Simulates dataset splitting and provides a detailed report on the expected outcome."""
     
     def _generate_category_stats(class_dict, category_name):
         """Helper to generate summary statistics for a dictionary of classes."""
@@ -583,26 +583,45 @@ def check_dataset_splittability(source_dir, split_type, train_ratio, val_ratio, 
 
     # --- 4. Generate report ---
     report_lines = ["# Splittability Report"]
+
+    # --- Post-split validation and outcome summary ---
+    final_outcome_messages = []
+    set_names = ['train', 'validate']
+    if 'Test' in split_type: set_names.append('test')
+
+    for set_name in set_names:
+        set_class_counts = {name: data['splits'][set_name] for name, data in included_classes.items() if data['splits'][set_name] > 0}
+        num_included = len(set_class_counts)
+        
+        if 0 < num_included < min_classes_per_set:
+            final_outcome_messages.append(f"The '{set_name}' set would only contain {num_included} class(es), but the minimum required is {min_classes_per_set}.")
+
+    report_lines.append("\n## Final Outcome")
+    if final_outcome_messages:
+        report_lines.append("**FAILURE**: The dataset cannot be split with these settings. The `split_dataset` function would raise an error.")
+        report_lines.append("\n**Reasons:**")
+        for msg in final_outcome_messages:
+            report_lines.append(f"- {msg}")
+    else:
+        report_lines.append("**SUCCESS**: The dataset can be split with the current settings.")
+
+    # --- Detailed Breakdown ---
     report_lines.extend(_generate_category_stats(included_classes, "Included"))
     report_lines.extend(_generate_category_stats(skipped_classes, "Skipped"))
 
     if included_classes:
         report_lines.append("\n## Included Set Breakdown")
-        set_names = ['train', 'validate']
-        if 'Test' in split_type: set_names.append('test')
+        # set_names is already defined
 
         for set_name in set_names:
             report_lines.append(f"\n### {set_name.capitalize()} Set")
             set_class_counts = {name: data['splits'][set_name] for name, data in included_classes.items() if data['splits'][set_name] > 0}
             
-            num_included = len(set_class_counts)
-            if 0 < num_included < min_classes_per_set:
-                report_lines.append(f"WARNING: This set would not be created. It has only {num_included} class(es), but the minimum is {min_classes_per_set}.")
-            
             if not set_class_counts:
                 report_lines.append("No classes will be included in this set.")
                 continue
 
+            num_included = len(set_class_counts)
             report_lines.append(f"Total classes: {num_included}")
             report_lines.append(f"Total items: {sum(set_class_counts.values())}")
             report_lines.append("\n#### Class Counts")
