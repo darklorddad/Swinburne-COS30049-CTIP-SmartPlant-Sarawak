@@ -56,13 +56,18 @@ def launch_autotrain_ui(autotrain_path: str):
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
+        # Create a copy of the current environment and update PYTHONPATH
+        env = os.environ.copy()
+        env['PYTHONPATH'] = f"{autotrain_path}{os.pathsep}{env.get('PYTHONPATH', '')}"
+
         AUTOTRAIN_PROCESS = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             startupinfo=startupinfo,
-            cwd=autotrain_path
+            cwd=autotrain_path,
+            env=env
         )
         
         # Poll for the server to be ready
