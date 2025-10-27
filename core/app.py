@@ -73,9 +73,9 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
             outputs=inf_plots + [inf_plots_container, metrics_model_path]
         )
         metrics_model_path.change(
-            fn=show_model_charts,
+            fn=lambda path: path,
             inputs=[metrics_model_path],
-            outputs=inf_plots + [inf_plots_container, inf_model_path]
+            outputs=[inf_model_path]
         )
 
     with gr.Tab("Training"):
