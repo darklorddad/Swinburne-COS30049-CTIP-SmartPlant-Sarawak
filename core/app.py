@@ -79,7 +79,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
         )
 
     with gr.Tab("Training"):
-        train_autotrain_path = gr.Textbox(label="Path to AutoTrain folder (optional)", placeholder="e.g., C:/Users/user/autotrain-advanced")
+        train_autotrain_path = gr.Textbox(label="Path to AutoTrain folder")
         with gr.Row():
             train_launch_button = gr.Button("Launch AutoTrain UI")
             train_stop_button = gr.Button("Stop AutoTrain UI", visible=False)

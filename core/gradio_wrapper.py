@@ -43,10 +43,11 @@ def classify_plant(model_path: str, input_image: Image.Image) -> dict:
 
 def launch_autotrain_ui(autotrain_path: str):
     """Launches the AutoTrain Gradio UI and opens it in a new browser tab."""
+    if not autotrain_path or not os.path.isdir(autotrain_path):
+        raise gr.Error("Please provide a valid path to the AutoTrain folder.")
+
     global AUTOTRAIN_PROCESS
-    command = [sys.executable, "launch_autotrain.py"]
-    if autotrain_path:
-        command.append(autotrain_path)
+    command = [sys.executable, "launch_autotrain.py", autotrain_path]
     autotrain_url = "http://localhost:7861"
     try:
         # Redirect stdout/stderr to prevent blocking and hide console window on Windows
