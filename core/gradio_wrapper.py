@@ -48,7 +48,12 @@ def launch_autotrain_ui(autotrain_path: str):
         raise gr.Error("Please provide a valid path to the AutoTrain folder.")
 
     global AUTOTRAIN_PROCESS
-    command = [sys.executable, "-m", "autotrain.app", "--host", "localhost", "--port", "7861"]
+
+    # The launch script expects the parent directory of the 'autotrain' package.
+    # The UI asks for the 'autotrain' folder, so we get its parent directory.
+    module_parent_dir = os.path.dirname(autotrain_path)
+
+    command = [sys.executable, os.path.join('core', 'launch_autotrain.py'), module_parent_dir]
     autotrain_url = "http://localhost:7861"
     try:
         # Redirect stdout/stderr to prevent blocking and hide console window on Windows
@@ -57,20 +62,12 @@ def launch_autotrain_ui(autotrain_path: str):
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-        # The path for PYTHONPATH and CWD should be the directory *containing* the 'autotrain' package.
-        # We'll assume the user is pointing to the 'autotrain' package folder itself.
-        module_parent_dir = os.path.dirname(autotrain_path)
-
-        # Create a copy of the current environment and update PYTHONPATH
-        env = os.environ.copy()
-        env['PYTHONPATH'] = f"{module_parent_dir}{os.pathsep}{env.get('PYTHONPATH', '')}"
-
+        # The launch script handles the PYTHONPATH, so we don't need to set it here.
+        # We also don't need to set the CWD.
         popen_kwargs = {
             "stdout": subprocess.PIPE,
             "stderr": subprocess.PIPE,
             "text": True,
-            "cwd": module_parent_dir,
-            "env": env
         }
 
         if sys.platform == "win32":
