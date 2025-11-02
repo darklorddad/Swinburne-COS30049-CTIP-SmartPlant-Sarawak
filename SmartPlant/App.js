@@ -12,9 +12,11 @@ import MyProfile from "./src/pages/Myprofile";
 import EditProfile from "./src/pages/EditProfile";
 import Setting from "./src/pages/Setting";
 import Saved from "./src/pages/Saved";
-import Notification from "./src/pages/Notification";
+import NotificationUser from "./src/pages/NotificationUser";
+import NotificationExpert from "./src/pages/NotificationExpert";
 import MapPage from "./src/pages/MapPage";
 
+import Introduction from "./src/pages/Introduction";
 import LoginSelection from "./src/pages/LoginSelection";
 import UserLogin from "./src/pages/UserLogin";
 import UserRegister from "./src/pages/UserRegister";
@@ -30,26 +32,36 @@ import ReportError from "./src/pages/ReportError";
 import TopSuggestions from "./src/pages/TopSuggestions";
 import CreatePost from "./src/pages/CreatePost";
 import AdminNavigator from './src/admin/AdminNavigator';
+import IoTDashboard from './src/pages/iot_dashboard';
+import FlashMessage, { showMessage } from "react-native-flash-message";
+
+//testing the component
+import Testing from './src/pages/testing';
 
 const Stack = createStackNavigator();
 
 export default function App() {
   return (
+    <>
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="LoginSelection" screenOptions={{ headerShown: false }}>
+      <Stack.Navigator initialRouteName="Introduction" screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Testing" component={Testing} />
         <Stack.Screen name="Profile" component={Profile} />
-        <Stack.Screen name="DashboardScreen" component={DashboardScreen} />
+        {/* <Stack.Screen name="IoTDashboard" component={IoTDashboard} /> */}
+        {/* <Stack.Screen name="DashboardScreen" component={DashboardScreen} /> */}
         <Stack.Screen name="MyProfile" component={MyProfile} />
         <Stack.Screen name="EditProfile" component={EditProfile} />
 
         <Stack.Screen name="MapPage" component={MapPage} />
         <Stack.Screen name="Setting" component={Setting} />
         <Stack.Screen name="Saved" component={Saved} />
-        <Stack.Screen name="Notification" component={Notification} />
+        <Stack.Screen name="NotificationUser" component={NotificationUser} />
+        <Stack.Screen name="NotificationExpert" component={NotificationExpert} />
         <Stack.Screen name="identify" component={IdentifyPage} />
         <Stack.Screen name="identify_tips" component={IdentifyTips} />
         <Stack.Screen name="identify_output" component={IdentifyOutput}/>
 
+        <Stack.Screen name="Introduction" component={Introduction} />
         <Stack.Screen name="LoginSelection" component={LoginSelection} />
         <Stack.Screen name="UserLogin" component={UserLogin} />
         <Stack.Screen name="UserRegister" component={UserRegister} />
@@ -65,9 +77,10 @@ export default function App() {
         <Stack.Screen name="TopSuggestions" component={TopSuggestions}/>
         <Stack.Screen name="CreatePost" component={CreatePost}/>
         <Stack.Screen name="AdminDashboard" component={AdminNavigator} />
-
       </Stack.Navigator>
     </NavigationContainer>
+    <FlashMessage position="top" />
+    </>
   );
 }
 

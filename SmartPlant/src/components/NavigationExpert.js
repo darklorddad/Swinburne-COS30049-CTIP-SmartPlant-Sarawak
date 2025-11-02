@@ -9,8 +9,8 @@ export default function BottomNav({ navigation }) {
   return (
     <View style={styles.bottomNav}>
       <TouchableOpacity
-        style={[styles.tab, route.name === "HomepageUser" && styles.activeTab]}
-        onPress={() => navigation.navigate("HomepageUser")}
+        style={[styles.tab, route.name === "HomepageExpert" && styles.activeTab]}
+        onPress={() => navigation.navigate("HomepageExpert")}
       >
         <Ionicons name="home" size={28} color="black" />
       </TouchableOpacity>
@@ -31,8 +31,8 @@ export default function BottomNav({ navigation }) {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.tab, route.name === "Notification" && styles.activeTab]}
-        onPress={() => navigation.navigate("Notification")}
+        style={[styles.tab, route.name === "NotificationExpert" && styles.activeTab]}
+        onPress={() => navigation.navigate("NotificationExpert")}
       >
         <Ionicons name="notifications" size={28} color="black" />
       </TouchableOpacity>
