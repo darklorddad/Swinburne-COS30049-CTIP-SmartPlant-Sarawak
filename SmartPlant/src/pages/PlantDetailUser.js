@@ -65,6 +65,12 @@ export default function PlantDetailUser({ navigation, route }) {
   }, [post?.id]);
   // ----------------------------------------------------------------
 
+  const lat = post?.coordinate?.latitude ?? null;
+  const lng = post?.coordinate?.longitude ?? null;
+  const locality = post?.locality || (lat != null && lng != null
+    ? `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`
+    : "—");
+
   return (
     <View style={styles.background}>
       <ScrollView
@@ -100,8 +106,25 @@ export default function PlantDetailUser({ navigation, route }) {
           <Text style={styles.sub}>
             Date Identified: {post?.time ? new Date(post.time).toDateString() : "—"}
           </Text>
-          <Text style={styles.sub}>Location:</Text>
-          <View style={styles.location} />
+
+          {/* Location + View on Map */}
+          <Text style={styles.sub}>Location: {locality}</Text>
+          {lat != null && lng != null && (
+            <TouchableOpacity
+              style={styles.viewOnMapBtn}
+              onPress={() =>
+                navigation.navigate("MapPage", {
+                  focus: {
+                    latitude: Number(lat),
+                    longitude: Number(lng),
+                    title: top1?.plant_species || top1?.class || "Plant",
+                  },
+                })
+              }
+            >
+              <Text style={styles.viewOnMapText}>View on Map</Text>
+            </TouchableOpacity>
+          )}
 
           <Text style={[styles.section, { marginTop: 10 }]}>Identification</Text>
           <Text style={styles.sub}>Confidence Score</Text>
@@ -175,6 +198,16 @@ const styles = StyleSheet.create({
   hr: { height: 1, backgroundColor: "#ddd", marginVertical: 8 },
   section: { fontWeight: "800", color: "#222" },
   sub: { color: "#444", marginTop: 4 },
+  viewOnMapBtn: {
+    marginTop: 6,
+    alignSelf: "flex-start",
+    backgroundColor: "#E0F0E0",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  viewOnMapText: { color: "#2b2b2b", fontWeight: "700" },
+
   location: { height: 80, borderRadius: 8, backgroundColor: "#CFD4D0", marginTop: 4 },
   quote: { marginTop: 6, fontStyle: "italic", color: "#333" },
   suggestion: {
@@ -186,7 +219,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   suggestionText: { fontWeight: "700", color: "#2b2b2b" },
-
 
   commentsBlock: { marginTop: 10 },
   commentRow: { flexDirection: "row", gap: 10, marginTop: 10 },

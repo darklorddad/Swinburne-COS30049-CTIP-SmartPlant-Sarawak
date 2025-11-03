@@ -17,8 +17,8 @@ import { useRoute, useNavigation } from "@react-navigation/native";
 
 import { addPlantIdentify } from "../firebase/plant_identify/addPlantIdentify.js";
 import { uploadImage } from "../firebase/plant_identify/uploadImage.js";
-import { auth } from "../firebase/FirebaseConfig"; // db not needed here
-import { serverTimestamp } from "firebase/firestore";
+import { auth, db } from "../firebase/FirebaseConfig"; // ← db added here
+import { serverTimestamp, addDoc, collection } from "firebase/firestore";
 
 import * as Location from "expo-location"; // (KEEP) getting current device location
 import * as ImagePicker from "expo-image-picker"; // (KEEP) for picking images with EXIF
@@ -60,7 +60,7 @@ export default function ResultScreen() {
       setLoading(true);
 
       // (KEEP) your local backend for heatmap
-      const response = await fetch("http://192.168.1.4:3000/heatmap", {
+      const response = await fetch("http://172.17.20.177:3000/heatmap", {
         method: "POST",
         headers: { "Content-Type": "multipart/form-data" },
         body: formData,
@@ -119,6 +119,21 @@ export default function ResultScreen() {
     return dec;
   }
 
+  // reverse-geocode helper -> "City, Region" or "lat,lng"
+  const makeLocality = async (lat, lng) => {
+    try {
+      const results = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+      const r = results?.[0];
+      if (!r) return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      const city = r.city || r.subregion || r.district || "";
+      const region = r.region || r.subregion || "";
+      const parts = [city, region].filter(Boolean);
+      return parts.length ? parts.join(", ") : `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    } catch {
+      return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    }
+  };
+
   const uploadDataToDatabase = async () => {
     try {
       setUploadLoading(true);
@@ -151,6 +166,12 @@ export default function ResultScreen() {
         }
       }
 
+      // Build locality string
+      let locality = "—";
+      if (latitude != null && longitude != null) {
+        locality = await makeLocality(latitude, longitude);
+      }
+
       // -------- 2) Determine identification status --------
       const top1 = prediction?.[0];
       const top2 = prediction?.[1];
@@ -172,13 +193,14 @@ export default function ResultScreen() {
       const downloadURL = await uploadImage(imageURI, top1?.class || "unknown");
       console.log("Added to storage with URL:", downloadURL);
 
-      // -------- 5) Upload info to Firestore --------
+      // -------- 5) Upload info to Firestore (plant_identify) --------
       const plantData = {
         model_predictions: {
           top_1: {
             plant_species: top1?.class ?? null,
             ai_score: top1?.confidence ?? null,
           },
+        // (KEEP) keep extra predictions in case your teammate re-enables more UI:
           top_2: {
             plant_species: top2?.class ?? null,
             ai_score: top2?.confidence ?? null,
@@ -192,30 +214,49 @@ export default function ResultScreen() {
         ImageURL: downloadURL,
         coordinate: { latitude: latitude ?? null, longitude: longitude ?? null },
         user_id: userID,
-        identify_status, // (KEEP) “verified” if >= 0.7 else “pending”
+        identify_status,
         author_name: userName, // <<— single source of truth for display name
+        locality,              // <<— save readable locality for UI
       };
 
       const docId = await addPlantIdentify(plantData);
       console.log("Added to Firestore with ID:", docId);
 
-      // -------- 6) Build a feed post and navigate to HomepageUser --------
+      // -------- 6) Mirror to markers so MapPage shows a pin automatically --------
+      try {
+        await addDoc(collection(db, "markers"), {
+          title: top1?.class || "Plant",
+          type: "Plant",
+          coordinate: {
+            latitude: latitude ?? 1.5495,
+            longitude: longitude ?? 110.3632,
+          },
+          identifiedBy: userName,
+          time: serverTimestamp(),
+          image: downloadURL,
+          description: "Uploaded from identification",
+          plant_identify_id: docId, // backlink if you need it later
+          locality,
+        });
+      } catch (e) {
+        console.log("Failed to mirror marker:", e);
+      }
+
+      // -------- 7) Build a feed post and navigate to HomepageUser --------
       const newPost = {
         id: docId,
         image: downloadURL,
         caption: top1
           ? `Top: ${top1.class} (${Math.round((top1.confidence || 0) * 100)}%)`
           : "New identification",
-        author: userName, // <<— same name used in Firestore + UI
+        author: userName, // same name everywhere
         time: Date.now(),
-        locality: "Kuching", // (KEEP) Optional — reverse-geocode for actual address
+        locality,         // use nice string in feed
         prediction: prediction.slice(0, 3),
         coordinate: { latitude: latitude ?? null, longitude: longitude ?? null },
       };
 
-      // (KEEP) go to feed (instagram-like) instead of map page
       navigation.navigate("HomepageUser", { newPost });
-      // navigation.navigate("MapPage"); // (KEEP) old behavior — restore if needed
     } catch (error) {
       console.log("Image upload failed:", error);
       Alert.alert("Upload failed", error?.message || "Please try again.");
@@ -287,27 +328,7 @@ export default function ResultScreen() {
       )}
 
       {/* (KEEP) Alternate UI using PlantSuggestionCard — re-enable if desired */}
-      {/*
-      {prediction && prediction.length > 0 && prediction[0].confidence >= 0.7 ? (
-        <View style={{ width: "100%", alignItems: "center" }}>
-          {prediction.map((item, index) => (
-            <PlantSuggestionCard
-              key={index}
-              name={item.class || "Unknown Plant"}
-              confidence={(item.confidence * 100).toFixed(2)}
-              onPress={() => console.log(`See more for ${item.class}`)}
-            />
-          ))}
-        </View>
-      ) : (
-        <View style={styles.lowConfidenceContainer}>
-          <Text style={styles.lowConfidenceText}>
-            The confidence score is too low.{"\n"}
-            Our team would wish to send this case to an expert for further verification.
-          </Text>
-        </View>
-      )}
-      */}
+      {/* ... */}
 
       {/* Done Button */}
       <TouchableOpacity style={styles.doneButton} onPress={handleUploadConfirmation}>
@@ -341,32 +362,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     position: "relative",
   },
-  image: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 4,
-  },
-  iconButton: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-  },
-  circle: {
-    width: 20,
-    height: 20,
-    backgroundColor: "gray",
-    borderRadius: 10,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginVertical: 12,
-  },
-  resultsContainer: {
-    width: "100%",
-    paddingHorizontal: 10,
-    marginBottom: 20,
-  },
+  image: { width: "100%", height: "100%", borderRadius: 4 },
+  iconButton: { position: "absolute", top: 8, right: 8 },
+  circle: { width: 20, height: 20, backgroundColor: "gray", borderRadius: 10 },
+  title: { fontSize: 18, fontWeight: "bold", marginVertical: 12 },
+  resultsContainer: { width: "100%", paddingHorizontal: 10, marginBottom: 20 },
   resultCard: {
     backgroundColor: "#496D4C",
     paddingVertical: 12,
@@ -375,22 +375,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginVertical: 6,
   },
-  resultRank: {
-    color: "white",
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  resultLabel: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  resultValue: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
+  resultRank: { color: "white", fontWeight: "bold", marginBottom: 4 },
+  resultLabel: { color: "white", fontWeight: "bold", fontSize: 14, marginBottom: 4 },
+  resultValue: { color: "white", fontWeight: "bold", fontSize: 16 },
   doneButton: {
     backgroundColor: "#496D4C",
     paddingVertical: 14,
@@ -401,28 +388,11 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    zIndex: 1000,
+    top: 0, left: 0, right: 0, bottom: 0,
+    justifyContent: "center", alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1000,
   },
-  lowConfidenceContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-  },
-  lowConfidenceText: {
-    fontSize: 16,
-    color: "gray",
-    textAlign: "center",
-    fontStyle: "italic",
-  },
-  Topsuggestion: {
-    paddingBottom: 20,
-    alignItems: "center",
-  },
+  lowConfidenceContainer: { alignItems: "center", justifyContent: "center", padding: 20 },
+  lowConfidenceText: { fontSize: 16, color: "gray", textAlign: "center", fontStyle: "italic" },
+  Topsuggestion: { paddingBottom: 20, alignItems: "center" },
 });
