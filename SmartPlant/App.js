@@ -10,6 +10,7 @@ import IdentifyOutput from './src/pages/identify_output';
 import Profile from "./src/pages/Profile";
 import MyProfile from "./src/pages/Myprofile";
 import EditProfile from "./src/pages/EditProfile";
+import MyPost from "./src/pages/MyPost";
 import Setting from "./src/pages/Setting";
 import Saved from "./src/pages/Saved";
 import NotificationUser from "./src/pages/NotificationUser";
@@ -33,6 +34,7 @@ import TopSuggestions from "./src/pages/TopSuggestions";
 import AdminNavigator from './src/admin/AdminNavigator';
 import IoTDashboard from './src/pages/iot_dashboard';
 import FlashMessage, { showMessage } from "react-native-flash-message";
+import { PermissionProvider } from "./src/components/PermissionManager";
 
 //testing the component
 import Testing from './src/pages/testing';
@@ -42,29 +44,30 @@ const Stack = createStackNavigator();
 export default function App() {
   return (
     <>
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="Introduction" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Testing" component={Testing} />
-        <Stack.Screen name="Profile" component={Profile} />
-        {/* <Stack.Screen name="IoTDashboard" component={IoTDashboard} /> */}
-        {/* <Stack.Screen name="DashboardScreen" component={DashboardScreen} /> */}
-        <Stack.Screen name="MyProfile" component={MyProfile} />
-        <Stack.Screen name="EditProfile" component={EditProfile} />
+      <NavigationContainer>
+        <Stack.Navigator initialRouteName="Introduction" screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Testing" component={Testing} />
+          <Stack.Screen name="Profile" component={Profile} />
+          {/* <Stack.Screen name="IoTDashboard" component={IoTDashboard} /> */}
+          {/* <Stack.Screen name="DashboardScreen" component={DashboardScreen} /> */}
+          <Stack.Screen name="MyProfile" component={MyProfile} />
+          <Stack.Screen name="EditProfile" component={EditProfile} />
+          <Stack.Screen name="MyPost" component={MyPost} />
 
-        <Stack.Screen name="MapPage" component={MapPage} />
-        <Stack.Screen name="Setting" component={Setting} />
-        <Stack.Screen name="Saved" component={Saved} />
-        <Stack.Screen name="NotificationUser" component={NotificationUser} />
-        <Stack.Screen name="NotificationExpert" component={NotificationExpert} />
-        <Stack.Screen name="identify" component={IdentifyPage} />
-        <Stack.Screen name="identify_tips" component={IdentifyTips} />
-        <Stack.Screen name="identify_output" component={IdentifyOutput}/>
+          <Stack.Screen name="MapPage" component={MapPage} />
+          <Stack.Screen name="Setting" component={Setting} />
+          <Stack.Screen name="Saved" component={Saved} />
+          <Stack.Screen name="NotificationUser" component={NotificationUser} />
+          <Stack.Screen name="NotificationExpert" component={NotificationExpert} />
+          <Stack.Screen name="identify" component={IdentifyPage} />
+          <Stack.Screen name="identify_tips" component={IdentifyTips} />
+          <Stack.Screen name="identify_output" component={IdentifyOutput}/>
 
-        <Stack.Screen name="Introduction" component={Introduction} />
-        <Stack.Screen name="LoginSelection" component={LoginSelection} />
-        <Stack.Screen name="UserLogin" component={UserLogin} />
-        <Stack.Screen name="UserRegister" component={UserRegister} />
-        <Stack.Screen name="AdminLogin" component={AdminLogin} />
+          <Stack.Screen name="Introduction" component={Introduction} />
+          <Stack.Screen name="LoginSelection" component={LoginSelection} />
+          <Stack.Screen name="UserLogin" component={UserLogin} />
+          <Stack.Screen name="UserRegister" component={UserRegister} />
+          <Stack.Screen name="AdminLogin" component={AdminLogin} />
 
         <Stack.Screen name="HomepageExpert" component={HomepageExpert}/>
         <Stack.Screen name="HomepageUser" component={HomepageUser}/>

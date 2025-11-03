@@ -5,6 +5,8 @@ import { getFullProfile } from "../firebase/UserProfile/UserUpdate";
 import { auth } from "../firebase/FirebaseConfig";
 import { useFocusEffect } from '@react-navigation/native';
 
+const NAV_HEIGHT = 60;
+const NAV_MARGIN_TOP =150;
 export default function ProfileScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,10 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <View style={styles.background}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView style={styles.scroller} 
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.title}>Profile</Text>
 
         {/* Profile Image */}
@@ -76,7 +81,9 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.arrow}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem}
+            onPress={() => navigation.navigate("MyPost")}
+          >
             <Text style={styles.menuText}>Uploaded Post</Text>
             <Text style={styles.arrow}>›</Text>
           </TouchableOpacity>
@@ -132,8 +139,11 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: "#fefae0", 
   },
+  scroller: {
+    marginBottom: -NAV_MARGIN_TOP
+  },
   container: {
-    flexGrow: 1,
+    paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16,
     backgroundColor: "#fefae0",
     alignItems: "center",
     padding: 20,

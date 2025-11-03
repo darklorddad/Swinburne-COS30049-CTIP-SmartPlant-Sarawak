@@ -58,9 +58,7 @@ export default function ResultScreen() {
 
     try {
       setLoading(true);
-
-      // (KEEP) your local backend for heatmap
-      const response = await fetch("http://172.17.20.177:3000/heatmap", {
+      const response = await fetch("http://192.168.1.105:3000/heatmap", {
         method: "POST",
         headers: { "Content-Type": "multipart/form-data" },
         body: formData,

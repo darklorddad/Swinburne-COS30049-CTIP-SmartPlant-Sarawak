@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect,  useContext} from 'react';
 import { StyleSheet, TextInput, Text, View, TouchableOpacity, ScrollView, Image, Dimensions, Animated, PanResponder, Alert, Platform } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Circle } from "react-native-maps";
 import { Ionicons } from '@expo/vector-icons';
@@ -6,7 +6,9 @@ import * as Location from 'expo-location';
 import { useRoute } from "@react-navigation/native"; // ← NEW
 import mapStyle from "../../assets/mapStyle.json";
 import { db } from '../firebase/config.js';
-import { collection, getDocs, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot } from 'firebase/firestore'; 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { PermissionContext } from "../components/PermissionManager";
 
 const { width, height } = Dimensions.get('window');
 
@@ -17,9 +19,10 @@ const MapPage = ({navigation}) => {
   const [selectedTab, setSelectedTab] = useState(null);
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
-  const [hasLocationPermission, setHasLocationPermission] = useState(false);
   const [markers, setMarkers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { locationGranted } = useContext(PermissionContext);
+  //const [currentLocation, setCurrentLocation] = useState(null);
 
   // NEW: temporary focus pin when navigating from PlantDetail (or anywhere)
   const [focusPin, setFocusPin] = useState(null);
@@ -69,13 +72,13 @@ const MapPage = ({navigation}) => {
   };
 
   const getSortedMarkersByDistance = (markersList) => {
-    if (!userLocation) return markersList;
+    if (!setUserLocation) return markersList;
     return markersList
       .map(marker => ({
         ...marker,
         distance: calculateDistance(
-          userLocation.latitude,
-          userLocation.longitude,
+          setUserLocation.latitude,
+          setUserLocation.longitude,
           marker.coordinate.latitude,
           marker.coordinate.longitude
         )
@@ -189,24 +192,23 @@ const MapPage = ({navigation}) => {
   };
 
   useEffect(() => {
-    // 获取初始数据
-    fetchMarkers();
-    // 实时监听
-    const unsubscribe = setupRealtimeListener();
-    // 定位权限
-    (async () => {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') return;
-        setHasLocationPermission(true);
-        let location = await Location.getCurrentPositionAsync({});
-        setUserLocation(location.coords);
-      } catch (error) {
-        console.log('📍 获取位置错误:', error);
+    const loadLocation = async () => {
+      if (locationGranted) {
+        try {
+          const location = await Location.getCurrentPositionAsync({});
+          setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+        } catch (error) {
+          Alert.alert("Error", "Unable to fetch location.");
+        }
+      } else {
+        setUserLocation(null);
       }
-    })();
-    return () => { if (unsubscribe) unsubscribe(); };
-  }, []);
+    };
+    loadLocation();
+  }, [locationGranted]);
 
   const filteredMarkersForMap = selectedTab
     ? markers.filter(marker => marker.type === selectedTab)
@@ -417,7 +419,7 @@ const MapPage = ({navigation}) => {
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={KUCHING_REGION}
-        showsUserLocation={true}
+        showsUserLocation={locationGranted}
         showsMyLocationButton={false}
         showsCompass={true}
         customMapStyle={mapStyle}

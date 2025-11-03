@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, ImageBackground, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useRef, useEffect, useContext } from 'react';
+import { View, Text, StyleSheet, Image, ImageBackground, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Settings } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from "expo-image-picker";
@@ -8,7 +8,9 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import BottomNav from "../components/Navigation";
-
+import { PermissionContext } from "../components/PermissionManager";
+import { useIsFocused } from '@react-navigation/native';
+import { Camera } from 'expo-camera';
 import CustomButton from '../components/Button';
 
 //noti start
@@ -29,27 +31,71 @@ export default function IdentifyPage() {
     //prediction variable
     const [prediction, setPrediction] = useState(null);
     const [loading, setLoading] = useState(false);
+    const {cameraGranted, photosGranted, requestCameraPermission, requestPhotosPermission,} = useContext(PermissionContext);
+    const [permissionChecked, setPermissionChecked] = useState(false);
+    const isFocused = useIsFocused();
 
     //Reset images when switching modes
     useEffect(() => {
         setImages([]);
     }, [mode]);
 
+    // Camera & photo permissions in Settings
+    useEffect(() => {
+        if (!isFocused) return;
+        (async () => {
+            const camStatus = await Camera.getCameraPermissionsAsync();
+            if (camStatus.status !== 'granted') {
+                Alert.alert(
+                    "Camera Access Required",
+                    "Please enable camera access in device settings.",
+                    [
+                    {
+                        text: "OK",
+                        onPress: () => navigation.navigate("Setting"), // 👈 Only navigates when OK is pressed
+                    },
+                    ],
+                    { cancelable: false } // optional: prevent dismissing by tapping outside
+                );
+                setPermissionChecked(false);
+            } else {
+                setPermissionChecked(true);
+            }
 
-    if (!permission) {
-        return <Text>Requesting camera permission...</Text>;
-    }
+            // --- Photos ---
+            const photoStatus = await ImagePicker.getMediaLibraryPermissionsAsync();
+            if (photoStatus.status !== 'granted') {
+                Alert.alert(
+                    "Photo Library Access Required",
+                    "Please enable photo library access in device settings."
+                );
+                setPermissionChecked(false);
+            } else {
+                setPermissionChecked(true);
+            }
+        })();
+    }, [isFocused, cameraGranted, photosGranted]);
 
-    if (!permission.granted) {
-        return (
-            <View style={styles.Box}>
-                <Text style={{ color: 'white', textAlign: 'center' }}>No access to camera</Text>
-                <CustomButton title="Grant permission" onPress={() => requestPermission()} />
-            </View>
-        );
-    }
+    useEffect(() => {
+        if (!isFocused) return;
 
-
+        if (cameraGranted === false && photosGranted === false) {
+            Alert.alert(
+                "Camera and Photo Library Disabled",
+                "Camera and photo library permission are turned off. Please enable them in Settings."
+            );
+        } else if (cameraGranted === false) {
+            Alert.alert(
+                "Camera Disabled",
+                "Camera permission is turned off. Please enable it in Settings to use this feature."
+            );
+        } else if (photosGranted === false) {
+            Alert.alert(
+                "Photo Library Disabled",
+                "Photo library permission is turned off. Please enable it in Settings to upload images."
+            );
+        }
+    }, [cameraGranted, photosGranted, isFocused]);
 
     const toggleCameraFacing = () => {
         setFacing((current) => (current === "back" ? "front" : "back"));
@@ -78,14 +124,11 @@ export default function IdentifyPage() {
     };
 
     const pickImage = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== "granted") {
-            alert("Permission denied! You need to allow access to photos.");
-            return;
-        }
+        const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
+        const granted = status === "granted";
 
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.Images,
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
             quality: 1,
         });
 
@@ -122,7 +165,7 @@ export default function IdentifyPage() {
 
         try {
             setLoading(true);
-            const response = await fetch("http://172.17.20.177:3000/predict", {
+            const response = await fetch("http://192.168.1.105:3000/predict", {
                 method: "POST",
                 headers: { "Content-Type": "multipart/form-data" },
                 body: formData,
@@ -259,10 +302,10 @@ export default function IdentifyPage() {
                             </View>
                         ) : (
                             <View style={styles.bottomRow}>
-                                <TouchableOpacity onPress={pickImage}>
+                                <TouchableOpacity onPress={pickImage}disabled={!photosGranted} style={{ opacity: photosGranted ? 1 : 0.5 }}>
                                     <Ionicons name="images-outline" size={54} color='white' />
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.CaptureButton} onPress={takePicture} />
+                                <TouchableOpacity style={styles.CaptureButton} onPress={takePicture} disabled={!cameraGranted}/>
                                 <TouchableOpacity onPress={() => navigation.navigate("identify_tips")}>
                                     <MaterialIcons name="info-outline" size={54} color='white' />
                                 </TouchableOpacity>
