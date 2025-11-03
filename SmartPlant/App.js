@@ -30,7 +30,6 @@ import PlantManagementList from "./src/pages/PlantManagementList";
 import PostDetail from "./src/pages/PostDetail";
 import ReportError from "./src/pages/ReportError";
 import TopSuggestions from "./src/pages/TopSuggestions";
-import CreatePost from "./src/pages/CreatePost";
 import AdminNavigator from './src/admin/AdminNavigator';
 import IoTDashboard from './src/pages/iot_dashboard';
 import FlashMessage, { showMessage } from "react-native-flash-message";
@@ -75,7 +74,6 @@ export default function App() {
         <Stack.Screen name="PostDetail" component={PostDetail}/>
         <Stack.Screen name="ReportError" component={ReportError}/>
         <Stack.Screen name="TopSuggestions" component={TopSuggestions}/>
-        <Stack.Screen name="CreatePost" component={CreatePost}/>
         <Stack.Screen name="AdminDashboard" component={AdminNavigator} />
       </Stack.Navigator>
     </NavigationContainer>

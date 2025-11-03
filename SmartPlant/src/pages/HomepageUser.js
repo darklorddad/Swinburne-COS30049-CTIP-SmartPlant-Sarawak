@@ -1,90 +1,212 @@
 // pages/HomepageUser.js
-import React, { useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from "react-native";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  RefreshControl,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import BottomNav from "../components/Navigation";
 
+import { auth, db } from "../firebase/FirebaseConfig";
+import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+
+const NAV_HEIGHT = 60;      // height of your BottomNav
+const NAV_MARGIN_TOP = 150; // its marginTop from Navigation.js
+
+const timeAgo = (ms) => {
+  const s = Math.max(1, Math.floor((Date.now() - ms) / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  return `${d}d`;
+};
+
 export default function HomepageUser({ navigation }) {
   const route = useRoute();
 
-  const [posts, setPosts] = useState([
-    // seed with one placeholder post (optional)
-    { id: 1, image: null, caption: "Hello jungle!", author: "Gibson", time: "1d" },
-  ]);
+  const currentUserName =
+    auth.currentUser?.displayName ||
+    (auth.currentUser?.email ? auth.currentUser.email.split("@")[0] : null) ||
+    "User";
 
-  // When we navigate back from CreatePost with { newPost }, prepend it once.
+  const [posts, setPosts] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    const q = query(collection(db, "plant_identify"), orderBy("createdAt", "desc"), limit(20));
+    const unsub = onSnapshot(q, (snap) => {
+      const items = snap.docs.map((d) => {
+        const v = d.data();
+        const top1 = v?.model_predictions?.top_1;
+        const ms =
+          (v?.createdAt?.toMillis?.() ??
+            (v?.createdAt?.seconds ? v.createdAt.seconds * 1000 : Date.now())) ||
+          Date.now();
+        const author =
+          v?.author_name || (v?.user_id ? `@${String(v.user_id).slice(0, 6)}` : "User");
+
+        return {
+          id: d.id,
+          image: v?.ImageURL || null,
+          caption: top1
+            ? `Top: ${top1.plant_species} (${Math.round((top1.ai_score || 0) * 100)}%)`
+            : "New identification",
+          author,
+          time: ms,
+          locality: "Kuching",
+          prediction: [v?.model_predictions?.top_1, v?.model_predictions?.top_2, v?.model_predictions?.top_3].filter(Boolean),
+          coordinate: v?.coordinate ?? null,
+          like_count: typeof v?.like_count === "number" ? v.like_count : 0,
+          comment_count: typeof v?.comment_count === "number" ? v.comment_count : 0,
+          saved_by: Array.isArray(v?.saved_by) ? v.saved_by : [],
+          saved_count: typeof v?.saved_count === "number" ? v.saved_count : undefined,
+        };
+      });
+
+      setPosts((prev) => {
+        const map = new Map(prev.map((p) => [p.id, p]));
+        items.forEach((it) => map.set(it.id, it));
+        return Array.from(map.values()).sort((a, b) => b.time - a.time).slice(0, 20);
+      });
+    });
+    return () => unsub();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       const newPost = route.params?.newPost;
       if (newPost) {
-        setPosts((prev) => [newPost, ...prev]);
-        // clear param so it doesn't add again on next focus
+        setPosts((prev) => {
+          const exists = prev.some((p) => p.id === newPost.id);
+          if (exists) return prev;
+          return [{ ...newPost, like_count: 0, comment_count: 0, saved_by: [], saved_count: 0 }, ...prev].slice(0, 20);
+        });
         navigation.setParams?.({ newPost: undefined });
       }
     }, [route.params?.newPost])
   );
 
-  const openPost = () => navigation.navigate("CreatePost");
-  const openDetail = (post) => navigation.navigate("PostDetail", { id: post.id });
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 500);
+  }, []);
+
+  const openDetail = (post) => navigation.navigate("PostDetail", { post });
+
+  const latest = posts[0];
+  const formattedDate = useMemo(() => {
+    if (!latest?.time) return "—";
+    try {
+      return new Date(latest.time).toDateString();
+    } catch {
+      return "—";
+    }
+  }, [latest?.time]);
 
   return (
     <View style={styles.background}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        style={styles.scroller} // << allows reaching the bottom under the raised nav
+        contentContainerStyle={[
+          styles.container,
+          { paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16 }, // enough room to scroll past the bar
+        ]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* Greeting */}
         <View style={styles.greetingCard}>
           <View style={styles.avatar} />
           <View style={{ flex: 1 }}>
             <Text style={styles.greetingTitle}>Good Morning</Text>
-            <Text style={styles.greetingSub}>Bryan</Text>
-            <Text style={styles.greetingMeta}>10 🌱 identified so far!</Text>
+            <Text style={styles.greetingSub}>{currentUserName}</Text>
+            <Text style={styles.greetingMeta}>{posts.length} 🌱 identified so far!</Text>
           </View>
         </View>
 
         {/* Recent */}
         <Text style={styles.sectionTitle}>Recent</Text>
-        <TouchableOpacity
-          style={styles.recentCard}
-          onPress={() => navigation.navigate("PlantDetailUser")}
-        >
-          <View style={styles.recentThumb} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.recentTitle}>Plant ✓</Text>
-            <Text style={styles.recentMeta}>17 December 2025</Text>
-            <Text style={styles.recentMeta}>27 Jalan Song</Text>
+        {latest ? (
+          <TouchableOpacity style={styles.recentCard} onPress={() => openDetail(latest)}>
+            {latest.image ? (
+              <Image source={{ uri: latest.image }} style={styles.recentThumb} />
+            ) : (
+              <View style={styles.recentThumb} />
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.recentTitle}>Plant ✓</Text>
+              <Text style={styles.recentMeta}>{formattedDate}</Text>
+              <Text style={styles.recentMeta}>{latest.locality ?? "—"}</Text>
+            </View>
+            <Text style={styles.linkText}>See More →</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={[styles.recentCard, { opacity: 0.6 }]}>
+            <View style={styles.recentThumb} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.recentTitle}>No posts yet</Text>
+              <Text style={styles.recentMeta}>—</Text>
+              <Text style={styles.recentMeta}>—</Text>
+            </View>
           </View>
-          <Text style={styles.linkText}>See More →</Text>
-        </TouchableOpacity>
+        )}
 
         {/* Feed list */}
-        {posts.map((p) => (
-          <TouchableOpacity key={p.id} style={styles.feedCard} onPress={() => openDetail(p)}>
-            <View style={styles.feedHeader}>
-              <View style={styles.feedAvatar} />
-              <View style={{ marginLeft: 8 }}>
-                <Text style={styles.feedName}>{p.author}</Text>
-                <Text style={styles.feedMeta}>{p.time} — Kuching</Text>
-              </View>
-              <Text style={styles.detailsPill}>Details</Text>
-            </View>
-            {p.image ? (
-              <Image source={{ uri: p.image }} style={styles.feedImage} />
-            ) : (
-              <View style={styles.feedImage} />
-            )}
-            {p.caption ? <Text style={{ marginTop: 8 }}>{p.caption}</Text> : null}
-            <View style={styles.feedActions}>
-              <Ionicons name="heart-outline" size={20} />
-              <Ionicons name="chatbubble-ellipses-outline" size={20} style={{ marginLeft: 14 }} />
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+        {posts.map((p) => {
+          const savedCount =
+            typeof p.saved_count === "number" ? p.saved_count : (p.saved_by?.length || 0);
 
-      {/* Floating action button to create post */}
-      <TouchableOpacity style={styles.fab} onPress={openPost}>
-        <Ionicons name="add" size={28} color="#fff" />
-      </TouchableOpacity>
+          return (
+            <View key={p.id} style={styles.feedCard}>
+              <TouchableOpacity onPress={() => openDetail(p)} activeOpacity={0.85}>
+                <View style={styles.feedHeader}>
+                  <View style={styles.feedAvatar} />
+                  <View style={{ marginLeft: 8 }}>
+                    <Text style={styles.feedName}>{p.author ?? "User"}</Text>
+                    <Text style={styles.feedMeta}>
+                      {timeAgo(p.time)} — {p.locality ?? "—"}
+                    </Text>
+                  </View>
+                  <Text style={styles.detailsPill}>Details</Text>
+                </View>
+
+                {p.image ? (
+                  <Image source={{ uri: p.image }} style={styles.feedImage} />
+                ) : (
+                  <View style={styles.feedImage} />
+                )}
+
+                {p.caption ? <Text style={{ marginTop: 8 }}>{p.caption}</Text> : null}
+              </TouchableOpacity>
+
+              <View style={styles.feedActions}>
+                <View style={styles.countGroup}>
+                  <Ionicons name="heart-outline" size={20} />
+                  <Text style={styles.countText}>{p.like_count || 0}</Text>
+                </View>
+
+                <View style={[styles.countGroup, { marginLeft: 16 }]}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={20} />
+                  <Text style={styles.countText}>{p.comment_count || 0}</Text>
+                </View>
+
+                <View style={[styles.countGroup, { marginLeft: 16 }]}>
+                  <Ionicons name="bookmark-outline" size={22} />
+                  <Text style={[styles.countText, { marginLeft: 6 }]}>{savedCount}</Text>
+                </View>
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
 
       <BottomNav navigation={navigation} />
     </View>
@@ -93,11 +215,20 @@ export default function HomepageUser({ navigation }) {
 
 const styles = StyleSheet.create({
   background: { flex: 1, backgroundColor: "#F6F1E9" },
-  container: { flexGrow: 1, padding: 16, paddingBottom: 110 },
+
+  // KEY: subtract the nav's marginTop from the ScrollView so you can reach the bottom
+  scroller: { marginBottom: -NAV_MARGIN_TOP },
+
+  container: { flexGrow: 1, padding: 16 },
 
   greetingCard: {
-    backgroundColor: "#FFF", borderRadius: 16, padding: 16,
-    flexDirection: "row", alignItems: "center", gap: 12, marginTop: 20,
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 20,
   },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#D7E3D8" },
   greetingTitle: { fontSize: 16, fontWeight: "600", color: "#2b2b2b" },
@@ -105,7 +236,14 @@ const styles = StyleSheet.create({
   greetingMeta: { fontSize: 12, color: "#4c6b50", marginTop: 6 },
 
   sectionTitle: { marginTop: 18, marginBottom: 8, fontWeight: "700", color: "#2b2b2b" },
-  recentCard: { backgroundColor: "#E7F0E5", borderRadius: 16, padding: 12, flexDirection: "row", alignItems: "center", gap: 12 },
+  recentCard: {
+    backgroundColor: "#E7F0E5",
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   recentThumb: { width: 72, height: 72, borderRadius: 12, backgroundColor: "#FFF", borderWidth: 1, borderColor: "#d8e3d8" },
   recentTitle: { fontWeight: "700", color: "#2b2b2b", marginBottom: 4 },
   recentMeta: { color: "#2b2b2b", opacity: 0.7, fontSize: 12 },
@@ -118,11 +256,8 @@ const styles = StyleSheet.create({
   feedMeta: { color: "#2b2b2b", opacity: 0.7, fontSize: 12 },
   detailsPill: { marginLeft: "auto", backgroundColor: "#E7F0E5", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
   feedImage: { height: 140, backgroundColor: "#5A7B60", borderRadius: 10, marginTop: 12 },
-  feedActions: { flexDirection: "row", alignItems: "center", marginTop: 10 },
 
-  fab: {
-    position: "absolute", right: 20, bottom: 80,
-    width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center",
-    backgroundColor: "#6EA564", elevation: 6,
-  },
+  feedActions: { flexDirection: "row", alignItems: "center", marginTop: 10 },
+  countGroup: { flexDirection: "row", alignItems: "center" },
+  countText: { marginLeft: 6 },
 });

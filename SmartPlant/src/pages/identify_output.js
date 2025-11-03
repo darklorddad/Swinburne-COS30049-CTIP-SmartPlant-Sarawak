@@ -1,33 +1,51 @@
+// pages/identify_output.js
 import React from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, ActivityIndicator, Alert, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import PlantSuggestionCard from '../components/PlantSuggestionCard';
-import { addPlantIdentify } from '../firebase/plant_identify/addPlantIdentify.js';
-import { uploadImage } from '../firebase/plant_identify/uploadImage.js';
-import { db, auth } from "../firebase/FirebaseConfig";
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
-import * as Location from 'expo-location'; //getting current device location
-import * as ImagePicker from 'expo-image-picker'; // for picking images with EXIF
+// (KEEP) Optional card list UI for suggestions — can be re-enabled anytime:
+// import PlantSuggestionCard from '../components/PlantSuggestionCard';
+
+import { addPlantIdentify } from "../firebase/plant_identify/addPlantIdentify.js";
+import { uploadImage } from "../firebase/plant_identify/uploadImage.js";
+import { auth } from "../firebase/FirebaseConfig"; // db not needed here
+import { serverTimestamp } from "firebase/firestore";
+
+import * as Location from "expo-location"; // (KEEP) getting current device location
+import * as ImagePicker from "expo-image-picker"; // (KEEP) for picking images with EXIF
 
 export default function ResultScreen() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { prediction, imageURI } = route.params || {};
+
+  // (KEEP) prediction is expected to be an array like:
+  // [{ class: "Nepenthes_tentaculata", confidence: 0.7321 }, {...}, {...}]
+  const { prediction = [], imageURI } = route.params || {};
 
   const [heatmapURI, setHeatmapURI] = React.useState(null);
-  const [loading, setLoading] = React.useState(false);
-  const [showHeatmap, setShowHeatmap] = React.useState(false); // toggle overlay
-  const [Uploadloading, setUploadLoading] = React.useState(false);
-  // prediction is expected to be an array like:
-  // [{ class: "Nepenthes_tentaculata", confidence: 0.7321 }, {...}, {...}]
+  const [loading, setLoading] = React.useState(false); // heatmap loading
+  const [showHeatmap, setShowHeatmap] = React.useState(false); // (KEEP) toggle overlay
+  const [Uploadloading, setUploadLoading] = React.useState(false); // upload in-flight
 
-  //console.log("Predictions received:", prediction);
-
+  // --- Heatmap overlay ---
   const constructHeatmap = async () => {
     if (heatmapURI) {
-      // toggle overlay
+      // (KEEP) toggle overlay
       setShowHeatmap(!showHeatmap);
+      return;
+    }
+
+    if (!imageURI) {
+      Alert.alert("No image", "Image is missing.");
       return;
     }
 
@@ -41,30 +59,37 @@ export default function ResultScreen() {
     try {
       setLoading(true);
 
-      const response = await fetch("http://192.168.1.2:3000/heatmap", {
+      // (KEEP) your local backend for heatmap
+      const response = await fetch("http://192.168.1.4:3000/heatmap", {
         method: "POST",
         headers: { "Content-Type": "multipart/form-data" },
         body: formData,
       });
 
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
       const data = await response.json();
       setLoading(false);
 
-      if (data.heatmap) {
+      if (data?.heatmap) {
         setHeatmapURI(data.heatmap);
         setShowHeatmap(true);
       } else {
-        alert("Heatmap not returned from server.");
+        Alert.alert("Heatmap not returned from server.");
       }
     } catch (err) {
       console.log("Upload error:", err);
       setLoading(false);
-      alert("Failed to generate heatmap. Check backend connection.");
+      Alert.alert("Failed to generate heatmap. Check backend connection.");
     }
   };
 
-  //asking user permission to save the data
+  // (KEEP) asking user permission to save the data
   const handleUploadConfirmation = () => {
+    if (!prediction?.length) {
+      Alert.alert("No predictions", "There are no predictions to upload.");
+      return;
+    }
 
     Alert.alert(
       "Upload Permission Request",
@@ -84,115 +109,130 @@ export default function ResultScreen() {
         },
       ]
     );
-
-
-
-
   };
 
+  // (KEEP) helper if EXIF returns DMS arrays in the future
   function dmsToDecimal(dms, ref) {
     const [deg, min, sec] = dms.map(parseFloat);
     let dec = deg + min / 60 + sec / 3600;
-    if (ref === 'S' || ref === 'W') dec = -dec;
+    if (ref === "S" || ref === "W") dec = -dec;
     return dec;
   }
 
   const uploadDataToDatabase = async () => {
     try {
       setUploadLoading(true);
+
+      // -------- 1) Coordinates (EXIF -> device fallback) --------
       let latitude = null;
       let longitude = null;
 
-      // Try to extract location from EXIF (if imageURI is from picker with exif)
       try {
         const exifResult = await ImagePicker.getExifAsync(imageURI);
-        if (exifResult && exifResult.GPSLatitude && exifResult.GPSLongitude) {
+        if (exifResult?.GPSLatitude != null && exifResult?.GPSLongitude != null) {
           latitude = exifResult.GPSLatitude;
           longitude = exifResult.GPSLongitude;
-          console.log('Got GPS from EXIF:', latitude, longitude);
+          console.log("Got GPS from EXIF:", latitude, longitude);
         }
       } catch (e) {
-        console.log('No EXIF location found, fallback to device location...');
+        console.log("No EXIF location found, fallback to device location...");
       }
 
-      //Fallback — get current device location   (needa fix later, what if they upload the image at home)
-      if (!latitude || !longitude) {
+      // (KEEP) Fallback — get current device location (consider: image could be uploaded later at home)
+      if (latitude == null || longitude == null) {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
+        if (status === "granted") {
           const loc = await Location.getCurrentPositionAsync({});
           latitude = loc.coords.latitude;
           longitude = loc.coords.longitude;
-          console.log('Got GPS from device:', latitude, longitude);
+          console.log("Got GPS from device:", latitude, longitude);
         } else {
-          console.log('Location permission denied.');
+          console.log("Location permission denied.");
         }
       }
 
-      //determince identification status?
-      let identify_status = "";
-      if (prediction[0].confidence > 0.7) {
-        identify_status = "verified";
-      } else {
-        identify_status = "pending";
-      }
+      // -------- 2) Determine identification status --------
+      const top1 = prediction?.[0];
+      const top2 = prediction?.[1];
+      const top3 = prediction?.[2];
+      const identify_status =
+        (top1?.confidence ?? 0) > 0.7 ? "verified" : "pending";
 
+      // -------- 3) Current user id + unified user name --------
+      const user = auth.currentUser || null;
+      const userID = user?.uid ?? "anonymous";
+      const userName =
+        user?.displayName ||
+        (user?.email ? user.email.split("@")[0] : null) ||
+        "User";
+      console.log("userID:", userID, "userName:", userName);
 
-      //Get user id 
-      const user = auth.currentUser;
-      const userID = user.uid;
-      console.log(userID);
+      // -------- 4) Upload image to storage --------
+      if (!imageURI) throw new Error("Missing imageURI");
+      const downloadURL = await uploadImage(imageURI, top1?.class || "unknown");
+      console.log("Added to storage with URL:", downloadURL);
 
-      //Upload image to storage
-      const downloadURL = await uploadImage(imageURI, prediction[0].class);
-      console.log('Added to storage with URL:', downloadURL);
-
-      //Uplaod info to firestore
+      // -------- 5) Upload info to Firestore --------
       const plantData = {
         model_predictions: {
           top_1: {
-            plant_species: prediction[0].class,
-            ai_score: prediction[0].confidence,
+            plant_species: top1?.class ?? null,
+            ai_score: top1?.confidence ?? null,
           },
           top_2: {
-            plant_species: prediction[1].class,
-            ai_score: prediction[1].confidence,
+            plant_species: top2?.class ?? null,
+            ai_score: top2?.confidence ?? null,
           },
           top_3: {
-            plant_species: prediction[2].class,
-            ai_score: prediction[2].confidence,
+            plant_species: top3?.class ?? null,
+            ai_score: top3?.confidence ?? null,
           },
         },
         createdAt: serverTimestamp(),
         ImageURL: downloadURL,
-        coordinate: { latitude: latitude, longitude: longitude },
+        coordinate: { latitude: latitude ?? null, longitude: longitude ?? null },
         user_id: userID,
-        identify_status: identify_status,
-
+        identify_status, // (KEEP) “verified” if >= 0.7 else “pending”
+        author_name: userName, // <<— single source of truth for display name
       };
 
-      try {
-        const docId = await addPlantIdentify(plantData);
-        console.log('Added to Firestore with ID:', docId);
-        navigation.navigate("MapPage")
-      } catch (error) {
-        console.error('Error adding plant:', error);
-      }
+      const docId = await addPlantIdentify(plantData);
+      console.log("Added to Firestore with ID:", docId);
 
+      // -------- 6) Build a feed post and navigate to HomepageUser --------
+      const newPost = {
+        id: docId,
+        image: downloadURL,
+        caption: top1
+          ? `Top: ${top1.class} (${Math.round((top1.confidence || 0) * 100)}%)`
+          : "New identification",
+        author: userName, // <<— same name used in Firestore + UI
+        time: Date.now(),
+        locality: "Kuching", // (KEEP) Optional — reverse-geocode for actual address
+        prediction: prediction.slice(0, 3),
+        coordinate: { latitude: latitude ?? null, longitude: longitude ?? null },
+      };
+
+      // (KEEP) go to feed (instagram-like) instead of map page
+      navigation.navigate("HomepageUser", { newPost });
+      // navigation.navigate("MapPage"); // (KEEP) old behavior — restore if needed
     } catch (error) {
       console.log("Image upload failed:", error);
+      Alert.alert("Upload failed", error?.message || "Please try again.");
+    } finally {
+      setUploadLoading(false);
     }
-    setUploadLoading(false);
   };
 
   return (
-
     <View style={styles.container}>
       {Uploadloading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#00ff3cff" />
-            <Text style={{ color: "white", marginTop: 10 }}>Upload...</Text>
-          </View>
-        )}
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#00ff3cff" />
+          <Text style={{ color: "white", marginTop: 10 }}>Upload...</Text>
+        </View>
+      )}
+
       <View style={styles.imageBox}>
         {loading && (
           <View style={styles.loadingOverlay}>
@@ -200,6 +240,7 @@ export default function ResultScreen() {
             <Text style={{ color: "white", marginTop: 10 }}>Generating...</Text>
           </View>
         )}
+
         <Image
           source={{ uri: showHeatmap && heatmapURI ? heatmapURI : imageURI }}
           style={styles.image}
@@ -208,25 +249,19 @@ export default function ResultScreen() {
         <TouchableOpacity
           style={styles.iconButton}
           onPress={() => {
-            if (heatmapURI) {
-
-              setShowHeatmap(!showHeatmap);
-            } else {
-              // generate heatmap first
-              constructHeatmap();
-            }
+            if (heatmapURI) setShowHeatmap(!showHeatmap);
+            else constructHeatmap();
           }}
         >
           <View style={styles.circle} />
         </TouchableOpacity>
       </View>
 
-
       {/* Title */}
       <Text style={styles.title}>AI Identification Result</Text>
 
       {/* Top 3 Results */}
-      {prediction && prediction.length > 0 && prediction[0].confidence >= 0.7 ? (
+      {prediction?.length > 0 && (top1Confidence(prediction) ?? 0) >= 0.7 ? (
         <FlatList
           data={prediction}
           keyExtractor={(item, index) => index.toString()}
@@ -242,16 +277,18 @@ export default function ResultScreen() {
           contentContainerStyle={styles.resultsContainer}
         />
       ) : (
-
         <View style={styles.lowConfidenceContainer}>
           <Text style={styles.lowConfidenceText}>
             The confidence score is too low.
-            Our team would wish to send this case to an expert for further verification.
+            {"\n"}Our team would wish to send this case to an expert for further
+            verification.
           </Text>
         </View>
-      )
-      }
-      {/* {prediction && prediction.length > 0 && prediction[0].confidence >= 0.7 ? (
+      )}
+
+      {/* (KEEP) Alternate UI using PlantSuggestionCard — re-enable if desired */}
+      {/*
+      {prediction && prediction.length > 0 && prediction[0].confidence >= 0.7 ? (
         <View style={{ width: "100%", alignItems: "center" }}>
           {prediction.map((item, index) => (
             <PlantSuggestionCard
@@ -269,9 +306,8 @@ export default function ResultScreen() {
             Our team would wish to send this case to an expert for further verification.
           </Text>
         </View>
-      )} */}
-
-
+      )}
+      */}
 
       {/* Done Button */}
       <TouchableOpacity style={styles.doneButton} onPress={handleUploadConfirmation}>
@@ -279,6 +315,12 @@ export default function ResultScreen() {
       </TouchableOpacity>
     </View>
   );
+}
+
+// (KEEP) helper to safely read top-1 confidence
+function top1Confidence(prediction) {
+  if (!prediction?.length) return 0;
+  return prediction[0]?.confidence ?? 0;
 }
 
 const styles = StyleSheet.create({
@@ -382,6 +424,5 @@ const styles = StyleSheet.create({
   Topsuggestion: {
     paddingBottom: 20,
     alignItems: "center",
-  }
-
+  },
 });
