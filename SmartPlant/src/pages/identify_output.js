@@ -16,7 +16,9 @@ import { uploadImage } from "../firebase/plant_identify/uploadImage.js";
 import { auth, db } from "../firebase/FirebaseConfig"; // ← db added here
 import { serverTimestamp, addDoc, collection, doc, getDoc, query, where, getDocs  } from "firebase/firestore";
 import PlantSuggestionCard from "../components/PlantSuggestionCard.js";
-
+// noti start
+import { updateNotificationPayload } from "../firebase/notification_user/updateNotificationPayload";
+// noti end
 import * as Location from "expo-location"; // (KEEP) getting current device location
 import * as ImagePicker from "expo-image-picker"; // (KEEP) for picking images with EXIF
 
@@ -27,6 +29,20 @@ export default function ResultScreen() {
   // (KEEP) prediction is expected to be an array like:
   // [{ class: "Nepenthes_tentaculata", confidence: 0.7321 }, {...}, {...}]
   const { prediction = [], imageURI } = route.params || {};
+
+// noti start — normalize prediction to at least 3 items, detect noti + image state
+let p = Array.isArray(prediction) ? [...prediction] : [{ class: "Unknown", confidence: 0 }];
+while (p.length < 3) p.push({ class: p[0].class, confidence: p[0].confidence ?? 0 });
+
+const fromNotification = route.params?.fromNotification ?? false;
+const hasImage =
+  route.params?.hasImage ??
+  Boolean(imageURI && !String(imageURI).startsWith("data:image/png;base64"));
+
+if (fromNotification && !hasImage) {
+  console.log("Opened from notification without a real image URL; image box will show placeholder/blank.");
+}
+// noti end
 
   const [heatmapURI, setHeatmapURI] = React.useState(null);
   const [loading, setLoading] = React.useState(false); // heatmap loading
@@ -132,8 +148,94 @@ export default function ResultScreen() {
   };
 
   const uploadDataToDatabase = async () => {
+  // noti start — block upload when opened from a noti without an image
+  const fromNotification = route.params?.fromNotification ?? false;
+  const hasImage =
+    route.params?.hasImage ??
+    Boolean(imageURI && !String(imageURI).startsWith("data:image/png;base64"));
+
+// If opened from a notification, never allow uploading again.
+// (If it has an image => already uploaded; if it doesn't => nothing to upload.)
+if (fromNotification) {
+  Alert.alert(
+    hasImage ? "Already uploaded" : "No image to upload",
+    hasImage
+      ? "This identification has already been uploaded. You can view it on the map."
+      : "Open the camera and re-identify to upload a photo."
+  );
+  return;
+}
+
+// Also prevent double-tap or returning to this screen and pressing Done again
+const alreadyUploaded = route.params?.alreadyUploaded ?? false;
+if (alreadyUploaded) {
+  Alert.alert("Already uploaded", "This item was uploaded in this session.");
+  return;
+}
+// noti end
+
     try {
       setUPLoading(true);
+      // noti start — robust image handling for upload + re-use
+    let effectiveURI = imageURI;       // what we got from navigation
+    let downloadURL = null;
+
+    // 1) If we already have a hosted URL (came from a noti AFTER upload), don't re-upload
+    if (effectiveURI && effectiveURI.startsWith("http")) {
+      downloadURL = effectiveURI;
+    } else {
+      // 2) If we have no image or it's the tiny data: placeholder, ask user to pick one
+      if (!effectiveURI || effectiveURI.startsWith("data:")) {
+        const res = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 1,
+        });
+        if (res.canceled) {
+          setUPLoading(false);
+          Alert.alert("No image selected", "Please choose an image to upload.");
+          return;
+        }
+        effectiveURI = res.assets[0].uri;    // this is a real file:// or content:// URI
+      }
+
+      // 3) Upload the real image
+      try {
+        downloadURL = await uploadImage(
+          effectiveURI,
+          (prediction?.[0]?.class) || "Unknown"
+        );
+        console.log("Added to storage with URL:", downloadURL);
+      } catch (e) {
+        console.log("Error uploading image:", e);
+        setUPLoading(false);
+        Alert.alert("Upload failed", "Please try again.");
+        return;
+      }
+    }
+    // noti end
+// ===== noti start =====
+try {
+  const { notiId } = route.params || {};
+  console.log("notiId for payload update:", notiId);
+
+  if (notiId && downloadURL) {
+    await updateNotificationPayload(notiId, {
+      imageURL: downloadURL,
+      top_1: { plant_species: (prediction?.[0]?.class) || "Unknown", ai_score: prediction?.[0]?.confidence || 0 },
+      top_2: { plant_species: (prediction?.[1]?.class) || "",        ai_score: prediction?.[1]?.confidence || 0 },
+      top_3: { plant_species: (prediction?.[2]?.class) || "",        ai_score: prediction?.[2]?.confidence || 0 },
+    });
+    console.log("✅ Notification payload updated with imageURL/top3");
+    // Refresh this screen so the image shows immediately
+    navigation.setParams({ imageURI: downloadURL, hasImage: true });
+  } else {
+    console.log("⚠️ Missing notiId or downloadURL; skip payload update.");
+  }
+} catch (e) {
+  console.log("⚠️ Failed to update notification payload:", e);
+}
+// ===== noti end =====
+
       let latitude = null;
       let longitude = null;
 
@@ -185,7 +287,7 @@ export default function ResultScreen() {
 
       // -------- 4) Upload image to storage --------
       if (!imageURI) throw new Error("Missing imageURI");
-      const downloadURL = await uploadImage(imageURI, top1?.class || "unknown");
+      downloadURL = await uploadImage(imageURI, top1?.class || "unknown");
       console.log("Added to storage with URL:", downloadURL);
 
       // -------- 5) Upload info to Firestore (plant_identify) --------
@@ -236,6 +338,9 @@ export default function ResultScreen() {
       } catch (e) {
         console.log("Failed to mirror marker:", e);
       }
+      //noti start
+        navigation.setParams({ alreadyUploaded: true });
+      //noti end
 
       // -------- 7) Build a feed post and navigate to HomepageUser --------
       const newPost = {

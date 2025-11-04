@@ -174,57 +174,62 @@ export default function IdentifyPage() {
             const data = await response.json();
             setLoading(false);
 
-    //noti start
-    const label = data?.label ?? (typeof data?.raw === "string" ? data.raw : "Unknown");
-    const conf  = data?.confidence ?? null;
+// ===== noti start (REPLACE WHOLE BLOCK) =====
+const label = data?.label ?? (typeof data?.raw === "string" ? data.raw : "Unknown");
+const conf  = data?.confidence ?? null;
 
-    if (!auth.currentUser?.uid) {
-        console.warn("No signed-in user, using fallback U001 for test.");
-    }
-
-    await addNotification({
-        userId: auth.currentUser?.uid || "U001",
-        type: "plant_identified",
-        title: "Plant Identification Complete",
-        message: conf != null ? `We found: ${label} (${Math.round(conf * 100)}%)` : `We found: ${label}`,
-        payload: { label, confidence: conf },
-    });
-
-    showMessage({
-    message: "Plant Identification Complete",
-    description:
-      conf != null ? `${label} (${Math.round(conf * 100)}%)` : label,
-    type: "success",
-    duration: 3000,
-    onPress: () => navigation.navigate("NotificationUser"),
-  });
-
-    // build the array that identify_output expects
-    const normalized =
-    Array.isArray(data)
+// normalize to top1~top3 array for identify_output
+const prediction =
+  Array.isArray(data)
     ? data
     : Array.isArray(data?.top3) && data.top3.length
-    ? data.top3.map(x => ({
-        class: x.class || x.label || label || "Unknown",
-        confidence:
-          typeof x.confidence === "number"
-            ? x.confidence
-            : typeof conf === "number"
-            ? conf
-            : 0,
-      }))
-    : [
-        {
-          class: label || "Unknown",
-          confidence: typeof conf === "number" ? conf : 0,
-        },
-      ];
+      ? data.top3.map(x => ({
+          class: x.class || x.label || label || "Unknown",
+          confidence: typeof x.confidence === "number" ? x.confidence : (typeof conf === "number" ? conf : 0),
+        }))
+      : [{ class: label || "Unknown", confidence: typeof conf === "number" ? conf : 0 }];
 
-    // navigate with the normalized array and exit the function
-    navigation.navigate("IdentifyOutput", { prediction: normalized, imageURI: images[0] });
-    return;
-    //noti end
+while (prediction.length < 3) {
+  prediction.push({ class: prediction[0].class, confidence: prediction[0].confidence ?? 0 });
+}
 
+const top1 = prediction[0] || { class: "Unknown", confidence: 0 };
+if (!auth.currentUser?.uid) console.warn("No signed-in user, using fallback U001 for test.");
+
+// create the notification and CAPTURE its id
+const notiId = await addNotification({
+  userId: auth.currentUser?.uid || "U001",
+  type: "plant_identified",
+  title: "Plant Identification Complete",
+  message: `${top1.class} (${Math.round((top1.confidence || 0) * 100)}%)`,
+  payload: {
+    model_predictions: {
+      top_1: { plant_species: prediction[0]?.class ?? "Unknown", ai_score: prediction[0]?.confidence ?? 0 },
+      top_2: { plant_species: prediction[1]?.class ?? "",         ai_score: prediction[1]?.confidence ?? 0 },
+      top_3: { plant_species: prediction[2]?.class ?? "",         ai_score: prediction[2]?.confidence ?? 0 },
+    }
+    // imageURL will be added later by identify_output after upload
+  }
+});
+
+showMessage({
+  message: "Plant Identification Complete",
+  description: `${top1.class} (${Math.round((top1.confidence || 0) * 100)}%)`,
+  type: "success",
+  duration: 3000,
+  onPress: () => navigation.navigate("NotificationUser"),
+});
+
+// pass notiId so identify_output can update the same notification with imageURL after upload
+navigation.navigate("identify_output", {
+  prediction,
+  imageURI: images[0],         // local preview
+  notiId,                      // 👈 IMPORTANT
+  fromNotification: false,
+  hasImage: true               // you currently have a local image selected
+});
+return;
+// ===== noti end =====
 
             // Navigate to output page with prediction
             navigation.navigate("IdentifyOutput", { prediction: data, imageURI: images[0] });

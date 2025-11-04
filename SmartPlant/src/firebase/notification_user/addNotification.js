@@ -1,3 +1,4 @@
+// firebase/notification_user/addNotification.js
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../FirebaseConfig";
 
@@ -7,7 +8,7 @@ import { db } from "../FirebaseConfig";
  */
 export async function addNotification({ userId, type, title, message, payload = {} }) {
   if (!userId) throw new Error("userId is required");
-  return addDoc(collection(db, "notifications"), {
+  const ref = await addDoc(collection(db, "notifications"), { // <-- capture ref
     userId,
     type,
     title,
@@ -16,4 +17,6 @@ export async function addNotification({ userId, type, title, message, payload = 
     read: false,
     createdAt: serverTimestamp(),
   });
+  return ref.id; // <-- return the doc id
 }
+
