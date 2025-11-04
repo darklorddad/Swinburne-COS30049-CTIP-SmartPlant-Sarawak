@@ -46,7 +46,7 @@ export default function App() {
     <>
     <PermissionProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="Introduction" screenOptions={{ headerShown: false }}>
+        <Stack.Navigator initialRouteName="TopSuggestions" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Testing" component={Testing} />
           <Stack.Screen name="Profile" component={Profile} />
           {/* <Stack.Screen name="IoTDashboard" component={IoTDashboard} /> */}
@@ -60,9 +60,9 @@ export default function App() {
           <Stack.Screen name="Saved" component={Saved} />
           <Stack.Screen name="NotificationUser" component={NotificationUser} />
           <Stack.Screen name="NotificationExpert" component={NotificationExpert} />
-          <Stack.Screen name="identify" component={IdentifyPage} />
-          <Stack.Screen name="identify_tips" component={IdentifyTips} />
-          <Stack.Screen name="identify_output" component={IdentifyOutput}/>
+          <Stack.Screen name="IdentifyPage" component={IdentifyPage} />
+          <Stack.Screen name="IdentifyTips" component={IdentifyTips} />
+          <Stack.Screen name="IdentifyOutput" component={IdentifyOutput}/>
 
           <Stack.Screen name="Introduction" component={Introduction} />
           <Stack.Screen name="LoginSelection" component={LoginSelection} />

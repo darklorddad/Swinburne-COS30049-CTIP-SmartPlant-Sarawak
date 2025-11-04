@@ -1,5 +1,5 @@
 // pages/identify_output.js
-import React from "react";
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -8,17 +8,14 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  Alert,
+  Alert
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
-
-// (KEEP) Optional card list UI for suggestions — can be re-enabled anytime:
-// import PlantSuggestionCard from '../components/PlantSuggestionCard';
-
 import { addPlantIdentify } from "../firebase/plant_identify/addPlantIdentify.js";
 import { uploadImage } from "../firebase/plant_identify/uploadImage.js";
 import { auth, db } from "../firebase/FirebaseConfig"; // ← db added here
-import { serverTimestamp, addDoc, collection } from "firebase/firestore";
+import { serverTimestamp, addDoc, collection, doc, getDoc, query, where, getDocs  } from "firebase/firestore";
+import PlantSuggestionCard from "../components/PlantSuggestionCard.js";
 
 import * as Location from "expo-location"; // (KEEP) getting current device location
 import * as ImagePicker from "expo-image-picker"; // (KEEP) for picking images with EXIF
@@ -34,8 +31,9 @@ export default function ResultScreen() {
   const [heatmapURI, setHeatmapURI] = React.useState(null);
   const [loading, setLoading] = React.useState(false); // heatmap loading
   const [showHeatmap, setShowHeatmap] = React.useState(false); // (KEEP) toggle overlay
-  const [Uploadloading, setUploadLoading] = React.useState(false); // upload in-flight
-
+  const [UPloading, setUPLoading] = React.useState(false); // upload in-flight
+  const [plantImages, setPlantImages] = useState([]);
+  console.log(prediction)
   // --- Heatmap overlay ---
   const constructHeatmap = async () => {
     if (heatmapURI) {
@@ -58,7 +56,7 @@ export default function ResultScreen() {
 
     try {
       setLoading(true);
-      const response = await fetch("http://192.168.1.105:3000/heatmap", {
+      const response = await fetch("http://172.17.23.125:3000/heatmap", {
         method: "POST",
         headers: { "Content-Type": "multipart/form-data" },
         body: formData,
@@ -96,11 +94,12 @@ export default function ResultScreen() {
         {
           text: "NO",
           onPress: () => {
-            navigation.goBack();
+            navigation.navigate(MyProfile); 
             console.log("User refuse to upload");
           },
           style: "cancel",
         },
+        
         {
           text: "Upload",
           onPress: () => uploadDataToDatabase(),
@@ -134,9 +133,7 @@ export default function ResultScreen() {
 
   const uploadDataToDatabase = async () => {
     try {
-      setUploadLoading(true);
-
-      // -------- 1) Coordinates (EXIF -> device fallback) --------
+      setUPLoading(true);
       let latitude = null;
       let longitude = null;
 
@@ -261,17 +258,41 @@ export default function ResultScreen() {
     } finally {
       setUploadLoading(false);
     }
+    setUPLoading(false);
   };
+
+  // retrieve the image url for display purpose
+  const getPlantImage = async (speciesName) => {
+    const docRef = doc(db, "plant", speciesName);
+    const docSnap = await getDoc(docRef);
+    const imageUrl = docSnap.exists() ? docSnap.data().plant_image : null;
+    console.log(imageUrl)
+    return imageUrl;
+  };
+
+  useEffect(() => {
+    const fetchAllImages = async () => {
+      if (!prediction || prediction.length === 0) return;
+
+      const urls = await Promise.all(
+        prediction.map((p) => getPlantImage(p.class))
+      );
+      setPlantImages(urls);
+    };
+
+    fetchAllImages();
+  }, [prediction]);
+
+
 
   return (
     <View style={styles.container}>
-      {Uploadloading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#00ff3cff" />
-          <Text style={{ color: "white", marginTop: 10 }}>Upload...</Text>
-        </View>
-      )}
-
+      {UPloading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#00ff3cff" />
+            <Text style={{ color: "white", marginTop: 10 }}>Uploading...Please wait</Text>
+          </View>
+        )}
       <View style={styles.imageBox}>
         {loading && (
           <View style={styles.loadingOverlay}>
@@ -300,33 +321,27 @@ export default function ResultScreen() {
       <Text style={styles.title}>AI Identification Result</Text>
 
       {/* Top 3 Results */}
-      {prediction?.length > 0 && (top1Confidence(prediction) ?? 0) >= 0.7 ? (
-        <FlatList
-          data={prediction}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={({ item, index }) => (
-            <View style={styles.resultCard}>
-              <Text style={styles.resultRank}>#{index + 1}</Text>
-              <Text style={styles.resultLabel}>{item.class}</Text>
-              <Text style={styles.resultValue}>
-                {(item.confidence * 100).toFixed(2)}%
-              </Text>
-            </View>
-          )}
-          contentContainerStyle={styles.resultsContainer}
-        />
+      {prediction && prediction.length > 0 && prediction[0].confidence >= 0.5 ? (
+        <View style={{ width: "100%", alignItems: "center" }}>
+          {prediction.map((item, index) => (
+            <PlantSuggestionCard
+              key={index}
+              name={item.class || "Unknown Plant"}
+              image={plantImages[index] || null}
+              confidence={(item.confidence * 100).toFixed(2)}
+              onPress={() => console.log(`See more for ${item.class}`)} 
+            />
+          ))
+          }
+        </View>
       ) : (
         <View style={styles.lowConfidenceContainer}>
           <Text style={styles.lowConfidenceText}>
-            The confidence score is too low.
-            {"\n"}Our team would wish to send this case to an expert for further
-            verification.
+            The confidence score is too low.{"\n"}
+            Our team would wish to send this case to an expert for further verification.
           </Text>
         </View>
       )}
-
-      {/* (KEEP) Alternate UI using PlantSuggestionCard — re-enable if desired */}
-      {/* ... */}
 
       {/* Done Button */}
       <TouchableOpacity style={styles.doneButton} onPress={handleUploadConfirmation}>

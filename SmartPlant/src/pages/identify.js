@@ -165,7 +165,7 @@ export default function IdentifyPage() {
 
         try {
             setLoading(true);
-            const response = await fetch("http://192.168.1.105:3000/predict", {
+            const response = await fetch("http://172.17.23.125:3000/predict", {
                 method: "POST",
                 headers: { "Content-Type": "multipart/form-data" },
                 body: formData,
@@ -221,13 +221,13 @@ export default function IdentifyPage() {
       ];
 
     // navigate with the normalized array and exit the function
-    navigation.navigate("identify_output", { prediction: normalized, imageURI: images[0] });
+    navigation.navigate("IdentifyOutput", { prediction: normalized, imageURI: images[0] });
     return;
     //noti end
 
 
             // Navigate to output page with prediction
-            navigation.navigate("identify_output", { prediction: data, imageURI: images[0] });
+            navigation.navigate("IdentifyOutput", { prediction: data, imageURI: images[0] });
         } catch (err) {
             console.log("Upload error:", err);
             alert("Failed to identify. Check backend connection.");
@@ -280,13 +280,13 @@ export default function IdentifyPage() {
                         <View style={styles.topRow}>
                             <TouchableOpacity
                                 style={[styles.smallButton, mode === "single" ? styles.active : styles.inactive]}
-                                onPress={() => navigation.navigate("identify", { mode: "single" })}
+                                onPress={() => navigation.navigate("IdentifyPage", { mode: "single" })}
                             >
                                 <Text style={{ fontWeight: '900', color: mode === "single" ? "black" : "white" }}>Identify</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.smallButton, mode === "multiple" ? styles.active : styles.inactive]}
-                                onPress={() => navigation.navigate("identify", { mode: "multiple" })}
+                                onPress={() => navigation.navigate("IdentifyPage", { mode: "multiple" })}
                             >
                                 <Text style={{ fontWeight: '900', color: mode === "multiple" ? "black" : "white" }}>Multiple</Text>
                             </TouchableOpacity>
@@ -306,7 +306,7 @@ export default function IdentifyPage() {
                                     <Ionicons name="images-outline" size={54} color='white' />
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.CaptureButton} onPress={takePicture} disabled={!cameraGranted}/>
-                                <TouchableOpacity onPress={() => navigation.navigate("identify_tips")}>
+                                <TouchableOpacity onPress={() => navigation.navigate("IdentifyTips")}>
                                     <MaterialIcons name="info-outline" size={54} color='white' />
                                 </TouchableOpacity>
                             </View>
