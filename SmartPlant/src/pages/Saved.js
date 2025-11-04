@@ -101,13 +101,15 @@ export default function SavedScreen({ navigation }) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => {
+            if (navigation.canGoBack()) navigation.goBack();
+            else navigation.navigate("Profile");
+          }}
+        >
           <Text style={styles.back}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Saved</Text>
-        <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
-          <Text style={styles.settings}>...</Text>
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Saved</Text>
       </View>
 
       {/* Saved Posts Grid */}
@@ -115,7 +117,9 @@ export default function SavedScreen({ navigation }) {
         {loading ? (
           <ActivityIndicator size="large" color="#00796b" style={styles.loading} />
         ) : savedPosts.length === 0 ? (
-          <Text style={styles.noPosts}>No saved posts yet</Text>
+          <View style={styles.noPostContainer}>
+            <Text style={styles.noPostText}>No saved posts yet</Text>
+          </View>
         ) : (
           savedPosts.map((post, i) => (
             <TouchableOpacity
@@ -141,45 +145,53 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: "#fefae0" 
   },
-  header: {   
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 15,
-    alignItems: "center",
+  header: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    marginTop: 30, 
+    marginBottom: 10, 
+    paddingHorizontal: 20 
   },
-  back: {
-    fontSize: 22,
-    marginRight: 10,
-    marginTop: 30,
+  back: { 
+    fontSize: 22, 
+    marginRight: 10, 
+    marginTop: 30 
   },
-  title: { 
+  headerTitle: { 
     fontSize: 18, 
-    textAlign: "center",
-    width: "80%",
-    marginTop: 30,
+    textAlign: "center", 
+    width: "80%", 
+    marginTop: 30 
   },
   settings: { 
     fontSize: 20,
     position: "absolute",
-    right: 5, 
+    right: 5
   },
   grid: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexWrap: "wrap"
   },
   box: {
     borderWidth: 1,
-    borderColor: "white",
+    borderColor: "white"
   },
   loading:{
      marginTop: 50,
   },
   boxImage:{
     width: "100%", 
-    height: "100%", 
+    height: "100%"
   },
-  noPosts:{
-    marginTop: 50, 
-    textAlign: "center", 
-  },
+  noPostContainer: {
+  flex: 1,
+  justifyContent: "center",
+  alignItems: "center",
+  width: "100%"
+},
+noPostText: {
+  fontSize: 16,
+  color: "#777",
+  textAlign: "center"
+},
 });

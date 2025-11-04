@@ -236,7 +236,7 @@ export default function IdentifyPage() {
 
     return (
 
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             {loading && (
                 <View style={styles.loadingOverlay}>
                     <ActivityIndicator size="large" color="#00ff3cff" />
@@ -325,7 +325,7 @@ export default function IdentifyPage() {
                     </View>
                 </ImageBackground>
             )}
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -347,10 +347,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#000'
     },
     Box: {
-        flex: 1,
-        justifyContent: 'center',
-        backgroundColor: '#000',
-        alignItems: 'center'
+        backgroundColor: '#000'
     },
     camera: {
         flex: 1,
@@ -391,7 +388,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-evenly',
         alignItems: 'center',
-        marginBottom: 40
+        marginBottom: 20
     },
     CaptureButton: {
         width: 70,
@@ -402,7 +399,11 @@ const styles = StyleSheet.create({
         borderColor: '#D9D9D9',
     },
     overlay: {
-        flex: 1,
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
     },
     card: {
         position: "relative",
@@ -423,7 +424,7 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
     },
     previewRow: {
-        flex: 1,
+        flexDirection: "row",
         justifyContent: "center",
         alignItems: "center",
     },

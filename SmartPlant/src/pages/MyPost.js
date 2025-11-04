@@ -2,83 +2,74 @@ import React, { useEffect, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { db, auth } from "../firebase/FirebaseConfig";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 
 export default function MyPost({ navigation }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const [userFullName, setUserFullName] = useState(""); 
   const userId = auth.currentUser?.uid;
+  const userEmail = auth.currentUser?.email || "";
 
   useEffect(() => {
     const fetchUserPosts = async () => {
-      if (!userId) return setLoading(false);
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
 
       try {
-        const postsQuery = query(
-          collection(db, "plant_identify"),
-          where("user_id", "==", userId)
-        );
+        const userRef = doc(db, "user", userId);
+        const userSnap = await getDoc(userRef);
+        let fullName = "";
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          fullName = userData.full_name || "";
+          setUserFullName(fullName);
+        }
+
+        // Only the posts uploaded by this user
+        const postsQuery = query(collection(db, "plant_identify"), where("user_id", "==", userId));
+        console.log("Current User UID:", userId);
         const snapshot = await getDocs(postsQuery);
 
-        const userPosts = await Promise.all(
-          snapshot.docs.map(async (docSnap) => {
-            const data = docSnap.data();
+        if (snapshot.empty) {
+          setPosts([]);
+          setLoading(false);
+          return;
+        }
 
-            // Default uploader info
-            let uploader = {
-              id: data.user_id || "",
-              name: data.uploader_name || "Unknown Uploader",
-              email: data.uploader_email || "",
-              profile_picture: "",
-            };
+        // No need to fetch "user" collection — just use the logged-in user info
+        const userPosts = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
 
-            // Fetch uploader from 'users' collection
-            if (data.user_id) {
-              try {
-                const usersCol = collection(db, "user");
-                const userQuery = query(usersCol, where("user_id", "==", data.user_id));
-                const userSnap = await getDocs(userQuery);
+          let predictions = [];
+          if (data.model_predictions) {
+            if (data.model_predictions.top_1) predictions.push(data.model_predictions.top_1);
+            if (data.model_predictions.top_2) predictions.push(data.model_predictions.top_2);
+            if (data.model_predictions.top_3) predictions.push(data.model_predictions.top_3);
+          }
 
-                if (!userSnap.empty) {
-                  const userData = userSnap.docs[0].data();
-                  uploader = {
-                    id: data.user_id,
-                    name: userData.full_name || userData.email || "Unknown Uploader",
-                    email: userData.email || "",
-                    profile_picture: userData.profile_pic || "",
-                  };
-                }
-              } catch (err) {
-                console.log("Error fetching uploader info:", err);
-              }
-            }
+          const postTime = data.time ?? data.createdAt ?? null;
 
-            // Transform model_predictions into array
-            let predictions = [];
-            if (data.model_predictions) {
-              if (data.model_predictions.top_1) predictions.push(data.model_predictions.top_1);
-              if (data.model_predictions.top_2) predictions.push(data.model_predictions.top_2);
-              if (data.model_predictions.top_3) predictions.push(data.model_predictions.top_3);
-            }
-
-            const postTime = data.time ?? data.createdAt ?? null;
-
-            return {
-              id: docSnap.id,
-              image: data.ImageURL,
-              caption: data.caption || "",
-              locality: data.locality || "",
-              coordinate: data.coordinate || null,
-              time: postTime,
-              prediction: predictions,
-              author: data.author || uploader?.name || "User",
-              liked_by: data.liked_by || [],
-              saved_by: data.saved_by || [],
-              uploader,
-            };
-          })
-        );
+          return {
+            id: docSnap.id,
+            image: data.ImageURL,
+            caption: data.caption || "",
+            locality: data.locality || "",
+            coordinate: data.coordinate || null,
+            time: postTime,
+            prediction: predictions,
+            liked_by: data.liked_by || [],
+            saved_by: data.saved_by || [],
+            uploader: {
+              id: userId,
+              name: fullName,
+              email: userEmail,
+              profile_picture: auth.currentUser?.photoURL || "",
+            },
+          };
+        });
 
         setPosts(userPosts);
       } catch (err) {
@@ -146,7 +137,7 @@ export default function MyPost({ navigation }) {
             {/* Actions */}
             <View style={styles.actions}>
               <Ionicons name="heart-outline" size={22} color="#333" />
-              <Ionicons name="chatbubble-ellipses-outline" size={22} color="#333" style={{ marginLeft: 14 }} />
+              <Ionicons name="chatbubble-ellipses-outline" size={22} color="#333" style={styles.icon} />
             </View>
           </TouchableOpacity>
         ))
@@ -232,5 +223,8 @@ const styles = StyleSheet.create({
   },
   loadingIndicator: {
     marginTop: 100 
+  },
+  icon: {
+    marginLeft: 14,
   },
 });
