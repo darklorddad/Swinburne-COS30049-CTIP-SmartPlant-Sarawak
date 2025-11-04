@@ -209,7 +209,7 @@ export default function PostDetail({ navigation, route }) {
         <View style={styles.header}>
           <View style={styles.avatar} />
           <View>
-            <Text style={styles.name}>{post?.author ?? "User"}</Text>
+            <Text style={styles.name}>{post.uploader?.name || "User"}</Text>
             <Text style={styles.meta}>1d — {post?.locality ?? "—"}</Text>
           </View>
         </View>

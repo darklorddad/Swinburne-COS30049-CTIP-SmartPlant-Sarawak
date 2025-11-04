@@ -44,6 +44,7 @@ const Stack = createStackNavigator();
 export default function App() {
   return (
     <>
+    <PermissionProvider>
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Introduction" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Testing" component={Testing} />
@@ -69,17 +70,18 @@ export default function App() {
           <Stack.Screen name="UserRegister" component={UserRegister} />
           <Stack.Screen name="AdminLogin" component={AdminLogin} />
 
-        <Stack.Screen name="HomepageExpert" component={HomepageExpert}/>
-        <Stack.Screen name="HomepageUser" component={HomepageUser}/>
-        <Stack.Screen name="PlantDetailUser" component={PlantDetailUser}/>
-        <Stack.Screen name="PlantManagementDetail" component={PlantManagementDetail}/>
-        <Stack.Screen name="PlantManagementList" component={PlantManagementList}/>
-        <Stack.Screen name="PostDetail" component={PostDetail}/>
-        <Stack.Screen name="ReportError" component={ReportError}/>
-        <Stack.Screen name="TopSuggestions" component={TopSuggestions}/>
-        <Stack.Screen name="AdminDashboard" component={AdminNavigator} />
-      </Stack.Navigator>
-    </NavigationContainer>
+          <Stack.Screen name="HomepageExpert" component={HomepageExpert}/>
+          <Stack.Screen name="HomepageUser" component={HomepageUser}/>
+          <Stack.Screen name="PlantDetailUser" component={PlantDetailUser}/>
+          <Stack.Screen name="PlantManagementDetail" component={PlantManagementDetail}/>
+          <Stack.Screen name="PlantManagementList" component={PlantManagementList}/>
+          <Stack.Screen name="PostDetail" component={PostDetail}/>
+          <Stack.Screen name="ReportError" component={ReportError}/>
+          <Stack.Screen name="TopSuggestions" component={TopSuggestions}/>
+          <Stack.Screen name="AdminDashboard" component={AdminNavigator} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </PermissionProvider>
     <FlashMessage position="top" />
     </>
   );
