@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Alert
 } from "react-native";
-import { useRoute, useNavigation } from "@react-navigation/native";
 import { addPlantIdentify } from "../firebase/plant_identify/addPlantIdentify.js";
 import { uploadImage } from "../firebase/plant_identify/uploadImage.js";
 import { auth, db } from "../firebase/FirebaseConfig"; // ← db added here
@@ -175,7 +174,6 @@ if (alreadyUploaded) {
 // noti end
 
     try {
-      setUPLoading(true);
       // noti start — robust image handling for upload + re-use
     let effectiveURI = imageURI;       // what we got from navigation
     let downloadURL = null;
@@ -191,7 +189,7 @@ if (alreadyUploaded) {
           quality: 1,
         });
         if (res.canceled) {
-          setUPLoading(false);
+          setUploadLoading(false);
           Alert.alert("No image selected", "Please choose an image to upload.");
           return;
         }
@@ -207,7 +205,7 @@ if (alreadyUploaded) {
         console.log("Added to storage with URL:", downloadURL);
       } catch (e) {
         console.log("Error uploading image:", e);
-        setUPLoading(false);
+        setUploadLoading(false);
         Alert.alert("Upload failed", "Please try again.");
         return;
       }
@@ -236,6 +234,7 @@ try {
 }
 // ===== noti end =====
 
+      setUPLoading(true);
       let latitude = null;
       let longitude = null;
 
