@@ -34,6 +34,7 @@ const NAV_HEIGHT = 60;      // height of your BottomNav
 const NAV_MARGIN_TOP = 150; // its marginTop from Navigation.js
 
 const TOP_PAD = Platform.OS === "ios" ? 56 : (StatusBar.currentHeight || 0) + 8;
+const EXTRA_TOP_SPACE = 18; // bump this up/down to add breathing room from the top
 
 const timeAgo = (dateMs) => {
   if (!dateMs) return "";
@@ -52,7 +53,20 @@ export default function PostDetail({ navigation, route }) {
 
   const me = auth.currentUser;
   const myId = me?.uid ?? "anon";
-  const myName = me?.displayName || (me?.email ? me.email.split("@")[0] : null) || "User";
+  const myName =
+    me?.displayName || (me?.email ? me.email.split("@")[0] : null) || "User";
+
+  // Mirror feed fields (seeded from route) and keep live-synced
+  const initialTimeMs =
+    post?.time ??
+    (post?.createdAt?.toMillis?.() ??
+      (post?.createdAt?.seconds ? post.createdAt.seconds * 1000 : null));
+
+  const [postTimeMs, setPostTimeMs] = useState(initialTimeMs);
+  const [author, setAuthor] = useState(post?.author ?? "User");
+  const [locality, setLocality] = useState(post?.locality ?? "—");
+  const [imageUri, setImageUri] = useState(post?.image ?? null);
+  const [caption, setCaption] = useState(post?.caption ?? "");
 
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -69,7 +83,7 @@ export default function PostDetail({ navigation, route }) {
   const canWrite = Boolean(post?.id);
   const postRef = canWrite ? doc(db, "plant_identify", post.id) : null;
 
-  // Live subscribe to post for liked/saved/counts
+  // Live subscribe to post for liked/saved/counts + keep header/meta in sync
   useEffect(() => {
     if (!postRef) return;
     const unsub = onSnapshot(postRef, (snap) => {
@@ -77,10 +91,29 @@ export default function PostDetail({ navigation, route }) {
       const v = snap.data() || {};
       const likedBy = Array.isArray(v.liked_by) ? v.liked_by : [];
       const savedBy = Array.isArray(v.saved_by) ? v.saved_by : [];
+
       setLiked(likedBy.includes(myId));
       setSaved(savedBy.includes(myId));
       setLikeCount(typeof v.like_count === "number" ? v.like_count : likedBy.length || 0);
       setSavedCount(typeof v.saved_count === "number" ? v.saved_count : savedBy.length || 0);
+
+      // Meta & content sync (to mirror feed formatting)
+      const ms =
+        v?.createdAt?.toMillis?.() ??
+        (v?.createdAt?.seconds ? v.createdAt.seconds * 1000 : null);
+      if (ms) setPostTimeMs(ms);
+
+      if (v?.author_name) setAuthor(v.author_name);
+      if (v?.locality) setLocality(v.locality);
+      if (v?.ImageURL) setImageUri(v.ImageURL);
+
+      const top1 = v?.model_predictions?.top_1;
+      if (top1) {
+        const pct = Math.round((top1.ai_score || 0) * 100);
+        setCaption(`Top: ${top1.plant_species} (${pct}%)`);
+      } else if (typeof v?.caption === "string") {
+        setCaption(v.caption);
+      }
     });
     return () => unsub();
   }, [postRef, myId]);
@@ -127,10 +160,8 @@ export default function PostDetail({ navigation, route }) {
         const likedBy = Array.isArray(v.liked_by) ? v.liked_by : [];
         const already = likedBy.includes(myId);
 
-        if (already === optimisticNext) {
-          // server already in same state -> nothing to do
-          return;
-        }
+        if (already === optimisticNext) return;
+
         tx.update(postRef, {
           liked_by: optimisticNext ? arrayUnion(myId) : arrayRemove(myId),
           like_count: increment(optimisticNext ? 1 : -1),
@@ -196,12 +227,13 @@ export default function PostDetail({ navigation, route }) {
   return (
     <View style={styles.background}>
       <ScrollView
-        style={styles.scroller} // NEW: cancels raised nav’s marginTop
+        style={styles.scroller}
         contentContainerStyle={[
           styles.container,
           {
-            paddingTop: TOP_PAD,
-            paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16, // NEW: room for bottom nav
+            // Extra spacing so it doesn't touch the top
+            paddingTop: TOP_PAD + EXTRA_TOP_SPACE,
+            paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16, // room for bottom nav
           },
         ]}
       >
@@ -209,8 +241,10 @@ export default function PostDetail({ navigation, route }) {
         <View style={styles.header}>
           <View style={styles.avatar} />
           <View>
-            <Text style={styles.name}>{post.uploader?.name || "User"}</Text>
-            <Text style={styles.meta}>1d — {post?.locality ?? "—"}</Text>
+            <Text style={styles.name}>{author}</Text>
+            <Text style={styles.meta}>
+              {postTimeMs ? `${timeAgo(postTimeMs)} — ${locality || "—"}` : locality || "—"}
+            </Text>
           </View>
         </View>
 
@@ -218,7 +252,11 @@ export default function PostDetail({ navigation, route }) {
         <View style={styles.detailsRow}>
           <TouchableOpacity
             style={styles.details}
-            onPress={() => navigation.navigate("PlantDetailUser", { post })}
+            onPress={() =>
+              navigation.navigate("PlantDetailUser", {
+                post: { ...post, author, locality, image: imageUri, caption, time: postTimeMs },
+              })
+            }
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
             <Text style={styles.detailsText}>Details</Text>
@@ -226,14 +264,14 @@ export default function PostDetail({ navigation, route }) {
         </View>
 
         {/* Photo */}
-        {post?.image ? (
-          <Image source={{ uri: post.image }} style={styles.photo} />
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.photo} />
         ) : (
           <View style={styles.photo} />
         )}
 
         {/* Caption */}
-        {!!post?.caption && <Text style={{ marginTop: 10 }}>{post.caption}</Text>}
+        {!!caption && <Text style={{ marginTop: 10 }}>{caption}</Text>}
 
         {/* Actions */}
         <View style={styles.actions}>
@@ -313,7 +351,7 @@ export default function PostDetail({ navigation, route }) {
 const styles = StyleSheet.create({
   background: { flex: 1, backgroundColor: "#FFF8EE" },
 
-  // NEW: lets the list scroll “under” the raised nav, so you can reach the end
+  // lets the list scroll “under” the raised nav, so you can reach the end
   scroller: { marginBottom: -NAV_MARGIN_TOP },
 
   container: { flexGrow: 1, paddingHorizontal: 16 },
