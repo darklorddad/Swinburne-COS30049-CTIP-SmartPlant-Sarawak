@@ -106,7 +106,7 @@ export default function NotificationsScreen({ navigation }) {
         const placeholder =
           "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
 
-        navigation.navigate("identify_output", {
+        navigation.navigate("IdentifyOutput", {
         prediction,
         imageURI: imageURL || null,
         hasImage: isHttpUrl(imageURL),  // ✅ 新增這個

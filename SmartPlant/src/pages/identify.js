@@ -165,7 +165,7 @@ export default function IdentifyPage() {
 
         try {
             setLoading(true);
-            const response = await fetch("http://172.17.23.125:3000/predict", {
+            const response = await fetch("http://192.168.1.18:3000/predict", {
                 method: "POST",
                 headers: { "Content-Type": "multipart/form-data" },
                 body: formData,
@@ -221,7 +221,7 @@ showMessage({
 });
 
 // pass notiId so identify_output can update the same notification with imageURL after upload
-navigation.navigate("identify_output", {
+navigation.navigate("IdentifyOutput", {
   prediction,
   imageURI: images[0],         // local preview
   notiId,                      // 👈 IMPORTANT

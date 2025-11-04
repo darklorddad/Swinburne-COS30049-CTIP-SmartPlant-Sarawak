@@ -15,11 +15,13 @@ import { uploadImage } from "../firebase/plant_identify/uploadImage.js";
 import { auth, db } from "../firebase/FirebaseConfig"; // ← db added here
 import { serverTimestamp, addDoc, collection, doc, getDoc, query, where, getDocs  } from "firebase/firestore";
 import PlantSuggestionCard from "../components/PlantSuggestionCard.js";
+import { useRoute, useNavigation } from '@react-navigation/native';
 // noti start
 import { updateNotificationPayload } from "../firebase/notification_user/updateNotificationPayload";
 // noti end
 import * as Location from "expo-location"; // (KEEP) getting current device location
 import * as ImagePicker from "expo-image-picker"; // (KEEP) for picking images with EXIF
+import IdentifyPage from './identify.js';
 
 export default function ResultScreen() {
   const route = useRoute();
@@ -71,7 +73,7 @@ if (fromNotification && !hasImage) {
 
     try {
       setLoading(true);
-      const response = await fetch("http://172.17.23.125:3000/heatmap", {
+      const response = await fetch("http://192.168.1.18:3000/heatmap", {
         method: "POST",
         headers: { "Content-Type": "multipart/form-data" },
         body: formData,
@@ -109,7 +111,7 @@ if (fromNotification && !hasImage) {
         {
           text: "NO",
           onPress: () => {
-            navigation.navigate(MyProfile); 
+            navigation.navigate(IdentifyPage);
             console.log("User refuse to upload");
           },
           style: "cancel",
