@@ -1,56 +1,54 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 
-export default function PlantSuggestionCard({ name, confidence, onPress }) {
+export default function PlantSuggestionCard({ name, confidence, image, onPress }) {
+  console.log("card image:", image);
+
   return (
-    <View style={styles.card}>
-      {/* Placeholder for image */}
-      <View style={styles.imagePlaceholder} />
+    <TouchableOpacity style={styles.card} onPress={onPress}>
+      {image ? (
+        <Image source={{ uri: image }} style={styles.thumb} />
+      ) : (
+        <View style={[styles.thumb, { backgroundColor: "#fff" }]} />
+      )}
 
-      <View style={styles.textContainer}>
-        <Text style={styles.plantName}>{name}</Text>
-        <Text style={styles.confidenceText}>{confidence}% Confidence</Text>
-
-        <TouchableOpacity onPress={onPress}>
-          <Text style={styles.seeMore}>See More →</Text>
-        </TouchableOpacity>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.title}>{name}</Text>
+        <Text style={styles.meta}>{confidence}% Confidence</Text>
       </View>
-    </View>
+
+      <Text style={styles.link}>See More →</Text>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#5E8C61",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: "#E7F0E5",
+    borderRadius: 16,
+    padding: 12,
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
   },
-  imagePlaceholder: {
-    width: 70,
-    height: 70,
+  thumb: {
+    width: 72,
+    height: 72,
     borderRadius: 12,
-    backgroundColor: "#D9D9D9",
-    marginRight: 16,
+    backgroundColor: "#FFF",
   },
-  textContainer: {
-    flex: 1,
-  },
-  plantName: {
-    color: "white",
-    fontWeight: "600",
+  title: {
+    fontWeight: "800",
     fontSize: 16,
-    marginBottom: 6,
+    color: "#2b2b2b",
   },
-  confidenceText: {
-    color: "white",
-    fontSize: 14,
-    marginBottom: 10,
+  meta: {
+    fontSize: 12,
+    color: "#2b2b2b",
   },
-  seeMore: {
-    color: "white",
-    fontWeight: "500",
+  link: {
+    fontWeight: "700",
+    color: "#2b2b2b",
   },
 });

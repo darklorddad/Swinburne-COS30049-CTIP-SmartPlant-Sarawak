@@ -5,11 +5,14 @@ import { updateUserProfile } from "../firebase/UserProfile/ProfileUpdate";
 import { storage } from "../firebase/FirebaseConfig";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import * as ImagePicker from "expo-image-picker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 export default function EditProfile({ navigation, route }) {
   // Get email passed from MyProfile
   const { email } = route.params; 
   const [profile, setProfile] = useState(null);
+  const [originalProfile, setOriginalProfile] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [imageUri, setImageUri] = useState(null);
@@ -25,6 +28,7 @@ export default function EditProfile({ navigation, route }) {
       try {
         const data = await getFullProfile(email);
         setProfile(data);
+        setOriginalProfile(data);
         setImageUri(data.profile_pic || null);
       } catch (err) {
         console.error("Error fetching profile:", err);
@@ -78,6 +82,73 @@ export default function EditProfile({ navigation, route }) {
   const handleSave = async () => {
     try {
       let updatedProfile = { ...profile };
+
+      // Full Name check
+      if (profile.full_name !== originalProfile.full_name) {
+        if (profile.full_name.trim().length < 3) {
+          Alert.alert("Invalid Name", "Full name must be at least 3 characters long.");
+          return;
+        }
+      }
+
+      // Phone number check
+      if (profile.phone_number !== originalProfile.phone_number) {
+        const phoneRegex = /^\d{10,}$/;
+        if (!phoneRegex.test(profile.phone_number)) {
+          Alert.alert("Invalid Phone", "Phone number must have at least 10 digits.");
+          return;
+        }
+      }
+
+      // Address check
+      if (profile.address !== originalProfile.address) {
+        if (profile.address.trim().length < 5) {
+          Alert.alert("Invalid Address", "Address must be at least 5 characters long.");
+          return;
+        }
+      }
+      
+      // NRIC check
+      if (profile.nric !== originalProfile.nric) {
+        const nricRegex = /^\d{6}-\d{2}-\d{4}$/;
+        if (!nricRegex.test(profile.nric)) {
+          Alert.alert("Invalid NRIC", "NRIC must follow the format XXXXXX-XX-XXXX.");
+          return;
+        }
+      }
+
+      // District check
+      if (profile.division !== originalProfile.division) {
+        if (profile.division.trim().length < 3) {
+          Alert.alert("Invalid District", "District name must be at least 3 characters long.");
+          return;
+        }
+      }
+
+      // Postcode check
+      if (profile.postcode !== originalProfile.postcode) {
+        const postcodeRegex = /^\d{5}$/;
+        if (!postcodeRegex.test(profile.postcode)) {
+          Alert.alert("Invalid Postcode", "Postcode must be exactly 5 digits.");
+          return;
+        }
+      }
+
+      // Race check
+      if (profile.race !== originalProfile.race) {
+        if (profile.race.trim().length < 3) {
+          Alert.alert("Invalid Race", "Race must be at least 3 characters long.");
+          return;
+        }
+      }
+
+      // Occupation check
+      if (profile.occupation !== originalProfile.occupation) {
+        if (profile.occupation.trim().length < 2) {
+          Alert.alert("Invalid Occupation", "Occupation must be at least 2 characters long.");
+          return;
+        }
+      }
 
       // Upload new image if changed
       if (imageUri && imageUri !== profile.profile_pic) {
@@ -136,8 +207,61 @@ export default function EditProfile({ navigation, route }) {
       <InputField label="Full Name" value={profile.full_name} onChange={(v) => handleChange("full_name", v)} />
       <InputField label="Phone" value={profile.phone_number || ""} onChange={(v) => handleChange("phone_number", v)} />
       <InputField label="Address" value={profile.address || ""} onChange={(v) => handleChange("address", v)} />
-      <InputField label="Gender" value={profile.gender || ""} onChange={(v) => handleChange("gender", v)} />
-      <InputField label="Date of Birth" value={profile.date_of_birth || ""} onChange={(v) => handleChange("date_of_birth", v)} />
+
+      <View style={styles.radioGroup}>
+        <Text style={styles.label}>Gender</Text>
+        <View style={styles.radioOptions}>
+          {["Male", "Female"].map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={styles.radioOption}
+              onPress={() => handleChange("gender", option)}
+            >
+              <View
+                style={[
+                  styles.radioCircle,
+                  profile.gender === option && styles.radioSelected,
+                ]}
+              />
+              <Text style={styles.radioText}>{option}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.inputWrapper}>
+        <Text style={styles.inputLabel}>Date of Birth</Text>
+        <TouchableOpacity
+          style={styles.inputBox}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text style={styles.dateText}>
+            {profile.date_of_birth
+              ? profile.date_of_birth
+              : "Select your date of birth"}
+          </Text>
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={
+              profile.date_of_birth
+                ? new Date(profile.date_of_birth)
+                : new Date()
+            }
+            mode="date"
+            display="spinner"
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) {
+                const formatted = selectedDate.toISOString().split("T")[0];
+                handleChange("date_of_birth", formatted);
+              }
+            }}
+          />
+        )}
+      </View>
+
       <InputField label="NRIC" value={profile.nric || ""} onChange={(v) => handleChange("nric", v)} />
       <InputField label="District" value={profile.division || ""} onChange={(v) => handleChange("division", v)} />
       <InputField label="Postcode" value={profile.postcode || ""} onChange={(v) => handleChange("postcode", v)} />
@@ -155,13 +279,14 @@ export default function EditProfile({ navigation, route }) {
 }
 
 {/* Input layout */}
-const InputField = ({ label, value, onChange }) => (
-  <View style={styles.container}>
-    <Text style={styles.label}>{label}</Text>
+const InputField = ({ label, value, onChange, secureTextEntry }) => (
+  <View style={styles.inputWrapper}>
+    <Text style={styles.inputLabel}>{label}</Text>
     <TextInput
-      style={styles.input}
+      style={styles.inputBox}
       value={value}
       onChangeText={onChange}
+      secureTextEntry={secureTextEntry}
     />
   </View>
 );
@@ -204,6 +329,9 @@ const styles = StyleSheet.create({
     color: "blue",
     marginTop: 5,
   },
+  changeText: {
+    color: "blue",
+  },
   saveButton: { 
     backgroundColor: "#5A7B60", 
     padding: 12, 
@@ -225,13 +353,57 @@ const styles = StyleSheet.create({
   },
   label: {
     fontWeight: "bold",
+    marginBottom: 4,
   },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 8,
     padding: 8,
-    marginTop: 4,
+    justifyContent: "center",
+  },
+  inputWrapper: {
+    marginBottom: 30,
+  },
+  radioGroup: {
+    marginBottom: 30,
+  },
+  inputLabel: {
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  inputBox: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 8,
+  },
+  radioOptions: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  radioOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 20,
+  },
+  radioCircle: {
+    height: 18,
+    width: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: "#ccc",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  radioSelected: {
+    backgroundColor: "#ccc",
+  },
+  radioText: {
+    fontSize: 16,
   },
 });
 
