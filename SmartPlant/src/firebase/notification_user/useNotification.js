@@ -13,7 +13,10 @@ export function useNotifications(userId, limit = 50) {
       orderBy("createdAt", "desc")
     );
     const unsub = onSnapshot(q, (snap) => {
-      setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setItems(
+        snap.docs.map(d => ({ id: d.id, ...d.data() }))
+            .filter(n => !n.deleted)        // <-- hide "deleted" items
+      );
     });
     return unsub;
   }, [userId]);
