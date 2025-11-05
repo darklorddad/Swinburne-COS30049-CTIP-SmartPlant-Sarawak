@@ -234,7 +234,7 @@ export default function IdentifyPage() {
                     // imageURL will be added later by identify_output after upload
                 }
             });
-
+            
             showMessage({
                 message: "Plant Identification Complete",
                 description: `${top1.class} (${Math.round((top1.confidence || 0) * 100)}%)`,
@@ -246,16 +246,13 @@ export default function IdentifyPage() {
             // pass notiId so identify_output can update the same notification with imageURL after upload
             navigation.navigate("IdentifyOutput", {
                 prediction,
-                imageURI: images[0],         // local preview
+                imageURI: images,         // local preview
                 notiId,                      // 👈 IMPORTANT
                 fromNotification: false,
                 hasImage: true               // you currently have a local image selected
             });
             return;
             // ===== noti end =====
-
-            // Navigate to output page with prediction
-            navigation.navigate("IdentifyOutput", { prediction: data, imageURI: images[0] });
         } catch (err) {
             console.log("Upload error:", err);
             alert("Failed to identify. Check backend connection.");

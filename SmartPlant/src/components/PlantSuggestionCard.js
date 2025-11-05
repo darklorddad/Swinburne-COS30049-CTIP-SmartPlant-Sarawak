@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 
 export default function PlantSuggestionCard({ name, confidence, image, onPress }) {
-  console.log("card image:", image);
+  //console.log("card image:", image);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>

@@ -15,6 +15,7 @@ import { uploadImage } from "../firebase/plant_identify/uploadImage.js";
 import { auth, db } from "../firebase/FirebaseConfig"; // ← db added here
 import { serverTimestamp, addDoc, collection, doc, getDoc, query, where, getDocs } from "firebase/firestore";
 import PlantSuggestionCard from "../components/PlantSuggestionCard.js";
+import ImageSlideshow from '../components/ImageSlideShow.js';
 import { useRoute, useNavigation } from '@react-navigation/native';
 // noti start
 import { updateNotificationPayload } from "../firebase/notification_user/updateNotificationPayload";
@@ -29,8 +30,8 @@ export default function ResultScreen() {
 
   // (KEEP) prediction is expected to be an array like:
   // [{ class: "Nepenthes_tentaculata", confidence: 0.7321 }, {...}, {...}]
-  const { prediction = [], imageURI } = route.params || {};
-
+  const { prediction = [], imageURI} = route.params || {};
+  console.log("Images array:", imageURI);
   // noti start — normalize prediction to at least 3 items, detect noti + image state
   let p = Array.isArray(prediction) ? [...prediction] : [{ class: "Unknown", confidence: 0 }];
   while (p.length < 3) p.push({ class: p[0].class, confidence: p[0].confidence ?? 0 });
@@ -50,7 +51,6 @@ export default function ResultScreen() {
   const [showHeatmap, setShowHeatmap] = React.useState(false); // (KEEP) toggle overlay
   const [UPloading, setUPLoading] = React.useState(false); // upload in-flight
   const [plantImages, setPlantImages] = useState([]);
-  console.log(prediction)
   // --- Heatmap overlay ---
   const constructHeatmap = async () => {
     if (heatmapURI) {
@@ -407,10 +407,13 @@ export default function ResultScreen() {
           </View>
         )}
 
-        <Image
+        {/* <Image
           source={{ uri: showHeatmap && heatmapURI ? heatmapURI : imageURI }}
           style={styles.image}
-        />
+        /> */}
+        <ImageSlideshow imageURIs={Array.isArray(imageURI) ? imageURI : [imageURI]} />
+
+
 
         <TouchableOpacity
           style={styles.iconButton}
@@ -484,7 +487,7 @@ const styles = StyleSheet.create({
   image: { width: "100%", height: "100%", borderRadius: 4 },
   iconButton: { position: "absolute", top: 8, right: 8 },
   circle: { width: 20, height: 20, backgroundColor: "gray", borderRadius: 10 },
-  title: { fontSize: 18, fontWeight: "bold", marginVertical: 12 },
+  title: { fontSize: 18, fontWeight: "bold", marginVertical: 1 },
   resultsContainer: { width: "100%", paddingHorizontal: 10, marginBottom: 20 },
   resultCard: {
     backgroundColor: "#496D4C",
