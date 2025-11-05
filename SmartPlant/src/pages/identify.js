@@ -17,7 +17,7 @@ import CustomButton from '../components/Button';
 import { addNotification } from "../firebase/notification_user/addNotification";
 import { auth } from "../firebase/FirebaseConfig";
 import { showMessage } from "react-native-flash-message";
-const currentUserId = auth.currentUser?.uid || "U001"; 
+const currentUserId = auth.currentUser?.uid || "U001";
 //noti end
 
 export default function IdentifyPage() {
@@ -31,7 +31,7 @@ export default function IdentifyPage() {
     //prediction variable
     const [prediction, setPrediction] = useState(null);
     const [loading, setLoading] = useState(false);
-    const {cameraGranted, photosGranted, requestCameraPermission, requestPhotosPermission,} = useContext(PermissionContext);
+    const { cameraGranted, photosGranted, requestCameraPermission, requestPhotosPermission, } = useContext(PermissionContext);
     const [permissionChecked, setPermissionChecked] = useState(false);
     const isFocused = useIsFocused();
 
@@ -50,10 +50,10 @@ export default function IdentifyPage() {
                     "Camera Access Required",
                     "Please enable camera access in device settings.",
                     [
-                    {
-                        text: "OK",
-                        onPress: () => navigation.navigate("Setting"), // 👈 Only navigates when OK is pressed
-                    },
+                        {
+                            text: "OK",
+                            onPress: () => navigation.navigate("Setting"), // 👈 Only navigates when OK is pressed
+                        },
                     ],
                     { cancelable: false } // optional: prevent dismissing by tapping outside
                 );
@@ -156,80 +156,103 @@ export default function IdentifyPage() {
             return;
         }
 
-        let formData = new FormData();
-        formData.append("image", {
-            uri: images[0],   // single mode
-            type: "image/jpeg",
-            name: "photo.jpg",
-        });
+        // let formData = new FormData();
+        // formData.append("image", {
+        //     uri: images[0],   // single mode
+        //     type: "image/jpeg",
+        //     name: "photo.jpg",
+        // });
+        const formData = new FormData();
+
+        if (images.length === 1) {
+            // Single image mode
+            formData.append("image", {
+                uri: images[0],
+                type: "image/jpeg",
+                name: "photo.jpg",
+            });
+        } else if (images.length === 3) {
+            // Multi-image mode (3 images)
+            images.forEach((imgURI, index) => {
+                formData.append("images", {
+                    uri: imgURI,
+                    type: "image/jpeg",
+                    name: `photo_${index + 1}.jpg`,
+                });
+            });
+        }
 
         try {
             setLoading(true);
-            const response = await fetch("http://192.168.1.18:3000/predict", {
+            const endpoint =
+                images.length === 3
+                    ? "http://172.17.20.21:3000/predict_multiple"
+                    : "http://172.17.20.21:3000/predict";
+
+            const response = await fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "multipart/form-data" },
-                body: formData,
-            });
+                body: formData,})
 
             const data = await response.json();
             setLoading(false);
 
-// ===== noti start (REPLACE WHOLE BLOCK) =====
-const label = data?.label ?? (typeof data?.raw === "string" ? data.raw : "Unknown");
-const conf  = data?.confidence ?? null;
+            // ===== noti start (REPLACE WHOLE BLOCK) =====
+            const label = data?.label ?? (typeof data?.raw === "string" ? data.raw : "Unknown");
+            const conf = data?.confidence ?? null;
 
-// normalize to top1~top3 array for identify_output
-const prediction =
-  Array.isArray(data)
-    ? data
-    : Array.isArray(data?.top3) && data.top3.length
-      ? data.top3.map(x => ({
-          class: x.class || x.label || label || "Unknown",
-          confidence: typeof x.confidence === "number" ? x.confidence : (typeof conf === "number" ? conf : 0),
-        }))
-      : [{ class: label || "Unknown", confidence: typeof conf === "number" ? conf : 0 }];
+            // normalize to top1~top3 array for identify_output
+            const prediction =
+                Array.isArray(data)
+                    ? data
+                    : Array.isArray(data?.top3) && data.top3.length
+                        ? data.top3.map(x => ({
+                            class: x.class || x.label || label || "Unknown",
+                            confidence: typeof x.confidence === "number" ? x.confidence : (typeof conf === "number" ? conf : 0),
+                        }))
+                        : [{ class: label || "Unknown", confidence: typeof conf === "number" ? conf : 0 }];
 
-while (prediction.length < 3) {
-  prediction.push({ class: prediction[0].class, confidence: prediction[0].confidence ?? 0 });
-}
+            while (prediction.length < 3) {
+                prediction.push({ class: prediction[0].class, confidence: prediction[0].confidence ?? 0 });
+            }
 
-const top1 = prediction[0] || { class: "Unknown", confidence: 0 };
-if (!auth.currentUser?.uid) console.warn("No signed-in user, using fallback U001 for test.");
+            const top1 = prediction[0] || { class: "Unknown", confidence: 0 };
+            if (!auth.currentUser?.uid) console.warn("No signed-in user, using fallback U001 for test.");
 
-// create the notification and CAPTURE its id
-const notiId = await addNotification({
-  userId: auth.currentUser?.uid || "U001",
-  type: "plant_identified",
-  title: "Plant Identification Complete",
-  message: `${top1.class} (${Math.round((top1.confidence || 0) * 100)}%)`,
-  payload: {
-    model_predictions: {
-      top_1: { plant_species: prediction[0]?.class ?? "Unknown", ai_score: prediction[0]?.confidence ?? 0 },
-      top_2: { plant_species: prediction[1]?.class ?? "",         ai_score: prediction[1]?.confidence ?? 0 },
-      top_3: { plant_species: prediction[2]?.class ?? "",         ai_score: prediction[2]?.confidence ?? 0 },
-    }
-    // imageURL will be added later by identify_output after upload
-  }
-});
+            // create the notification and CAPTURE its id
+            const notiId = await addNotification({
+                userId: auth.currentUser?.uid || "U001",
+                type: "plant_identified",
+                title: "Plant Identification Complete",
+                message: `${top1.class} (${Math.round((top1.confidence || 0) * 100)}%)`,
+                payload: {
+                    model_predictions: {
+                        top_1: { plant_species: prediction[0]?.class ?? "Unknown", ai_score: prediction[0]?.confidence ?? 0 },
+                        top_2: { plant_species: prediction[1]?.class ?? "", ai_score: prediction[1]?.confidence ?? 0 },
+                        top_3: { plant_species: prediction[2]?.class ?? "", ai_score: prediction[2]?.confidence ?? 0 },
+                    }
+                    // imageURL will be added later by identify_output after upload
+                }
+            });
 
-showMessage({
-  message: "Plant Identification Complete",
-  description: `${top1.class} (${Math.round((top1.confidence || 0) * 100)}%)`,
-  type: "success",
-  duration: 3000,
-  onPress: () => navigation.navigate("NotificationUser"),
-});
+            showMessage({
+                message: "Plant Identification Complete",
+                description: `${top1.class} (${Math.round((top1.confidence || 0) * 100)}%)`,
+                type: "success",
+                duration: 3000,
+                onPress: () => navigation.navigate("NotificationUser"),
+            });
 
-// pass notiId so identify_output can update the same notification with imageURL after upload
-navigation.navigate("IdentifyOutput", {
-  prediction,
-  imageURI: images[0],         // local preview
-  notiId,                      // 👈 IMPORTANT
-  fromNotification: false,
-  hasImage: true               // you currently have a local image selected
-});
-return;
-// ===== noti end =====
+            // pass notiId so identify_output can update the same notification with imageURL after upload
+            navigation.navigate("IdentifyOutput", {
+                prediction,
+                imageURI: images[0],         // local preview
+                notiId,                      // 👈 IMPORTANT
+                fromNotification: false,
+                hasImage: true               // you currently have a local image selected
+            });
+            return;
+            // ===== noti end =====
 
             // Navigate to output page with prediction
             navigation.navigate("IdentifyOutput", { prediction: data, imageURI: images[0] });
@@ -252,14 +275,16 @@ return;
             {/* Camera */}
             {images.length === 0 || mode === "multiple" ? (
                 <CameraView style={styles.camera} ref={cameraRef} facing={facing}>
-                    <View style={styles.overlay} pointerEvents="box-none">
-                        <View style={styles.topBar}>
-                            <TouchableOpacity onPress={() => navigation.goBack()}>
-                                <Entypo name="cross" size={48} color="white" />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={toggleCameraFacing}>
-                                <Entypo name="cycle" size={36} color="white" />
-                            </TouchableOpacity>
+                    <View style={{flex:1}}>
+                        <View style={styles.overlay} pointerEvents="box-none">
+                            <View style={styles.topBar}>
+                                <TouchableOpacity onPress={() => navigation.goBack()}>
+                                    <Entypo name="cross" size={48} color="white" />
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={toggleCameraFacing}>
+                                    <Entypo name="cycle" size={36} color="white" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
                     <View style={{ flex: 1, justifyContent: 'flex-end' }}>
@@ -301,16 +326,14 @@ return;
                         {/* Bottom controls */}
                         {images.length === 3 ? (
                             <View style={styles.bottomRow}>
-                                <TouchableOpacity style={styles.identifyButton}>
-                                    <Text style={{ fontWeight: '900', color: 'white', textAlign: 'center' }}>Identify</Text>
-                                </TouchableOpacity>
+                                <CustomButton title={'Identify'} icon="check" onPress={identifyImage} />
                             </View>
                         ) : (
                             <View style={styles.bottomRow}>
-                                <TouchableOpacity onPress={pickImage}disabled={!photosGranted} style={{ opacity: photosGranted ? 1 : 0.5 }}>
+                                <TouchableOpacity onPress={pickImage} disabled={!photosGranted} style={{ opacity: photosGranted ? 1 : 0.5 }}>
                                     <Ionicons name="images-outline" size={54} color='white' />
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.CaptureButton} onPress={takePicture} disabled={!cameraGranted}/>
+                                <TouchableOpacity style={styles.CaptureButton} onPress={takePicture} disabled={!cameraGranted} />
                                 <TouchableOpacity onPress={() => navigation.navigate("IdentifyTips")}>
                                     <MaterialIcons name="info-outline" size={54} color='white' />
                                 </TouchableOpacity>
@@ -321,7 +344,7 @@ return;
                 </CameraView>
             ) : (
                 // Single image preview mode
-                <ImageBackground source={{ uri: images[0] }} style={styles.camera} imageStyle={styles.previewImage}>
+                <ImageBackground source={{ uri: images[0] }} style={styles.camera} imageStyle={[styles.previewImage, facing === "front" ? { transform: [{ scaleX: -1 }] } : null,]}>
                     <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                         <View style={styles.bottomRow}>
                             <CustomButton title={'Retake'} icon="retweet" onPress={() => setImages([])} />
