@@ -45,25 +45,29 @@ export default function ResultScreen() {
     console.log("Opened from notification without a real image URL; image box will show placeholder/blank.");
   }
   // noti end
+  const [heatmapURIs, setHeatmapURIs] = React.useState([]);
 
-  const [heatmapURI, setHeatmapURI] = React.useState(null);
   const [loading, setLoading] = React.useState(false); // heatmap loading
   const [showHeatmap, setShowHeatmap] = React.useState(false); // (KEEP) toggle overlay
   const [UPloading, setUPLoading] = React.useState(false); // upload in-flight
   const [plantImages, setPlantImages] = useState([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
   // --- Heatmap overlay ---
   // const constructHeatmap = async () => {
+  //   // If a heatmap already exists, toggle its visibility
   //   if (heatmapURI) {
-  //     // (KEEP) toggle overlay
   //     setShowHeatmap(!showHeatmap);
   //     return;
   //   }
 
+  //   // Guard: no image selected
   //   if (!imageURI) {
   //     Alert.alert("No image", "Image is missing.");
   //     return;
   //   }
 
+  //   // Create FormData for image upload
   //   const formData = new FormData();
   //   formData.append("image", {
   //     uri: imageURI[0],
@@ -73,9 +77,8 @@ export default function ResultScreen() {
 
   //   try {
   //     setLoading(true);
-  //     const response = await fetch("http://172.17.18.149:3000/heatmap", {
+  //     const response = await fetch("http://10.26.195.57:3000/heatmap", {
   //       method: "POST",
-  //       headers: { "Content-Type": "multipart/form-data" },
   //       body: formData,
   //     });
 
@@ -90,39 +93,43 @@ export default function ResultScreen() {
   //     } else {
   //       Alert.alert("Heatmap not returned from server.");
   //     }
+
   //   } catch (err) {
-  //     console.log("Upload error:", err);
+  //     console.error("Upload error:", err);
   //     setLoading(false);
   //     Alert.alert("Failed to generate heatmap. Check backend connection.");
   //   }
-
   // };
+
   const constructHeatmap = async () => {
-    // If a heatmap already exists, toggle its visibility
-    if (heatmapURI) {
+    console.log("constructHeatmap called");
+    console.log("imageURI:", imageURI);
+
+    // If heatmaps already exist, toggle visibility
+    if (heatmapURIs.length > 0) {
+      console.log("Heatmaps already exist:", heatmapURIs);
       setShowHeatmap(!showHeatmap);
+      console.log("Toggled heatmap visibility:", !showHeatmap);
       return;
     }
-
-    // Guard: no image selected
-    if (!imageURI) {
+    console.log("passed block 1")
+    if (!imageURI || imageURI.length === 0) {
       Alert.alert("No image", "Image is missing.");
       return;
     }
-
-    // Create FormData for image upload
+    console.log("passed block 2")
     const formData = new FormData();
-    formData.append("image", {
-      uri: imageURI[0],
-      type: "image/jpeg",
-      name: "photo.jpg",
+    imageURI.forEach((uri, index) => {
+      formData.append("images", {
+        uri,
+        type: "image/jpeg",
+        name: `photo_${index + 1}.jpg`,
+      });
     });
-
+    console.log("before try")
     try {
       setLoading(true);
-
-      // ❌ Don’t manually set Content-Type — let fetch handle it!
-      const response = await fetch("http://172.17.18.149:3000/heatmap", {
+      const response = await fetch("http://10.26.195.57:3000/heatmap", {
         method: "POST",
         body: formData,
       });
@@ -132,19 +139,20 @@ export default function ResultScreen() {
       const data = await response.json();
       setLoading(false);
 
-      if (data?.heatmap) {
-        setHeatmapURI(data.heatmap);
+      // Expecting backend to return: { heatmaps: ["url1", "url2", "url3"] }
+      if (data?.heatmaps && Array.isArray(data.heatmaps)) {
+        setHeatmapURIs(data.heatmaps);
         setShowHeatmap(true);
       } else {
-        Alert.alert("Heatmap not returned from server.");
+        Alert.alert("Heatmaps not returned from server.");
       }
-
     } catch (err) {
       console.error("Upload error:", err);
       setLoading(false);
-      Alert.alert("Failed to generate heatmap. Check backend connection.");
+      Alert.alert("Failed to generate heatmaps. Check backend connection.");
     }
   };
+
 
 
   // (KEEP) asking user permission to save the data
@@ -440,7 +448,6 @@ export default function ResultScreen() {
   }, [prediction]);
 
 
-
   return (
     <View style={styles.container}>
       {UPloading && (
@@ -457,25 +464,28 @@ export default function ResultScreen() {
           </View>
         )}
 
-        {/* <Image
-          source={{ uri: showHeatmap && heatmapURI ? heatmapURI : imageURI }}
-          style={styles.image}
-        /> */}
-        <ImageSlideshow imageURIs={Array.isArray(imageURI) ? imageURI : [imageURI]} />
-        {heatmapURI && showHeatmap && (
+        <ImageSlideshow
+          imageURIs={Array.isArray(imageURI) ? imageURI : [imageURI]}
+          onSlideChange={(index) => setCurrentSlide(index)}
+        />
+
+        {showHeatmap && heatmapURIs[currentSlide] && (
           <Image
-            source={{ uri: heatmapURI }}
+            source={{ uri: heatmapURIs[currentSlide] }}
             style={styles.heatmapOverlay}
             resizeMode="cover"
+            pointerEvents="none"
           />
         )}
-
 
         <TouchableOpacity
           style={styles.iconButton}
           onPress={() => {
-            if (heatmapURI) setShowHeatmap(!showHeatmap);
-            else constructHeatmap();
+            console.log("Heatmap button pressed");
+            if (Array.isArray(heatmapURIs) && heatmapURIs.length > 0)
+              setShowHeatmap(!showHeatmap);
+            else
+              constructHeatmap();
           }}
         >
           <View style={styles.circle} />
@@ -542,7 +552,7 @@ const styles = StyleSheet.create({
   },
   image: { width: "100%", height: "100%", borderRadius: 4 },
   iconButton: { position: "absolute", top: 8, right: 8 },
-  circle: { width: 20, height: 20, backgroundColor: "gray", borderRadius: 10 },
+  circle: { width: 20, height: 20, backgroundColor: "gray", borderRadius: 10, zIndex: 10, },
   title: { fontSize: 18, fontWeight: "bold", marginVertical: 1 },
   resultsContainer: { width: "100%", paddingHorizontal: 10, marginBottom: 20 },
   resultCard: {

@@ -14,7 +14,7 @@ import {
  * - measures the real container width so each item fills exactly that width
  * - snapToInterval and getItemLayout use measured width for perfect snap
  */
-export default function ImageSlideshow({ imageURIs = [] }) {
+export default function ImageSlideshow({ imageURIs = [], onSlideChange }) {
     const [activeIndex, setActiveIndex] = useState(0);
     const [containerWidth, setContainerWidth] = useState(null);
     const flatListRef = useRef(null);
@@ -32,6 +32,8 @@ export default function ImageSlideshow({ imageURIs = [] }) {
         const offsetX = event.nativeEvent.contentOffset.x;
         const index = Math.round(offsetX / containerWidth);
         setActiveIndex(index);
+        if (onSlideChange) onSlideChange(index);
+        console.log(index)
     };
 
     // guard: nothing to render
@@ -63,15 +65,25 @@ export default function ImageSlideshow({ imageURIs = [] }) {
                     }
                     : {})}
                 contentContainerStyle={styles.flatListContent}
+                // renderItem={({ item }) => (
+                //     <View style={[styles.itemWrap, { width: containerWidth || "100%" }]}>
+                //         <Image
+                //             source={{ uri: item }}
+                //             style={[styles.image, { width: containerWidth || "100%" }]}
+                //             resizeMode="cover"
+                //         />
+                //     </View>
+                // )}
                 renderItem={({ item }) => (
                     <View style={[styles.itemWrap, { width: containerWidth || "100%" }]}>
                         <Image
                             source={{ uri: item }}
-                            style={[styles.image, { width: containerWidth || "100%" }]}
-                            resizeMode="cover"
+                            style={styles.image}
+                            resizeMode="contain" // or "cover" if you prefer filling with cropping
                         />
                     </View>
                 )}
+
             />
 
             {/* dots */}
@@ -96,6 +108,7 @@ const styles = StyleSheet.create({
         // if your parent has padding, the measured width will reflect the inside width,
         // which is what we want. You may remove padding on parent if you want full-screen images.
         alignItems: "center",
+        position: "relative",
         width: "100%",
         overflow: "hidden", // prevent parts of image showing outside
     },
@@ -114,18 +127,21 @@ const styles = StyleSheet.create({
     dots: {
         flexDirection: "row",
         justifyContent: "center",
-        marginTop: 8,
+        marginTop: 200,
         marginBottom: 8,
+        position:"absolute"
     },
     dot: {
         width: 8,
         height: 8,
         borderRadius: 4,
         backgroundColor: "#bbb",
-        marginHorizontal: 4,
+        marginHorizontal: 9,
     },
     dotActive: {
         backgroundColor: "#007AFF",
         transform: [{ scale: 1.2 }],
     },
 });
+
+
