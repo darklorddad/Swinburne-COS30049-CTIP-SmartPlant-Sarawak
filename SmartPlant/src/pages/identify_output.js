@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { addPlantIdentify } from "../firebase/plant_identify/addPlantIdentify.js";
 import { uploadImage } from "../firebase/plant_identify/uploadImage.js";
-import { auth, db } from "../firebase/FirebaseConfig"; // ← db added here
+import { auth, db } from "../firebase/FirebaseConfig";
 import { serverTimestamp, addDoc, collection, doc, getDoc, query, where, getDocs } from "firebase/firestore";
 import PlantSuggestionCard from "../components/PlantSuggestionCard.js";
 import ImageSlideshow from '../components/ImageSlideShow.js';
@@ -30,8 +30,8 @@ export default function ResultScreen() {
 
   // (KEEP) prediction is expected to be an array like:
   // [{ class: "Nepenthes_tentaculata", confidence: 0.7321 }, {...}, {...}]
-  const { prediction = [], imageURI} = route.params || {};
-  console.log("Images array:", imageURI);
+  const { prediction = [], imageURI } = route.params || {};
+  //console.log("Images array:", imageURI);
   // noti start — normalize prediction to at least 3 items, detect noti + image state
   let p = Array.isArray(prediction) ? [...prediction] : [{ class: "Unknown", confidence: 0 }];
   while (p.length < 3) p.push({ class: p[0].class, confidence: p[0].confidence ?? 0 });
@@ -52,30 +52,78 @@ export default function ResultScreen() {
   const [UPloading, setUPLoading] = React.useState(false); // upload in-flight
   const [plantImages, setPlantImages] = useState([]);
   // --- Heatmap overlay ---
+  // const constructHeatmap = async () => {
+  //   if (heatmapURI) {
+  //     // (KEEP) toggle overlay
+  //     setShowHeatmap(!showHeatmap);
+  //     return;
+  //   }
+
+  //   if (!imageURI) {
+  //     Alert.alert("No image", "Image is missing.");
+  //     return;
+  //   }
+
+  //   const formData = new FormData();
+  //   formData.append("image", {
+  //     uri: imageURI[0],
+  //     type: "image/jpeg",
+  //     name: "photo.jpg",
+  //   });
+
+  //   try {
+  //     setLoading(true);
+  //     const response = await fetch("http://172.17.18.149:3000/heatmap", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "multipart/form-data" },
+  //       body: formData,
+  //     });
+
+  //     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  //     const data = await response.json();
+  //     setLoading(false);
+
+  //     if (data?.heatmap) {
+  //       setHeatmapURI(data.heatmap);
+  //       setShowHeatmap(true);
+  //     } else {
+  //       Alert.alert("Heatmap not returned from server.");
+  //     }
+  //   } catch (err) {
+  //     console.log("Upload error:", err);
+  //     setLoading(false);
+  //     Alert.alert("Failed to generate heatmap. Check backend connection.");
+  //   }
+
+  // };
   const constructHeatmap = async () => {
+    // If a heatmap already exists, toggle its visibility
     if (heatmapURI) {
-      // (KEEP) toggle overlay
       setShowHeatmap(!showHeatmap);
       return;
     }
 
+    // Guard: no image selected
     if (!imageURI) {
       Alert.alert("No image", "Image is missing.");
       return;
     }
 
+    // Create FormData for image upload
     const formData = new FormData();
     formData.append("image", {
-      uri: imageURI,
+      uri: imageURI[0],
       type: "image/jpeg",
       name: "photo.jpg",
     });
 
     try {
       setLoading(true);
-      const response = await fetch("http://172.17.20.21:3000/heatmap", {
+
+      // ❌ Don’t manually set Content-Type — let fetch handle it!
+      const response = await fetch("http://172.17.18.149:3000/heatmap", {
         method: "POST",
-        headers: { "Content-Type": "multipart/form-data" },
         body: formData,
       });
 
@@ -90,12 +138,14 @@ export default function ResultScreen() {
       } else {
         Alert.alert("Heatmap not returned from server.");
       }
+
     } catch (err) {
-      console.log("Upload error:", err);
+      console.error("Upload error:", err);
       setLoading(false);
       Alert.alert("Failed to generate heatmap. Check backend connection.");
     }
   };
+
 
   // (KEEP) asking user permission to save the data
   const handleUploadConfirmation = () => {
@@ -372,7 +422,7 @@ export default function ResultScreen() {
     const docRef = doc(db, "plant", speciesName);
     const docSnap = await getDoc(docRef);
     const imageUrl = docSnap.exists() ? docSnap.data().plant_image : null;
-    console.log(imageUrl)
+    //console.log(imageUrl)
     return imageUrl;
   };
 
@@ -412,7 +462,13 @@ export default function ResultScreen() {
           style={styles.image}
         /> */}
         <ImageSlideshow imageURIs={Array.isArray(imageURI) ? imageURI : [imageURI]} />
-
+        {heatmapURI && showHeatmap && (
+          <Image
+            source={{ uri: heatmapURI }}
+            style={styles.heatmapOverlay}
+            resizeMode="cover"
+          />
+        )}
 
 
         <TouchableOpacity
@@ -517,4 +573,13 @@ const styles = StyleSheet.create({
   lowConfidenceContainer: { alignItems: "center", justifyContent: "center", padding: 20 },
   lowConfidenceText: { fontSize: 16, color: "gray", textAlign: "center", fontStyle: "italic" },
   Topsuggestion: { paddingBottom: 20, alignItems: "center" },
+  heatmapOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    opacity: 0.6, // tweak transparency as you like
+    zIndex: 2,
+  },
 });
