@@ -37,7 +37,7 @@ import FlashMessage, { showMessage } from "react-native-flash-message";
 import { PermissionProvider } from "./src/components/PermissionManager";
 
 //testing the component
-import Testing from './src/pages/testing';
+import Tabs from './tabs/Tabs';
 
 const Stack = createStackNavigator();
 
@@ -46,8 +46,8 @@ export default function App() {
     <>
     <PermissionProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="HomepageUser" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Testing" component={Testing} />
+        <Stack.Navigator initialRouteName="Root" screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Root" component={Tabs}/>
           <Stack.Screen name="Profile" component={Profile} />
           {/* <Stack.Screen name="IoTDashboard" component={IoTDashboard} /> */}
           {/* <Stack.Screen name="DashboardScreen" component={DashboardScreen} /> */}
