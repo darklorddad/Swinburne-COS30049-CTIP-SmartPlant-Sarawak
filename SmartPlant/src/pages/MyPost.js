@@ -31,7 +31,10 @@ export default function MyPost({ navigation }) {
         }
 
         // Only the posts uploaded by this user
-        const postsQuery = query(collection(db, "plant_identify"), where("user_id", "==", userId));
+        const postsQuery = query(collection(db, "plant_identify"), 
+          where("user_id", "==", userId),
+          where("identify_status", "==", "verified")
+        );
         console.log("Current User UID:", userId);
         const snapshot = await getDocs(postsQuery);
 
