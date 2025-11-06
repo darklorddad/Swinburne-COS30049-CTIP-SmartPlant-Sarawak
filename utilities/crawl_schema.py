@@ -2,7 +2,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 # IMPORTANT: Replace with the actual path to your service account key file.
-CRED_PATH = "C:\Users\darklorddad\Downloads\Year 3 Semester 1\COS30049 Computing Technology Innovation Project\Project\SPS\utilities\smartplantsarawak-firebase-adminsdk-fbsvc-f3c2a1978c.json"
+CRED_PATH = r"C:\Users\darklorddad\Downloads\Year 3 Semester 1\COS30049 Computing Technology Innovation Project\Project\SPS\utilities\smartplantsarawak-firebase-adminsdk-fbsvc-f3c2a1978c.json"
 
 try:
     cred = credentials.Certificate(CRED_PATH)
