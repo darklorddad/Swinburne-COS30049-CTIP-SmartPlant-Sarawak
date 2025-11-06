@@ -143,26 +143,27 @@ export default function NotificationsScreen({ navigation }) {
 
   // 1) Plant identification → identify_output screen
   if (n.type === "plant_identified") {
-    const p = n.payload || {};
-    const prediction = buildPrediction(p);
-    if (!prediction?.length) {
-      Alert.alert("Missing data", "This notification has no prediction data.");
-      return;
-    }
-    const imageURL = p.imageURL || p.ImageURL || p.downloadURL || null;
-    const isHttpUrl = (u) => typeof u === "string" && /^https?:\/\//.test(u);
+  const p = n.payload || {};
+  const prediction = buildPrediction(p);
 
-    // ⚠️ Use your actual route name here. If your navigator registers it as "identify_output",
-    // change the string below accordingly.
-    navigation.navigate("IdentifyOutput", {
-      prediction,
-      imageURI: imageURL || null,
-      hasImage: isHttpUrl(imageURL),
-      fromNotification: true,
-      notiId: n.id,
-    });
-    return;
-  }
+  // collect possible image fields -> always an array
+  const imageURLs =
+    Array.isArray(p.imageURLs) ? p.imageURLs :
+    Array.isArray(p.ImageURLs) ? p.ImageURLs :
+    p.imageURL  ? [p.imageURL]  :
+    p.ImageURL  ? [p.ImageURL]  :
+    p.downloadURL ? [p.downloadURL] : [];
+
+  navigation.navigate("IdentifyOutput", {
+    prediction,
+    imageURI: imageURLs,          // pass array
+    hasImage: imageURLs.length > 0,
+    fromNotification: true,
+    notiId: n.id,
+  });
+  return;
+}
+
 
   // 2) Post interactions → open PostDetailUser with the post loaded by id
   if (n.type === "post_like" || n.type === "post_save" || n.type === "post_comment") {

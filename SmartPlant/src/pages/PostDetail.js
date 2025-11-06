@@ -72,12 +72,14 @@ export default function PostDetail({ navigation, route }) {
   const [locality, setLocality] = useState(post?.locality ?? "—");
 
   const [imageUri, setImageUri] = useState(
-    Array.isArray(post?.imageURIs)
-      ? post.imageURIs
-      : post?.imageURIs
-        ? [post.imageURIs]
-        : []
-  );
+  Array.isArray(post?.imageURIs) ? post.imageURIs :
+  Array.isArray(post?.ImageURLs) ? post.ImageURLs :
+  Array.isArray(post?.images)    ? post.images    :
+  post?.imageURIs ? [post.imageURIs] :
+  post?.ImageURLs ? [post.ImageURLs] :
+  post?.images    ? [post.images]    : []
+ );
+
   const [currentSlide, setCurrentSlide] = useState(0);
   const [caption, setCaption] = useState(post?.caption ?? "");
 
@@ -122,12 +124,14 @@ const [ownerId, setOwnerId] = useState(post?.user_id ?? null);
 
       if (v?.author_name) setAuthor(v.author_name);
       if (v?.locality) setLocality(v.locality);
-      if (v?.imageURIs) setImageUri(setImageUri(
-        Array.isArray(v.imageURIs)
-          ? v.imageURIs.filter(u => typeof u === "string" && u.trim() !== "")
-          : []
-      )
-      );
+      // Support both imageURIs and ImageURLs (and a generic images field)
+const imgs =
+  Array.isArray(v.imageURIs) ? v.imageURIs :
+  Array.isArray(v.ImageURLs) ? v.ImageURLs :
+  Array.isArray(v.images)    ? v.images    : [];
+
+setImageUri(imgs.filter(u => typeof u === "string" && u.trim() !== ""));
+
       //noti start
       if (v?.user_id) setOwnerId(v.user_id);
       //noti end
