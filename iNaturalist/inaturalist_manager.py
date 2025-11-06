@@ -803,7 +803,7 @@ def main():
     Main function to run the script.
     """
     manifest_path = 'iNaturalist/iNaturalist-manifest.md'
-    cache_path = 'iNaturalist/counts_cache.json'
+    cache_path = 'iNaturalist/counts-cache.json'
     
     print(f"Parsing manifest file: {manifest_path}")
     file_tree = parse_manifest(manifest_path)
