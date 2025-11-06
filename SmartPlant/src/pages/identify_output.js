@@ -19,6 +19,7 @@ import ImageSlideshow from '../components/ImageSlideShow.js';
 import { useRoute, useNavigation } from '@react-navigation/native';
 // noti start
 import { updateNotificationPayload } from "../firebase/notification_user/updateNotificationPayload";
+import { getDisplayName } from "../firebase/UserProfile/getDisplayName";
 // noti end
 import * as Location from "expo-location"; // (KEEP) getting current device location
 import * as ImagePicker from "expo-image-picker"; // (KEEP) for picking images with EXIF
@@ -307,10 +308,13 @@ export default function ResultScreen() {
       // ========= 👤 User Info =========
       const user = auth.currentUser || null;
       const userID = user?.uid ?? "anonymous";
-      const userName =
-        user?.displayName ||
-        (user?.email ? user.email.split("@")[0] : null) ||
-        "User";
+      //const userName =
+        //user?.displayName ||
+        //(user?.email ? user.email.split("@")[0] : null) ||
+        //"User";
+      const userName = await getDisplayName(user?.uid, 
+      user?.displayName || (user?.email ? user.email.split("@")[0] : null) || "User"
+      );
       console.log("userID:", userID, "userName:", userName);
 
       // ========= 🌿 Firestore Upload =========

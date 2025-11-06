@@ -101,7 +101,13 @@ export default function NotificationsScreen({ navigation }) {
       "Unknown";
 
     const rowTitle = n.title || "Plant Identification Complete";
-    const rowMsg = n.message || top1Name;
+    //const rowMsg = n.message || top1Name;
+    // prefer actorName (canonical) if this is a post interaction
+const rowMsg =
+  (n.type?.startsWith("post_") && n?.payload?.actorName && n.message
+    ? n.message.replace(/^[^ ]+/, n.payload.actorName) // replace first token with canonical name
+    : n.message) ||
+  top1Name;
 
     // const onPressRow = async () => {
     //   try { await markNotificationRead(n.id); }

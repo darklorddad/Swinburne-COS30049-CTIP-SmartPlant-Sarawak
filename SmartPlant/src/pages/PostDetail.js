@@ -19,6 +19,7 @@ import { addNotification } from "../firebase/notification_user/addNotification";
 //noti end
 
 import { auth, db } from "../firebase/FirebaseConfig";
+import { getDisplayName } from "../firebase/UserProfile/getDisplayName";
 import {
   doc,
   updateDoc,
@@ -58,8 +59,17 @@ export default function PostDetail({ navigation, route }) {
 
   const me = auth.currentUser;
   const myId = me?.uid ?? "anon";
-  const myName =
-    me?.displayName || (me?.email ? me.email.split("@")[0] : null) || "User";
+  //const myName =
+    //me?.displayName || (me?.email ? me.email.split("@")[0] : null) || "User";
+  const [myName, setMyName] = useState(
+    me?.displayName || (me?.email ? me.email.split("@")[0] : null) || "User"
+  );
+  useEffect(() => {
+    (async () => {
+      const canonical = await getDisplayName(myId, myName);
+      setMyName(canonical);
+    })();
+  }, [myId]);
 
   // Mirror feed fields (seeded from route) and keep live-synced
   const initialTimeMs =
