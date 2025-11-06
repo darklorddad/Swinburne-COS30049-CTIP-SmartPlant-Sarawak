@@ -66,7 +66,7 @@ export default function PostDetail({ navigation, route }) {
   const [postTimeMs, setPostTimeMs] = useState(initialTimeMs);
   const [author, setAuthor] = useState(post?.author ?? "User");
   const [locality, setLocality] = useState(post?.locality ?? "—");
-  // const [imageUri, setImageUri] = useState(post?.imageURIs ?? []);
+
   const [imageUri, setImageUri] = useState(
     Array.isArray(post?.imageURIs)
       ? post.imageURIs

@@ -11,6 +11,7 @@ export default function MyPost({ navigation }) {
   const [userFullName, setUserFullName] = useState("");
   const userId = auth.currentUser?.uid;
   const userEmail = auth.currentUser?.email || "";
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     const fetchUserPosts = async () => {
@@ -63,7 +64,7 @@ export default function MyPost({ navigation }) {
 
           return {
             id: docSnap.id,
-            image: data.ImageURLs,
+            imageURIs: imageURIs,
             caption: data.caption || "",
             locality: data.locality || "",
             coordinate: data.coordinate || null,
@@ -146,7 +147,7 @@ export default function MyPost({ navigation }) {
             </View>
 
             {/* Image */}
-            <ImageSlideshow imageURIs={post.image} style={styles.photo} />
+            <ImageSlideshow imageURIs={post.imageURIs} onSlideChange={(index) => setCurrentSlide(index) } style={styles.photo} />
 
             {/* Actions */}
             <View style={styles.actions}>

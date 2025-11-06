@@ -5,6 +5,7 @@ import { getFullProfile } from "../firebase/UserProfile/UserUpdate";
 import { auth } from "../firebase/FirebaseConfig";
 import { useFocusEffect } from '@react-navigation/native';
 
+
 const NAV_HEIGHT = 60;
 const NAV_MARGIN_TOP =150;
 export default function ProfileScreen({ navigation }) {
