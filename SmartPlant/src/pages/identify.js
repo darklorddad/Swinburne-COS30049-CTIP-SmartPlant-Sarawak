@@ -186,8 +186,8 @@ export default function IdentifyPage() {
             setLoading(true);
             const endpoint =
                 images.length === 3
-                    ? "http://192.168.1.9:3000/predict_multiple"
-                    : "http://192.168.1.9:3000/predict";
+                    ? "http://192.168.1.8:3000/predict_multiple"
+                    : "http://192.168.1.8:3000/predict";
 
             const response = await fetch(endpoint, {
                 method: "POST",

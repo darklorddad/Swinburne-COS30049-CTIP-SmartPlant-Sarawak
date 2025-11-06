@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  Platform,   // ← added
+  StatusBar,  // ← added
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
@@ -20,6 +22,8 @@ import ImageSlideshow from "../components/ImageSlideShow";
 const NAV_HEIGHT = 60;      // height of your BottomNav
 const NAV_MARGIN_TOP = 150; // its marginTop from Navigation.js
 
+// top padding so the greeting isn't too high (handles notch/status bar)
+const TOP_PAD = Platform.OS === "ios" ? 56 : (StatusBar.currentHeight || 0) + 8;
 
 const timeAgo = (ms) => {
   const s = Math.max(1, Math.floor((Date.now() - ms) / 1000));
@@ -59,12 +63,11 @@ export default function HomepageUser({ navigation }) {
 
         return {
           id: d.id,
-          // image: v?.ImageURL || null,
           imageURIs: Array.isArray(v?.ImageURLs)
-            ? v.ImageURLs.filter(u => typeof u === "string" && u.trim() !== "")
+            ? v.ImageURLs.filter((u) => typeof u === "string" && u.trim() !== "")
             : v?.ImageURLs
-              ? [v.ImageURLs]
-              : [],
+            ? [v.ImageURLs]
+            : [],
           caption: top1
             ? `Top: ${top1.plant_species} (${Math.round((top1.ai_score || 0) * 100)}%)`
             : "New identification",
@@ -77,6 +80,7 @@ export default function HomepageUser({ navigation }) {
           comment_count: typeof v?.comment_count === "number" ? v.comment_count : 0,
           saved_by: Array.isArray(v?.saved_by) ? v.saved_by : [],
           saved_count: typeof v?.saved_count === "number" ? v.saved_count : undefined,
+          identify_status: (v?.identify_status || "pending").toLowerCase(), // <-- already present
         };
       });
 
@@ -96,7 +100,17 @@ export default function HomepageUser({ navigation }) {
         setPosts((prev) => {
           const exists = prev.some((p) => p.id === newPost.id);
           if (exists) return prev;
-          return [{ ...newPost, like_count: 0, comment_count: 0, saved_by: [], saved_count: 0 }, ...prev].slice(0, 20);
+          return [
+            {
+              ...newPost,
+              like_count: 0,
+              comment_count: 0,
+              saved_by: [],
+              saved_count: 0,
+              identify_status: (newPost.identify_status || "pending").toLowerCase(),
+            },
+            ...prev,
+          ].slice(0, 20);
         });
         navigation.setParams?.({ newPost: undefined });
       }
@@ -120,13 +134,34 @@ export default function HomepageUser({ navigation }) {
     }
   }, [latest?.time]);
 
+  // ===== Icon-only status (pending / verified / rejected) — same look as expert =====
+  const StatusIcon = ({ status }) => {
+    let wrapStyle = styles.iconWrapPending;
+    let icon = "time";
+    if (status === "verified") {
+      wrapStyle = styles.iconWrapVerified;
+      icon = "checkmark";
+    } else if (status === "rejected") {
+      wrapStyle = styles.iconWrapRejected;
+      icon = "close";
+    }
+    return (
+      <View style={[styles.iconWrapBase, wrapStyle]}>
+        <Ionicons name={icon} size={20} color="#fff" />
+      </View>
+    );
+  };
+
   return (
     <View style={styles.background}>
       <ScrollView
-        style={styles.scroller} // << allows reaching the bottom under the raised nav
+        style={styles.scroller}
         contentContainerStyle={[
           styles.container,
-          { paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16 }, // enough room to scroll past the bar
+          {
+            paddingTop: TOP_PAD,                                  // ← added
+            paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16,      // keep bottom room
+          },
         ]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
@@ -150,7 +185,10 @@ export default function HomepageUser({ navigation }) {
               <View style={styles.recentThumb} />
             )}
             <View style={{ flex: 1 }}>
-              <Text style={styles.recentTitle}>Plant ✓</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={styles.recentTitle}>Plant</Text>
+                <StatusIcon status={latest.identify_status} />
+              </View>
               <Text style={styles.recentMeta}>{formattedDate}</Text>
               <Text style={styles.recentMeta}>{latest.locality ?? "—"}</Text>
             </View>
@@ -183,6 +221,9 @@ export default function HomepageUser({ navigation }) {
                       {timeAgo(p.time)} — {p.locality ?? "—"}
                     </Text>
                   </View>
+
+                  <StatusIcon status={p.identify_status} />
+
                   <Text style={styles.detailsPill}>Details</Text>
                 </View>
 
@@ -195,7 +236,6 @@ export default function HomepageUser({ navigation }) {
                 ) : (
                   <View style={styles.feedImage} />
                 )}
-
 
                 {p.caption ? <Text style={{ marginTop: 8 }}>{p.caption}</Text> : null}
               </TouchableOpacity>
@@ -229,7 +269,7 @@ export default function HomepageUser({ navigation }) {
 const styles = StyleSheet.create({
   background: { flex: 1, backgroundColor: "#F6F1E9" },
 
-  // KEY: subtract the nav's marginTop from the ScrollView so you can reach the bottom
+  // subtract the nav's marginTop from the ScrollView so you can reach the bottom
   scroller: { marginBottom: -NAV_MARGIN_TOP },
 
   container: { flexGrow: 1, padding: 16 },
@@ -273,4 +313,22 @@ const styles = StyleSheet.create({
   feedActions: { flexDirection: "row", alignItems: "center", marginTop: 10 },
   countGroup: { flexDirection: "row", alignItems: "center" },
   countText: { marginLeft: 6 },
+
+  // Icon-only status badge (pending / verified / rejected)
+  iconWrapBase: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    marginHorizontal: 8,
+  },
+  iconWrapVerified: { backgroundColor: "#27AE60" },
+  iconWrapRejected: { backgroundColor: "#D36363" },
+  iconWrapPending: { backgroundColor: "#9CA3AF" },
 });

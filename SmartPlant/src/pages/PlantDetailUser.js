@@ -72,6 +72,8 @@ export default function PlantDetailUser({ navigation, route }) {
     ? `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`
     : "—");
 
+  const images = Array.isArray(post?.image) ? post.image : post?.image ? [post.image] : [];
+
   return (
     <View style={styles.background}>
       <ScrollView
@@ -86,8 +88,14 @@ export default function PlantDetailUser({ navigation, route }) {
         showsVerticalScrollIndicator={false}
       >
         {/* Banner / photo */}
-        {post?.image ? (
-          <ImageSlideshow imageURIs={post.image } onSlideChange={(index) => setCurrentSlide(index) } style={styles.banner} />
+        {images.length > 0 ? (
+          <ImageSlideshow
+            imageURIs={images}
+            onSlideChange={(index) => setCurrentSlide(index)}
+            style={styles.banner}
+          />
+        ) : post?.image ? (
+          <Image source={{ uri: post.image }} style={styles.banner} />
         ) : (
           <View style={styles.banner} />
         )}
@@ -208,7 +216,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   viewOnMapText: { color: "#2b2b2b", fontWeight: "700" },
-
   location: { height: 80, borderRadius: 8, backgroundColor: "#CFD4D0", marginTop: 4 },
   quote: { marginTop: 6, fontStyle: "italic", color: "#333" },
   suggestion: {
