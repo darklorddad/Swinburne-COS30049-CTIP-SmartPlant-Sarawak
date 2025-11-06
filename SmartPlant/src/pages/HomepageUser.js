@@ -15,9 +15,11 @@ import BottomNav from "../components/Navigation";
 
 import { auth, db } from "../firebase/FirebaseConfig";
 import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import ImageSlideshow from "../components/ImageSlideShow";
 
 const NAV_HEIGHT = 60;      // height of your BottomNav
 const NAV_MARGIN_TOP = 150; // its marginTop from Navigation.js
+
 
 const timeAgo = (ms) => {
   const s = Math.max(1, Math.floor((Date.now() - ms) / 1000));
@@ -40,6 +42,7 @@ export default function HomepageUser({ navigation }) {
 
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     const q = query(collection(db, "plant_identify"), orderBy("createdAt", "desc"), limit(20));
@@ -56,7 +59,12 @@ export default function HomepageUser({ navigation }) {
 
         return {
           id: d.id,
-          image: v?.ImageURL || null,
+          // image: v?.ImageURL || null,
+          imageURIs: Array.isArray(v?.ImageURLs)
+            ? v.ImageURLs.filter(u => typeof u === "string" && u.trim() !== "")
+            : v?.ImageURLs
+              ? [v.ImageURLs]
+              : [],
           caption: top1
             ? `Top: ${top1.plant_species} (${Math.round((top1.ai_score || 0) * 100)}%)`
             : "New identification",
@@ -178,11 +186,16 @@ export default function HomepageUser({ navigation }) {
                   <Text style={styles.detailsPill}>Details</Text>
                 </View>
 
-                {p.image ? (
-                  <Image source={{ uri: p.image }} style={styles.feedImage} />
+                {Array.isArray(p.imageURIs) && p.imageURIs.length > 0 ? (
+                  <ImageSlideshow
+                    imageURIs={p.imageURIs}
+                    onSlideChange={(index) => setCurrentSlide(index)}
+                    style={styles.feedImage}
+                  />
                 ) : (
                   <View style={styles.feedImage} />
                 )}
+
 
                 {p.caption ? <Text style={{ marginTop: 8 }}>{p.caption}</Text> : null}
               </TouchableOpacity>

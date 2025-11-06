@@ -53,54 +53,6 @@ export default function ResultScreen() {
   const [plantImages, setPlantImages] = useState([]);
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // --- Heatmap overlay ---
-  // const constructHeatmap = async () => {
-  //   // If a heatmap already exists, toggle its visibility
-  //   if (heatmapURI) {
-  //     setShowHeatmap(!showHeatmap);
-  //     return;
-  //   }
-
-  //   // Guard: no image selected
-  //   if (!imageURI) {
-  //     Alert.alert("No image", "Image is missing.");
-  //     return;
-  //   }
-
-  //   // Create FormData for image upload
-  //   const formData = new FormData();
-  //   formData.append("image", {
-  //     uri: imageURI[0],
-  //     type: "image/jpeg",
-  //     name: "photo.jpg",
-  //   });
-
-  //   try {
-  //     setLoading(true);
-  //     const response = await fetch("http://10.26.195.57:3000/heatmap", {
-  //       method: "POST",
-  //       body: formData,
-  //     });
-
-  //     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-  //     const data = await response.json();
-  //     setLoading(false);
-
-  //     if (data?.heatmap) {
-  //       setHeatmapURI(data.heatmap);
-  //       setShowHeatmap(true);
-  //     } else {
-  //       Alert.alert("Heatmap not returned from server.");
-  //     }
-
-  //   } catch (err) {
-  //     console.error("Upload error:", err);
-  //     setLoading(false);
-  //     Alert.alert("Failed to generate heatmap. Check backend connection.");
-  //   }
-  // };
-
   const constructHeatmap = async () => {
     console.log("constructHeatmap called");
     console.log("imageURI:", imageURI);
@@ -129,7 +81,7 @@ export default function ResultScreen() {
     console.log("before try")
     try {
       setLoading(true);
-      const response = await fetch("http://10.26.195.57:3000/heatmap", {
+      const response = await fetch("http://172.16.58.27:3000/heatmap", {
         method: "POST",
         body: formData,
       });
@@ -207,14 +159,11 @@ export default function ResultScreen() {
   };
 
   const uploadDataToDatabase = async () => {
-    // noti start — block upload when opened from a noti without an image
     const fromNotification = route.params?.fromNotification ?? false;
     const hasImage =
       route.params?.hasImage ??
       Boolean(imageURI && !String(imageURI).startsWith("data:image/png;base64"));
 
-    // If opened from a notification, never allow uploading again.
-    // (If it has an image => already uploaded; if it doesn't => nothing to upload.)
     if (fromNotification) {
       Alert.alert(
         hasImage ? "Already uploaded" : "No image to upload",
@@ -225,82 +174,103 @@ export default function ResultScreen() {
       return;
     }
 
-    // Also prevent double-tap or returning to this screen and pressing Done again
     const alreadyUploaded = route.params?.alreadyUploaded ?? false;
     if (alreadyUploaded) {
       Alert.alert("Already uploaded", "This item was uploaded in this session.");
       return;
     }
-    // noti end
 
     try {
-      // noti start — robust image handling for upload + re-use
-      let effectiveURI = imageURI;       // what we got from navigation
-      let downloadURL = null;
-
-      // 1) If we already have a hosted URL (came from a noti AFTER upload), don't re-upload
-      if (effectiveURI && effectiveURI.startsWith("http")) {
-        downloadURL = effectiveURI;
-      } else {
-        // 2) If we have no image or it's the tiny data: placeholder, ask user to pick one
-        if (!effectiveURI || effectiveURI.startsWith("data:")) {
-          const res = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            quality: 1,
-          });
-          if (res.canceled) {
-            setUploadLoading(false);
-            Alert.alert("No image selected", "Please choose an image to upload.");
-            return;
-          }
-          effectiveURI = res.assets[0].uri;    // this is a real file:// or content:// URI
-        }
-
-        // 3) Upload the real image
-        try {
-          downloadURL = await uploadImage(
-            effectiveURI,
-            (prediction?.[0]?.class) || "Unknown"
-          );
-          console.log("Added to storage with URL:", downloadURL);
-        } catch (e) {
-          console.log("Error uploading image:", e);
-          setUploadLoading(false);
-          Alert.alert("Upload failed", "Please try again.");
-          return;
-        }
+      // ========= 🖼️ MULTI-IMAGE HANDLING =========
+      if (!Array.isArray(imageURI) || imageURI.length === 0) {
+        Alert.alert("No images found", "Please select at least one image to upload.");
+        return;
       }
-      // noti end
-      // ===== noti start =====
+
+      let downloadURLs = [];
+
+      for (let i = 0; i < imageURI.length; i++) {
+        let effectiveURI = imageURI[i];
+        let downloadURL = null;
+
+        if (typeof effectiveURI === "string" && effectiveURI.startsWith("http")) {
+          // Already hosted (from notification)
+          downloadURL = effectiveURI;
+        } else {
+          // Ask user to pick one if placeholder or empty
+          if (
+            !effectiveURI ||
+            (typeof effectiveURI === "string" && effectiveURI.startsWith("data:"))
+          ) {
+            const res = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              quality: 1,
+            });
+            if (res.canceled) {
+              setUploadLoading(false);
+              Alert.alert("No image selected", "Please choose an image to upload.");
+              return;
+            }
+            effectiveURI = res.assets[0].uri;
+          }
+
+          // Upload real image
+          try {
+            const uploadedURL = await uploadImage(
+              effectiveURI,
+              (prediction?.[i]?.class) || "Unknown"
+            );
+            console.log(`✅ Image ${i + 1} uploaded with URL:`, uploadedURL);
+            downloadURL = uploadedURL;
+          } catch (e) {
+            console.log(`❌ Error uploading image ${i + 1}:`, e);
+            Alert.alert("Upload failed", `Image ${i + 1} failed. Please try again.`);
+            continue;
+          }
+        }
+
+        downloadURLs.push(downloadURL);
+      }
+
+      // ========= 🔔 Notification payload update =========
       try {
         const { notiId } = route.params || {};
         console.log("notiId for payload update:", notiId);
 
-        if (notiId && downloadURL) {
+        if (notiId && downloadURLs.length > 0) {
           await updateNotificationPayload(notiId, {
-            imageURL: downloadURL,
-            top_1: { plant_species: (prediction?.[0]?.class) || "Unknown", ai_score: prediction?.[0]?.confidence || 0 },
-            top_2: { plant_species: (prediction?.[1]?.class) || "", ai_score: prediction?.[1]?.confidence || 0 },
-            top_3: { plant_species: (prediction?.[2]?.class) || "", ai_score: prediction?.[2]?.confidence || 0 },
+            imageURLs: downloadURLs, // updated to plural for multiple images
+            top_1: {
+              plant_species: prediction?.[0]?.class || "Unknown",
+              ai_score: prediction?.[0]?.confidence || 0,
+            },
+            top_2: {
+              plant_species: prediction?.[1]?.class || "",
+              ai_score: prediction?.[1]?.confidence || 0,
+            },
+            top_3: {
+              plant_species: prediction?.[2]?.class || "",
+              ai_score: prediction?.[2]?.confidence || 0,
+            },
           });
-          console.log("✅ Notification payload updated with imageURL/top3");
-          // Refresh this screen so the image shows immediately
-          navigation.setParams({ imageURI: downloadURL, hasImage: true });
+          console.log("✅ Notification payload updated with imageURLs/top3");
+          navigation.setParams({ imageURI: downloadURLs, hasImage: true });
         } else {
-          console.log("⚠️ Missing notiId or downloadURL; skip payload update.");
+          console.log("⚠️ Missing notiId or downloadURLs; skip payload update.");
         }
       } catch (e) {
         console.log("⚠️ Failed to update notification payload:", e);
       }
-      // ===== noti end =====
 
       setUPLoading(true);
+
+      // ========= 📍 EXIF LOCATION HANDLING =========
       let latitude = null;
       let longitude = null;
 
       try {
-        const exifResult = await ImagePicker.getExifAsync(imageURI);
-        if (exifResult?.GPSLatitude != null && exifResult?.GPSLongitude != null) {
+        const exifResult = await ImagePicker.getExifAsync(imageURI[0]); // get EXIF from first image
+        if (exifResult?.GPSLatitude && exifResult?.GPSLongitude) {
           latitude = exifResult.GPSLatitude;
           longitude = exifResult.GPSLongitude;
           console.log("Got GPS from EXIF:", latitude, longitude);
@@ -309,7 +279,6 @@ export default function ResultScreen() {
         console.log("No EXIF location found, fallback to device location...");
       }
 
-      // (KEEP) Fallback — get current device location (consider: image could be uploaded later at home)
       if (latitude == null || longitude == null) {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === "granted") {
@@ -322,20 +291,20 @@ export default function ResultScreen() {
         }
       }
 
-      // Build locality string
+      // ========= 🏡 Locality =========
       let locality = "—";
       if (latitude != null && longitude != null) {
         locality = await makeLocality(latitude, longitude);
       }
 
-      // -------- 2) Determine identification status --------
+      // ========= 🧠 Prediction Info =========
       const top1 = prediction?.[0];
       const top2 = prediction?.[1];
       const top3 = prediction?.[2];
       const identify_status =
         (top1?.confidence ?? 0) > 0.7 ? "verified" : "pending";
 
-      // -------- 3) Current user id + unified user name --------
+      // ========= 👤 User Info =========
       const user = auth.currentUser || null;
       const userID = user?.uid ?? "anonymous";
       const userName =
@@ -344,19 +313,13 @@ export default function ResultScreen() {
         "User";
       console.log("userID:", userID, "userName:", userName);
 
-      // -------- 4) Upload image to storage --------
-      if (!imageURI) throw new Error("Missing imageURI");
-      downloadURL = await uploadImage(imageURI, top1?.class || "unknown");
-      console.log("Added to storage with URL:", downloadURL);
-
-      // -------- 5) Upload info to Firestore (plant_identify) --------
+      // ========= 🌿 Firestore Upload =========
       const plantData = {
         model_predictions: {
           top_1: {
             plant_species: top1?.class ?? null,
             ai_score: top1?.confidence ?? null,
           },
-          // (KEEP) keep extra predictions in case your teammate re-enables more UI:
           top_2: {
             plant_species: top2?.class ?? null,
             ai_score: top2?.confidence ?? null,
@@ -367,18 +330,18 @@ export default function ResultScreen() {
           },
         },
         createdAt: serverTimestamp(),
-        ImageURL: downloadURL,
+        ImageURLs: downloadURLs, // plural: multiple URLs
         coordinate: { latitude: latitude ?? null, longitude: longitude ?? null },
         user_id: userID,
         identify_status,
-        author_name: userName, // <<— single source of truth for display name
-        locality,              // <<— save readable locality for UI
+        author_name: userName,
+        locality,
       };
 
       const docId = await addPlantIdentify(plantData);
       console.log("Added to Firestore with ID:", docId);
 
-      // -------- 6) Mirror to markers so MapPage shows a pin automatically --------
+      // ========= 🗺️ Mirror to markers =========
       try {
         await addDoc(collection(db, "markers"), {
           title: top1?.class || "Plant",
@@ -389,28 +352,27 @@ export default function ResultScreen() {
           },
           identifiedBy: userName,
           time: serverTimestamp(),
-          image: downloadURL,
+          images: downloadURLs,
           description: "Uploaded from identification",
-          plant_identify_id: docId, // backlink if you need it later
+          plant_identify_id: docId,
           locality,
         });
       } catch (e) {
         console.log("Failed to mirror marker:", e);
       }
-      //noti start
-      navigation.setParams({ alreadyUploaded: true });
-      //noti end
 
-      // -------- 7) Build a feed post and navigate to HomepageUser --------
+      navigation.setParams({ alreadyUploaded: true });
+
+      // ========= 📰 Build Feed Post =========
       const newPost = {
         id: docId,
-        image: downloadURL,
+        images: downloadURLs,
         caption: top1
           ? `Top: ${top1.class} (${Math.round((top1.confidence || 0) * 100)}%)`
           : "New identification",
-        author: userName, // same name everywhere
+        author: userName,
         time: Date.now(),
-        locality,         // use nice string in feed
+        locality,
         prediction: prediction.slice(0, 3),
         coordinate: { latitude: latitude ?? null, longitude: longitude ?? null },
       };
@@ -421,11 +383,13 @@ export default function ResultScreen() {
       Alert.alert("Upload failed", error?.message || "Please try again.");
     } finally {
       setUploadLoading(false);
+      setUPLoading(false);
     }
-    setUPLoading(false);
   };
 
-  // retrieve the image url for display purpose
+
+
+  //retrieve the image url for display purpose
   const getPlantImage = async (speciesName) => {
     const docRef = doc(db, "plant", speciesName);
     const docSnap = await getDoc(docRef);
@@ -537,7 +501,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFF8E1",
     alignItems: "center",
-    padding: 20,
+    padding: 30,
   },
   imageBox: {
     width: 220,
@@ -553,7 +517,7 @@ const styles = StyleSheet.create({
   image: { width: "100%", height: "100%", borderRadius: 4 },
   iconButton: { position: "absolute", top: 8, right: 8 },
   circle: { width: 20, height: 20, backgroundColor: "gray", borderRadius: 10, zIndex: 10, },
-  title: { fontSize: 18, fontWeight: "bold", marginVertical: 1 },
+  title: { fontSize: 18, fontWeight: "bold", marginVertical: 1, marginBottom: 20, },
   resultsContainer: { width: "100%", paddingHorizontal: 10, marginBottom: 20 },
   resultCard: {
     backgroundColor: "#496D4C",

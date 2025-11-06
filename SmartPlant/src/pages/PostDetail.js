@@ -29,6 +29,7 @@ import {
   query,
   runTransaction,
 } from "firebase/firestore";
+import ImageSlideshow from "../components/ImageSlideShow";
 
 const NAV_HEIGHT = 60;      // height of your BottomNav
 const NAV_MARGIN_TOP = 150; // its marginTop from Navigation.js
@@ -65,7 +66,15 @@ export default function PostDetail({ navigation, route }) {
   const [postTimeMs, setPostTimeMs] = useState(initialTimeMs);
   const [author, setAuthor] = useState(post?.author ?? "User");
   const [locality, setLocality] = useState(post?.locality ?? "—");
-  const [imageUri, setImageUri] = useState(post?.image ?? null);
+  // const [imageUri, setImageUri] = useState(post?.imageURIs ?? []);
+  const [imageUri, setImageUri] = useState(
+    Array.isArray(post?.imageURIs)
+      ? post.imageURIs
+      : post?.imageURIs
+        ? [post.imageURIs]
+        : []
+  );
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [caption, setCaption] = useState(post?.caption ?? "");
 
   const [liked, setLiked] = useState(false);
@@ -105,7 +114,12 @@ export default function PostDetail({ navigation, route }) {
 
       if (v?.author_name) setAuthor(v.author_name);
       if (v?.locality) setLocality(v.locality);
-      if (v?.ImageURL) setImageUri(v.ImageURL);
+      if (v?.imageURIs) setImageUri(setImageUri(
+        Array.isArray(v.imageURIs)
+          ? v.imageURIs.filter(u => typeof u === "string" && u.trim() !== "")
+          : []
+      )
+      );
 
       const top1 = v?.model_predictions?.top_1;
       if (top1) {
@@ -213,7 +227,7 @@ export default function PostDetail({ navigation, route }) {
         user_name: myName,
         createdAt: serverTimestamp(),
       });
-      await updateDoc(postRef, { comment_count: increment(1) }).catch(() => {});
+      await updateDoc(postRef, { comment_count: increment(1) }).catch(() => { });
     } catch (e) {
       console.log("Failed to add comment:", e);
     }
@@ -223,6 +237,7 @@ export default function PostDetail({ navigation, route }) {
   };
 
   const commentCount = comments.length;
+  console.log("PostDetail imageUri:", imageUri);
 
   return (
     <View style={styles.background}>
@@ -264,11 +279,16 @@ export default function PostDetail({ navigation, route }) {
         </View>
 
         {/* Photo */}
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.photo} />
+        {Array.isArray(imageUri) && imageUri.length > 0 ? (
+          <ImageSlideshow
+            imageURIs={imageUri}
+            onSlideChange={(index) => setCurrentSlide(index)}
+            style={styles.photo}
+          />
         ) : (
-          <View style={styles.photo} />
+          <View style={styles.photo} /> // placeholder if no images
         )}
+
 
         {/* Caption */}
         {!!caption && <Text style={{ marginTop: 10 }}>{caption}</Text>}

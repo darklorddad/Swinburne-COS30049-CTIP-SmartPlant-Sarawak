@@ -14,8 +14,8 @@ export default function NotificationsScreen({ navigation }) {
   const userId = auth.currentUser ? auth.currentUser.uid : null;
   const items = useNotifications(userId);
 
-  const newItems  = items.filter(n => !n.read);
-  const pastItems = items.filter(n =>  n.read);
+  const newItems = items.filter(n => !n.read);
+  const pastItems = items.filter(n => n.read);
 
   // ---------- helpers ----------
   const formatTime = (ts) => {
@@ -23,9 +23,9 @@ export default function NotificationsScreen({ navigation }) {
       if (!ts) return "";
       const d =
         ts?.toDate?.() ? ts.toDate() :
-        ts?.seconds     ? new Date(ts.seconds * 1000) :
-        typeof ts === "number" ? new Date(ts) :
-        new Date(ts);
+          ts?.seconds ? new Date(ts.seconds * 1000) :
+            typeof ts === "number" ? new Date(ts) :
+              new Date(ts);
       const pad = (n) => String(n).padStart(2, "0");
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     } catch {
@@ -83,11 +83,49 @@ export default function NotificationsScreen({ navigation }) {
       "Unknown";
 
     const rowTitle = n.title || "Plant Identification Complete";
-    const rowMsg   = n.message || top1Name;
+    const rowMsg = n.message || top1Name;
+
+    // const onPressRow = async () => {
+    //   try { await markNotificationRead(n.id); }
+    //   catch (e) { console.log("mark read failed:", e); }
+
+    //   if (n.type === "plant_identified") {
+    //     const p = n.payload || {};
+    //     const prediction = buildPrediction(p);
+    //     if (!prediction?.length) {
+    //       Alert.alert("Missing data", "This notification has no prediction data.");
+    //       return;
+    //     }
+
+    //     // Accept multiple possible keys for uploaded image URL
+    //     const imageURL = p.imageURL || p.ImageURL || p.downloadURL || null;
+    //     const isHttpUrl = (u) => typeof u === "string" && /^https?:\/\//.test(u);
+
+
+    //     // Use uploaded image if present; otherwise pass a 1x1 transparent placeholder
+    //     const placeholder =
+    //       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
+
+    //     navigation.navigate("IdentifyOutput", {
+    //     prediction,
+    //     imageURI: imageURL || null,
+    //     hasImage: isHttpUrl(imageURL),  // ✅ 新增這個
+    //     fromNotification: true,
+    //     notiId: n.id,
+    //   });
+
+    //     return;
+    //   }
+
+    //   // add more types here later...
+    // };
 
     const onPressRow = async () => {
-      try { await markNotificationRead(n.id); }
-      catch (e) { console.log("mark read failed:", e); }
+      try {
+        await markNotificationRead(n.id);
+      } catch (e) {
+        console.log("mark read failed:", e);
+      }
 
       if (n.type === "plant_identified") {
         const p = n.payload || {};
@@ -97,22 +135,35 @@ export default function NotificationsScreen({ navigation }) {
           return;
         }
 
-        // Accept multiple possible keys for uploaded image URL
-        const imageURL = p.imageURL || p.ImageURL || p.downloadURL || null;
-        const isHttpUrl = (u) => typeof u === "string" && /^https?:\/\//.test(u);
+        // Accept multiple possible keys for uploaded image URLs
+        let imageURIs = [];
+        if (Array.isArray(p.imageURLs)) {
+          imageURIs = p.imageURLs.filter(u => typeof u === "string" && /^https?:\/\//.test(u));
+        } else if (p.imageURL) {
+          if (typeof p.imageURL === "string") imageURIs.push(p.imageURL);
+          else if (Array.isArray(p.imageURL)) imageURIs = p.imageURL;
+        } else if (p.ImageURL) {
+          if (typeof p.ImageURL === "string") imageURIs.push(p.ImageURL);
+          else if (Array.isArray(p.ImageURL)) imageURIs = p.ImageURL;
+        } else if (p.downloadURL) {
+          if (typeof p.downloadURL === "string") imageURIs.push(p.downloadURL);
+          else if (Array.isArray(p.downloadURL)) imageURIs = p.downloadURL;
+        }
 
-
-        // Use uploaded image if present; otherwise pass a 1x1 transparent placeholder
-        const placeholder =
-          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
+        // Ensure we have at least one placeholder if array is empty
+        if (!imageURIs.length) {
+          imageURIs = [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+          ];
+        }
 
         navigation.navigate("IdentifyOutput", {
-        prediction,
-        imageURI: imageURL || null,
-        hasImage: isHttpUrl(imageURL),  // ✅ 新增這個
-        fromNotification: true,
-        notiId: n.id,
-      });
+          prediction,
+          imageURI: imageURIs,        // ✅ pass as array
+          hasImage: imageURIs.some(u => /^https?:\/\//.test(u)), // true if any URL is hosted
+          fromNotification: true,
+          notiId: n.id,
+        });
 
         return;
       }
@@ -188,9 +239,9 @@ export default function NotificationsScreen({ navigation }) {
 
 const tag = (t) =>
   t === "plant_identified" ? "Plant" :
-  t === "post_like"       ? "Like"  :
-  t === "post_comment"    ? "Comment" :
-  t === "admin_reply"     ? "Admin" : "Info";
+    t === "post_like" ? "Like" :
+      t === "post_comment" ? "Comment" :
+        t === "admin_reply" ? "Admin" : "Info";
 
 /* ---------- styles ---------- */
 const GREEN = "#6EA564";
