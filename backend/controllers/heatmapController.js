@@ -2,48 +2,59 @@ const path = require("path");
 const { spawn } = require("child_process");
 const fs = require("fs");
 
-const generateGradcam = (req, res) => {
+const generateGradcam = async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: "No files uploaded" });
     }
 
-    const imagePath = req.file.path; // uploaded image path
-    const filename = path.basename(imagePath, path.extname(imagePath));
     const outputFolder = path.join(__dirname, "../heatmaps");
-
     if (!fs.existsSync(outputFolder)) fs.mkdirSync(outputFolder);
 
-    const outputFilename = path.join(outputFolder, `${filename}_heatmap.jpg`);
+    const heatmaps = [];
 
-    // Run Python Grad-CAM script
-    const pythonProcess = spawn("python", [
-      path.join(__dirname, "../gradcam.py"),
-      imagePath,
-      outputFilename
-    ]);
+    // Process each uploaded image one by one
+    for (const file of req.files) {
+      const imagePath = file.path;
+      const filename = path.basename(imagePath, path.extname(imagePath));
+      const outputFilename = path.join(outputFolder, `${filename}_heatmap.jpg`);
 
-    pythonProcess.stdout.on("data", (data) => {
-      console.log("Python stdout:", data.toString());
-    });
+      // Wrap the Python call in a Promise for async handling
+      await new Promise((resolve, reject) => {
+        const pythonProcess = spawn("python", [
+          path.join(__dirname, "../gradcam.py"),
+          imagePath,
+          outputFilename,
+        ]);
 
-    pythonProcess.stderr.on("data", (data) => {
-      console.error("Python stderr:", data.toString());
-    });
+        pythonProcess.stdout.on("data", (data) => {
+          console.log(`[GradCAM] stdout (${filename}):`, data.toString());
+        });
 
-    pythonProcess.on("close", (code) => {
-      if (code !== 0) {
-        return res.status(500).json({ error: "Python script failed" });
-      }
+        pythonProcess.stderr.on("data", (data) => {
+          console.error(`[GradCAM] stderr (${filename}):`, data.toString());
+        });
 
-      // Return proper URL for React Native
-      const heatmapUrl = `http://${req.hostname}:3000/heatmaps/${filename}_heatmap.jpg`;
-      res.json({ heatmap: heatmapUrl });
-    });
+        pythonProcess.on("close", (code) => {
+          if (code !== 0) {
+            console.error(`Grad-CAM failed for ${filename}`);
+            reject(new Error(`Python process failed for ${filename}`));
+          } else {
+            // Construct URL accessible by the React Native app
+            const heatmapUrl = `http://${req.hostname}:3000/heatmaps/${filename}_heatmap.jpg`;
+            heatmaps.push(heatmapUrl);
+            resolve();
+          }
+        });
+      });
+    }
+
+    // ✅ Return all heatmaps
+    res.json({ heatmaps });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
+    console.error("Error generating Grad-CAMs:", err);
+    res.status(500).json({ error: "Server error during Grad-CAM generation" });
   }
 };
 
-module.exports= {generateGradcam}
+module.exports = { generateGradcam };

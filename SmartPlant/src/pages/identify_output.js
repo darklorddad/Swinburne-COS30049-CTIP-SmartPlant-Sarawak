@@ -12,9 +12,10 @@ import {
 } from "react-native";
 import { addPlantIdentify } from "../firebase/plant_identify/addPlantIdentify.js";
 import { uploadImage } from "../firebase/plant_identify/uploadImage.js";
-import { auth, db } from "../firebase/FirebaseConfig"; // ← db added here
-import { serverTimestamp, addDoc, collection, doc, getDoc, query, where, getDocs  } from "firebase/firestore";
+import { auth, db } from "../firebase/FirebaseConfig";
+import { serverTimestamp, addDoc, collection, doc, getDoc, query, where, getDocs } from "firebase/firestore";
 import PlantSuggestionCard from "../components/PlantSuggestionCard.js";
+import ImageSlideshow from '../components/ImageSlideShow.js';
 import { useRoute, useNavigation } from '@react-navigation/native';
 // noti start
 import { updateNotificationPayload } from "../firebase/notification_user/updateNotificationPayload";
@@ -30,52 +31,58 @@ export default function ResultScreen() {
   // (KEEP) prediction is expected to be an array like:
   // [{ class: "Nepenthes_tentaculata", confidence: 0.7321 }, {...}, {...}]
   const { prediction = [], imageURI } = route.params || {};
+  //console.log("Images array:", imageURI);
+  // noti start — normalize prediction to at least 3 items, detect noti + image state
+  let p = Array.isArray(prediction) ? [...prediction] : [{ class: "Unknown", confidence: 0 }];
+  while (p.length < 3) p.push({ class: p[0].class, confidence: p[0].confidence ?? 0 });
 
-// noti start — normalize prediction to at least 3 items, detect noti + image state
-let p = Array.isArray(prediction) ? [...prediction] : [{ class: "Unknown", confidence: 0 }];
-while (p.length < 3) p.push({ class: p[0].class, confidence: p[0].confidence ?? 0 });
+  const fromNotification = route.params?.fromNotification ?? false;
+  const hasImage =
+    route.params?.hasImage ??
+    Boolean(imageURI && !String(imageURI).startsWith("data:image/png;base64"));
 
-const fromNotification = route.params?.fromNotification ?? false;
-const hasImage =
-  route.params?.hasImage ??
-  Boolean(imageURI && !String(imageURI).startsWith("data:image/png;base64"));
+  if (fromNotification && !hasImage) {
+    console.log("Opened from notification without a real image URL; image box will show placeholder/blank.");
+  }
+  // noti end
+  const [heatmapURIs, setHeatmapURIs] = React.useState([]);
 
-if (fromNotification && !hasImage) {
-  console.log("Opened from notification without a real image URL; image box will show placeholder/blank.");
-}
-// noti end
-
-  const [heatmapURI, setHeatmapURI] = React.useState(null);
   const [loading, setLoading] = React.useState(false); // heatmap loading
   const [showHeatmap, setShowHeatmap] = React.useState(false); // (KEEP) toggle overlay
   const [UPloading, setUPLoading] = React.useState(false); // upload in-flight
   const [plantImages, setPlantImages] = useState([]);
-  console.log(prediction)
-  // --- Heatmap overlay ---
+  const [currentSlide, setCurrentSlide] = useState(0);
+
   const constructHeatmap = async () => {
-    if (heatmapURI) {
-      // (KEEP) toggle overlay
+    console.log("constructHeatmap called");
+    console.log("imageURI:", imageURI);
+
+    // If heatmaps already exist, toggle visibility
+    if (heatmapURIs.length > 0) {
+      console.log("Heatmaps already exist:", heatmapURIs);
       setShowHeatmap(!showHeatmap);
+      console.log("Toggled heatmap visibility:", !showHeatmap);
       return;
     }
-
-    if (!imageURI) {
+    console.log("passed block 1")
+    if (!imageURI || imageURI.length === 0) {
       Alert.alert("No image", "Image is missing.");
       return;
     }
-
+    console.log("passed block 2")
     const formData = new FormData();
-    formData.append("image", {
-      uri: imageURI,
-      type: "image/jpeg",
-      name: "photo.jpg",
+    imageURI.forEach((uri, index) => {
+      formData.append("images", {
+        uri,
+        type: "image/jpeg",
+        name: `photo_${index + 1}.jpg`,
+      });
     });
-
+    console.log("before try")
     try {
       setLoading(true);
-      const response = await fetch("http://192.168.1.9:3000/heatmap", {
+      const response = await fetch("http://192.168.1.102:3000/heatmap", {
         method: "POST",
-        headers: { "Content-Type": "multipart/form-data" },
         body: formData,
       });
 
@@ -84,18 +91,21 @@ if (fromNotification && !hasImage) {
       const data = await response.json();
       setLoading(false);
 
-      if (data?.heatmap) {
-        setHeatmapURI(data.heatmap);
+      // Expecting backend to return: { heatmaps: ["url1", "url2", "url3"] }
+      if (data?.heatmaps && Array.isArray(data.heatmaps)) {
+        setHeatmapURIs(data.heatmaps);
         setShowHeatmap(true);
       } else {
-        Alert.alert("Heatmap not returned from server.");
+        Alert.alert("Heatmaps not returned from server.");
       }
     } catch (err) {
-      console.log("Upload error:", err);
+      console.error("Upload error:", err);
       setLoading(false);
-      Alert.alert("Failed to generate heatmap. Check backend connection.");
+      Alert.alert("Failed to generate heatmaps. Check backend connection.");
     }
   };
+
+
 
   // (KEEP) asking user permission to save the data
   const handleUploadConfirmation = () => {
@@ -116,7 +126,7 @@ if (fromNotification && !hasImage) {
           },
           style: "cancel",
         },
-        
+
         {
           text: "Upload",
           onPress: () => uploadDataToDatabase(),
@@ -149,100 +159,118 @@ if (fromNotification && !hasImage) {
   };
 
   const uploadDataToDatabase = async () => {
-  // noti start — block upload when opened from a noti without an image
-  const fromNotification = route.params?.fromNotification ?? false;
-  const hasImage =
-    route.params?.hasImage ??
-    Boolean(imageURI && !String(imageURI).startsWith("data:image/png;base64"));
+    const fromNotification = route.params?.fromNotification ?? false;
+    const hasImage =
+      route.params?.hasImage ??
+      Boolean(imageURI && !String(imageURI).startsWith("data:image/png;base64"));
 
-// If opened from a notification, never allow uploading again.
-// (If it has an image => already uploaded; if it doesn't => nothing to upload.)
-if (fromNotification) {
-  Alert.alert(
-    hasImage ? "Already uploaded" : "No image to upload",
-    hasImage
-      ? "This identification has already been uploaded. You can view it on the map."
-      : "Open the camera and re-identify to upload a photo."
-  );
-  return;
-}
+    if (fromNotification) {
+      Alert.alert(
+        hasImage ? "Already uploaded" : "No image to upload",
+        hasImage
+          ? "This identification has already been uploaded. You can view it on the map."
+          : "Open the camera and re-identify to upload a photo."
+      );
+      return;
+    }
 
-// Also prevent double-tap or returning to this screen and pressing Done again
-const alreadyUploaded = route.params?.alreadyUploaded ?? false;
-if (alreadyUploaded) {
-  Alert.alert("Already uploaded", "This item was uploaded in this session.");
-  return;
-}
-// noti end
+    const alreadyUploaded = route.params?.alreadyUploaded ?? false;
+    if (alreadyUploaded) {
+      Alert.alert("Already uploaded", "This item was uploaded in this session.");
+      return;
+    }
 
     try {
-      // noti start — robust image handling for upload + re-use
-    let effectiveURI = imageURI;       // what we got from navigation
-    let downloadURL = null;
-
-    // 1) If we already have a hosted URL (came from a noti AFTER upload), don't re-upload
-    if (effectiveURI && effectiveURI.startsWith("http")) {
-      downloadURL = effectiveURI;
-    } else {
-      // 2) If we have no image or it's the tiny data: placeholder, ask user to pick one
-      if (!effectiveURI || effectiveURI.startsWith("data:")) {
-        const res = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 1,
-        });
-        if (res.canceled) {
-          setUploadLoading(false);
-          Alert.alert("No image selected", "Please choose an image to upload.");
-          return;
-        }
-        effectiveURI = res.assets[0].uri;    // this is a real file:// or content:// URI
-      }
-
-      // 3) Upload the real image
-      try {
-        downloadURL = await uploadImage(
-          effectiveURI,
-          (prediction?.[0]?.class) || "Unknown"
-        );
-        console.log("Added to storage with URL:", downloadURL);
-      } catch (e) {
-        console.log("Error uploading image:", e);
-        setUploadLoading(false);
-        Alert.alert("Upload failed", "Please try again.");
+      // ========= 🖼️ MULTI-IMAGE HANDLING =========
+      if (!Array.isArray(imageURI) || imageURI.length === 0) {
+        Alert.alert("No images found", "Please select at least one image to upload.");
         return;
       }
-    }
-    // noti end
-// ===== noti start =====
-try {
-  const { notiId } = route.params || {};
-  console.log("notiId for payload update:", notiId);
 
-  if (notiId && downloadURL) {
-    await updateNotificationPayload(notiId, {
-      imageURL: downloadURL,
-      top_1: { plant_species: (prediction?.[0]?.class) || "Unknown", ai_score: prediction?.[0]?.confidence || 0 },
-      top_2: { plant_species: (prediction?.[1]?.class) || "",        ai_score: prediction?.[1]?.confidence || 0 },
-      top_3: { plant_species: (prediction?.[2]?.class) || "",        ai_score: prediction?.[2]?.confidence || 0 },
-    });
-    console.log("✅ Notification payload updated with imageURL/top3");
-    // Refresh this screen so the image shows immediately
-    navigation.setParams({ imageURI: downloadURL, hasImage: true });
-  } else {
-    console.log("⚠️ Missing notiId or downloadURL; skip payload update.");
-  }
-} catch (e) {
-  console.log("⚠️ Failed to update notification payload:", e);
-}
-// ===== noti end =====
+      let downloadURLs = [];
+
+      for (let i = 0; i < imageURI.length; i++) {
+        let effectiveURI = imageURI[i];
+        let downloadURL = null;
+
+        if (typeof effectiveURI === "string" && effectiveURI.startsWith("http")) {
+          // Already hosted (from notification)
+          downloadURL = effectiveURI;
+        } else {
+          // Ask user to pick one if placeholder or empty
+          if (
+            !effectiveURI ||
+            (typeof effectiveURI === "string" && effectiveURI.startsWith("data:"))
+          ) {
+            const res = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              quality: 1,
+            });
+            if (res.canceled) {
+              setUploadLoading(false);
+              Alert.alert("No image selected", "Please choose an image to upload.");
+              return;
+            }
+            effectiveURI = res.assets[0].uri;
+          }
+
+          // Upload real image
+          try {
+            const uploadedURL = await uploadImage(
+              effectiveURI,
+              (prediction?.[i]?.class) || "Unknown"
+            );
+            console.log(`✅ Image ${i + 1} uploaded with URL:`, uploadedURL);
+            downloadURL = uploadedURL;
+          } catch (e) {
+            console.log(`❌ Error uploading image ${i + 1}:`, e);
+            Alert.alert("Upload failed", `Image ${i + 1} failed. Please try again.`);
+            continue;
+          }
+        }
+
+        downloadURLs.push(downloadURL);
+      }
+
+      // ========= 🔔 Notification payload update =========
+      try {
+        const { notiId } = route.params || {};
+        console.log("notiId for payload update:", notiId);
+
+        if (notiId && downloadURLs.length > 0) {
+          await updateNotificationPayload(notiId, {
+            imageURLs: downloadURLs, // updated to plural for multiple images
+            top_1: {
+              plant_species: prediction?.[0]?.class || "Unknown",
+              ai_score: prediction?.[0]?.confidence || 0,
+            },
+            top_2: {
+              plant_species: prediction?.[1]?.class || "",
+              ai_score: prediction?.[1]?.confidence || 0,
+            },
+            top_3: {
+              plant_species: prediction?.[2]?.class || "",
+              ai_score: prediction?.[2]?.confidence || 0,
+            },
+          });
+          console.log("✅ Notification payload updated with imageURLs/top3");
+          navigation.setParams({ imageURI: downloadURLs, hasImage: true });
+        } else {
+          console.log("⚠️ Missing notiId or downloadURLs; skip payload update.");
+        }
+      } catch (e) {
+        console.log("⚠️ Failed to update notification payload:", e);
+      }
 
       setUPLoading(true);
+
+      // ========= 📍 EXIF LOCATION HANDLING =========
       let latitude = null;
       let longitude = null;
 
       try {
-        const exifResult = await ImagePicker.getExifAsync(imageURI);
-        if (exifResult?.GPSLatitude != null && exifResult?.GPSLongitude != null) {
+        const exifResult = await ImagePicker.getExifAsync(imageURI[0]); // get EXIF from first image
+        if (exifResult?.GPSLatitude && exifResult?.GPSLongitude) {
           latitude = exifResult.GPSLatitude;
           longitude = exifResult.GPSLongitude;
           console.log("Got GPS from EXIF:", latitude, longitude);
@@ -251,7 +279,6 @@ try {
         console.log("No EXIF location found, fallback to device location...");
       }
 
-      // (KEEP) Fallback — get current device location (consider: image could be uploaded later at home)
       if (latitude == null || longitude == null) {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === "granted") {
@@ -264,20 +291,20 @@ try {
         }
       }
 
-      // Build locality string
+      // ========= 🏡 Locality =========
       let locality = "—";
       if (latitude != null && longitude != null) {
         locality = await makeLocality(latitude, longitude);
       }
 
-      // -------- 2) Determine identification status --------
+      // ========= 🧠 Prediction Info =========
       const top1 = prediction?.[0];
       const top2 = prediction?.[1];
       const top3 = prediction?.[2];
       const identify_status =
         (top1?.confidence ?? 0) > 0.7 ? "verified" : "pending";
 
-      // -------- 3) Current user id + unified user name --------
+      // ========= 👤 User Info =========
       const user = auth.currentUser || null;
       const userID = user?.uid ?? "anonymous";
       const userName =
@@ -286,19 +313,13 @@ try {
         "User";
       console.log("userID:", userID, "userName:", userName);
 
-      // -------- 4) Upload image to storage --------
-      if (!imageURI) throw new Error("Missing imageURI");
-      downloadURL = await uploadImage(imageURI, top1?.class || "unknown");
-      console.log("Added to storage with URL:", downloadURL);
-
-      // -------- 5) Upload info to Firestore (plant_identify) --------
+      // ========= 🌿 Firestore Upload =========
       const plantData = {
         model_predictions: {
           top_1: {
             plant_species: top1?.class ?? null,
             ai_score: top1?.confidence ?? null,
           },
-        // (KEEP) keep extra predictions in case your teammate re-enables more UI:
           top_2: {
             plant_species: top2?.class ?? null,
             ai_score: top2?.confidence ?? null,
@@ -309,18 +330,18 @@ try {
           },
         },
         createdAt: serverTimestamp(),
-        ImageURL: downloadURL,
+        ImageURLs: downloadURLs, // plural: multiple URLs
         coordinate: { latitude: latitude ?? null, longitude: longitude ?? null },
         user_id: userID,
         identify_status,
-        author_name: userName, // <<— single source of truth for display name
-        locality,              // <<— save readable locality for UI
+        author_name: userName,
+        locality,
       };
 
       const docId = await addPlantIdentify(plantData);
       console.log("Added to Firestore with ID:", docId);
 
-      // -------- 6) Mirror to markers so MapPage shows a pin automatically --------
+      // ========= 🗺️ Mirror to markers =========
       try {
         await addDoc(collection(db, "markers"), {
           title: top1?.class || "Plant",
@@ -331,28 +352,27 @@ try {
           },
           identifiedBy: userName,
           time: serverTimestamp(),
-          image: downloadURL,
+          images: downloadURLs,
           description: "Uploaded from identification",
-          plant_identify_id: docId, // backlink if you need it later
+          plant_identify_id: docId,
           locality,
         });
       } catch (e) {
         console.log("Failed to mirror marker:", e);
       }
-      //noti start
-        navigation.setParams({ alreadyUploaded: true });
-      //noti end
 
-      // -------- 7) Build a feed post and navigate to HomepageUser --------
+      navigation.setParams({ alreadyUploaded: true });
+
+      // ========= 📰 Build Feed Post =========
       const newPost = {
         id: docId,
-        image: downloadURL,
+        images: downloadURLs,
         caption: top1
           ? `Top: ${top1.class} (${Math.round((top1.confidence || 0) * 100)}%)`
           : "New identification",
-        author: userName, // same name everywhere
+        author: userName,
         time: Date.now(),
-        locality,         // use nice string in feed
+        locality,
         prediction: prediction.slice(0, 3),
         coordinate: { latitude: latitude ?? null, longitude: longitude ?? null },
       };
@@ -363,16 +383,18 @@ try {
       Alert.alert("Upload failed", error?.message || "Please try again.");
     } finally {
       setUploadLoading(false);
+      setUPLoading(false);
     }
-    setUPLoading(false);
   };
 
-  // retrieve the image url for display purpose
+
+
+  //retrieve the image url for display purpose
   const getPlantImage = async (speciesName) => {
     const docRef = doc(db, "plant", speciesName);
     const docSnap = await getDoc(docRef);
     const imageUrl = docSnap.exists() ? docSnap.data().plant_image : null;
-    console.log(imageUrl)
+    //console.log(imageUrl)
     return imageUrl;
   };
 
@@ -390,15 +412,14 @@ try {
   }, [prediction]);
 
 
-
   return (
     <View style={styles.container}>
       {UPloading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#00ff3cff" />
-            <Text style={{ color: "white", marginTop: 10 }}>Uploading...Please wait</Text>
-          </View>
-        )}
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#00ff3cff" />
+          <Text style={{ color: "white", marginTop: 10 }}>Uploading...Please wait</Text>
+        </View>
+      )}
       <View style={styles.imageBox}>
         {loading && (
           <View style={styles.loadingOverlay}>
@@ -407,16 +428,28 @@ try {
           </View>
         )}
 
-        <Image
-          source={{ uri: showHeatmap && heatmapURI ? heatmapURI : imageURI }}
-          style={styles.image}
+        <ImageSlideshow
+          imageURIs={Array.isArray(imageURI) ? imageURI : [imageURI]}
+          onSlideChange={(index) => setCurrentSlide(index)}
         />
+
+        {showHeatmap && heatmapURIs[currentSlide] && (
+          <Image
+            source={{ uri: heatmapURIs[currentSlide] }}
+            style={styles.heatmapOverlay}
+            resizeMode="cover"
+            pointerEvents="none"
+          />
+        )}
 
         <TouchableOpacity
           style={styles.iconButton}
           onPress={() => {
-            if (heatmapURI) setShowHeatmap(!showHeatmap);
-            else constructHeatmap();
+            console.log("Heatmap button pressed");
+            if (Array.isArray(heatmapURIs) && heatmapURIs.length > 0)
+              setShowHeatmap(!showHeatmap);
+            else
+              constructHeatmap();
           }}
         >
           <View style={styles.circle} />
@@ -427,7 +460,7 @@ try {
       <Text style={styles.title}>AI Identification Result</Text>
 
       {/* Top 3 Results */}
-      {prediction && prediction.length > 0 && prediction[0].confidence >= 0.5 ? (
+      {prediction && prediction.length > 0 && prediction[0].confidence >= 0.1 ? (
         <View style={{ width: "100%", alignItems: "center" }}>
           {prediction.map((item, index) => (
             <PlantSuggestionCard
@@ -435,7 +468,7 @@ try {
               name={item.class || "Unknown Plant"}
               image={plantImages[index] || null}
               confidence={(item.confidence * 100).toFixed(2)}
-              onPress={() => console.log(`See more for ${item.class}`)} 
+              onPress={() => console.log(`See more for ${item.class}`)}
             />
           ))
           }
@@ -468,7 +501,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFF8E1",
     alignItems: "center",
-    padding: 20,
+    padding: 30,
   },
   imageBox: {
     width: 220,
@@ -483,8 +516,8 @@ const styles = StyleSheet.create({
   },
   image: { width: "100%", height: "100%", borderRadius: 4 },
   iconButton: { position: "absolute", top: 8, right: 8 },
-  circle: { width: 20, height: 20, backgroundColor: "gray", borderRadius: 10 },
-  title: { fontSize: 18, fontWeight: "bold", marginVertical: 12 },
+  circle: { width: 20, height: 20, backgroundColor: "gray", borderRadius: 10, zIndex: 10, },
+  title: { fontSize: 18, fontWeight: "bold", marginVertical: 1, marginBottom: 20, },
   resultsContainer: { width: "100%", paddingHorizontal: 10, marginBottom: 20 },
   resultCard: {
     backgroundColor: "#496D4C",
@@ -514,4 +547,13 @@ const styles = StyleSheet.create({
   lowConfidenceContainer: { alignItems: "center", justifyContent: "center", padding: 20 },
   lowConfidenceText: { fontSize: 16, color: "gray", textAlign: "center", fontStyle: "italic" },
   Topsuggestion: { paddingBottom: 20, alignItems: "center" },
+  heatmapOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    opacity: 0.6, // tweak transparency as you like
+    zIndex: 2,
+  },
 });

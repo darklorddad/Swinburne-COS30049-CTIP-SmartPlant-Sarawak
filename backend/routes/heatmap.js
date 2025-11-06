@@ -8,6 +8,6 @@ const { generateGradcam } = require("../controllers/heatmapController");
 const upload = multer({ dest: "uploads/" });
 
 // POST /predict/heatmap
-router.post("/", upload.single("image"), generateGradcam);
+router.post("/", upload.array("images"), generateGradcam);
 
 module.exports = router;

@@ -15,6 +15,7 @@ import BottomNav from "../components/Navigation";
 // Firestore (live comments)
 import { db } from "../firebase/FirebaseConfig";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import ImageSlideshow from "../components/ImageSlideShow";
 
 // --- match your raised BottomNav ---
 const NAV_HEIGHT = 60;      // height of BottomNav
@@ -38,7 +39,7 @@ const timeAgo = (ms) => {
 export default function PlantDetailUser({ navigation, route }) {
   const { post } = route.params || {};
   const top1 = post?.prediction?.[0];
-
+  const [currentSlide, setCurrentSlide] = useState(0);
   // ---- Live comments pulled from the same place as PostDetail ----
   const [comments, setComments] = useState([]);
 
@@ -86,7 +87,7 @@ export default function PlantDetailUser({ navigation, route }) {
       >
         {/* Banner / photo */}
         {post?.image ? (
-          <Image source={{ uri: post.image }} style={styles.banner} />
+          <ImageSlideshow imageURIs={post.image } onSlideChange={(index) => setCurrentSlide(index) } style={styles.banner} />
         ) : (
           <View style={styles.banner} />
         )}

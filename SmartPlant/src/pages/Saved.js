@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, TouchableOpacity, StyleSheet, Text, Dimensions, Image, ActivityIndicator } from "react-native";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, auth } from "../firebase/FirebaseConfig";
+import ImageSlideshow from "../components/ImageSlideShow";
 
 export default function SavedScreen({ navigation }) {
   const [savedPosts, setSavedPosts] = useState([]);
@@ -11,6 +12,7 @@ export default function SavedScreen({ navigation }) {
   const screenWidth = Dimensions.get("window").width;
   const numColumns = 3;
   const boxSize = screenWidth / numColumns;
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     const fetchSavedPosts = async () => {
@@ -65,13 +67,18 @@ export default function SavedScreen({ navigation }) {
               if (data.model_predictions.top_2) predictions.push(data.model_predictions.top_2);
               if (data.model_predictions.top_3) predictions.push(data.model_predictions.top_3);
             }
-
+            const imageURIs = Array.isArray(data.ImageURLs)
+            ? data.ImageURLs.filter(u => typeof u === "string" && u.trim() !== "")
+            : data.ImageURLs && typeof data.ImageURLs === "string"
+              ? [data.ImageURLs]
+              : [];
+            console.log("saved page", imageURIs)
             const postTime = data.time ?? data.createdAt ?? null;
 
             // Return complete post object
             return {
               id: docSnap.id,
-              image: data.ImageURL,
+              imageURIs: imageURIs,
               caption: data.caption || "",
               locality: data.locality || "",
               coordinate: data.coordinate || null,   
@@ -127,8 +134,9 @@ export default function SavedScreen({ navigation }) {
               style={[styles.box, { width: boxSize, height: boxSize }]}
               onPress={() => navigation.navigate("PostDetail", { post })}
             >
-              <Image
-                source={{ uri: post.image }}
+              <ImageSlideshow
+                imageURIs={ post.imageURIs }
+                onSlideChange={(index) => setCurrentSlide(index) }
                 style={styles.boxImage}
                 resizeMode="cover"
               />

@@ -33,6 +33,7 @@ import {
   query,
   runTransaction,
 } from "firebase/firestore";
+import ImageSlideshow from "../components/ImageSlideShow";
 
 const NAV_HEIGHT = 60;      // height of your BottomNav
 const NAV_MARGIN_TOP = 150; // its marginTop from Navigation.js
@@ -69,7 +70,15 @@ export default function PostDetail({ navigation, route }) {
   const [postTimeMs, setPostTimeMs] = useState(initialTimeMs);
   const [author, setAuthor] = useState(post?.author ?? "User");
   const [locality, setLocality] = useState(post?.locality ?? "—");
-  const [imageUri, setImageUri] = useState(post?.image ?? null);
+
+  const [imageUri, setImageUri] = useState(
+    Array.isArray(post?.imageURIs)
+      ? post.imageURIs
+      : post?.imageURIs
+        ? [post.imageURIs]
+        : []
+  );
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [caption, setCaption] = useState(post?.caption ?? "");
 
   const [liked, setLiked] = useState(false);
@@ -113,7 +122,12 @@ const [ownerId, setOwnerId] = useState(post?.user_id ?? null);
 
       if (v?.author_name) setAuthor(v.author_name);
       if (v?.locality) setLocality(v.locality);
-      if (v?.ImageURL) setImageUri(v.ImageURL);
+      if (v?.imageURIs) setImageUri(setImageUri(
+        Array.isArray(v.imageURIs)
+          ? v.imageURIs.filter(u => typeof u === "string" && u.trim() !== "")
+          : []
+      )
+      );
       //noti start
       if (v?.user_id) setOwnerId(v.user_id);
       //noti end
@@ -287,6 +301,7 @@ const notifyOwner = async (type, message, extraPayload = {}) => {
   };
 
   const commentCount = comments.length;
+  console.log("PostDetail imageUri:", imageUri);
 
   return (
     <View style={styles.background}>
@@ -303,17 +318,16 @@ const notifyOwner = async (type, message, extraPayload = {}) => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.avatar} />
-          <View>
-            <Text style={styles.name}>{author}</Text>
-            <Text style={styles.meta}>
-              {postTimeMs ? `${timeAgo(postTimeMs)} — ${locality || "—"}` : locality || "—"}
-            </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={styles.avatar} />
+            <View>
+              <Text style={styles.name}>{author}</Text>
+              <Text style={styles.meta}>
+                {postTimeMs ? `${timeAgo(postTimeMs)} — ${locality || "—"}` : locality || "—"}
+              </Text>
+            </View>
           </View>
-        </View>
 
-        {/* Details button */}
-        <View style={styles.detailsRow}>
           <TouchableOpacity
             style={styles.details}
             onPress={() =>
@@ -321,18 +335,23 @@ const notifyOwner = async (type, message, extraPayload = {}) => {
                 post: { ...post, author, locality, image: imageUri, caption, time: postTimeMs },
               })
             }
-            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
             <Text style={styles.detailsText}>Details</Text>
           </TouchableOpacity>
         </View>
 
+
         {/* Photo */}
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.photo} />
+        {Array.isArray(imageUri) && imageUri.length > 0 ? (
+          <ImageSlideshow
+            imageURIs={imageUri}
+            onSlideChange={(index) => setCurrentSlide(index)}
+            style={styles.photo}
+          />
         ) : (
-          <View style={styles.photo} />
+          <View style={styles.photo} /> // placeholder if no images
         )}
+
 
         {/* Caption */}
         {!!caption && <Text style={{ marginTop: 10 }}>{caption}</Text>}
@@ -419,10 +438,10 @@ const styles = StyleSheet.create({
   scroller: { marginBottom: -NAV_MARGIN_TOP },
 
   container: { flexGrow: 1, paddingHorizontal: 16 },
-  header: { flexDirection: "row", alignItems: "center" },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#D7E3D8", marginRight: 8 },
   name: { fontWeight: "700" },
-  meta: { fontSize: 12, opacity: 0.7 },
+  meta: { fontSize: 12, opacity: 0.7, marginBottom: 10 },
   detailsRow: { marginTop: 10, alignItems: "flex-end" },
   details: { backgroundColor: "#E7F0E5", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
   detailsText: { fontWeight: "700" },

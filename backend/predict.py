@@ -7,12 +7,12 @@ from torchvision.models import resnet18
 from torchvision import transforms
 from PIL import Image
 
-#Setup
+# === Setup ===
 num_classes = 12
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load model (ResNet18)
-model = resnet18(weights=None)
+model = resnet18(pretrained=False)
 model.fc = nn.Linear(model.fc.in_features, num_classes)
 
 # Load checkpoint
@@ -45,7 +45,6 @@ def predict(image_path, topk=3):
         output = model(img_tensor)
         probs = F.softmax(output, dim=1)[0]
 
-        # Get top-k predictions
         top_probs, top_idxs = probs.topk(topk)
         top_probs = top_probs.cpu().numpy()
         top_idxs = top_idxs.cpu().numpy()
@@ -59,12 +58,19 @@ def predict(image_path, topk=3):
 
     return results
 
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print(json.dumps({"error": "No image path provided"}))
+        print(json.dumps({"error": "No image paths provided"}))
         sys.exit(1)
 
-    image_path = sys.argv[1]
-    results = predict(image_path, topk=3)
-    print(json.dumps(results, indent=2))
+    image_paths = sys.argv[1:]
+
+    all_results = []
+    for image_path in image_paths:
+        preds = predict(image_path, topk=3)
+        all_results.append(preds)
+
+    # ✅ Output as list of lists
+    print(json.dumps(all_results, indent=2))
     sys.exit(0)
