@@ -74,7 +74,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.menuContainer}>
           <TouchableOpacity 
             style={styles.menuItem} 
-            onPress={() => navigation.navigate("MyProfile", { userEmail: profile.email })}
+            onPress={() => navigation.navigate("Myprofile", { userEmail: profile.email })}
 
           >
             <Text style={styles.menuText}>My Profile</Text>

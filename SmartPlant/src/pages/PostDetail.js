@@ -14,6 +14,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import BottomNav from "../components/Navigation";
 
+//noti start
+import { addNotification } from "../firebase/notification_user/addNotification";
+//noti end
+
 import { auth, db } from "../firebase/FirebaseConfig";
 import {
   doc,
@@ -80,6 +84,10 @@ export default function PostDetail({ navigation, route }) {
 
   const [likeInFlight, setLikeInFlight] = useState(false);
 
+  //noti start
+const [ownerId, setOwnerId] = useState(post?.user_id ?? null);
+  //noti end
+
   const canWrite = Boolean(post?.id);
   const postRef = canWrite ? doc(db, "plant_identify", post.id) : null;
 
@@ -106,6 +114,9 @@ export default function PostDetail({ navigation, route }) {
       if (v?.author_name) setAuthor(v.author_name);
       if (v?.locality) setLocality(v.locality);
       if (v?.ImageURL) setImageUri(v.ImageURL);
+      //noti start
+      if (v?.user_id) setOwnerId(v.user_id);
+      //noti end
 
       const top1 = v?.model_predictions?.top_1;
       if (top1) {
@@ -142,6 +153,34 @@ export default function PostDetail({ navigation, route }) {
     return () => unsub();
   }, [canWrite, post?.id]);
 
+  //noti start
+  // Send noti to the post owner (no-op if me === owner)
+const notifyOwner = async (type, message, extraPayload = {}) => {
+  if (!ownerId || ownerId === myId) return; // don't notify self
+  try {
+    await addNotification({
+      userId: ownerId,                 // receiver = post owner
+      type,                            // 'post_like' | 'post_save' | 'post_comment'
+      title: "Post update",
+      message,                         // short human text
+      payload: {
+        postId: post?.id,              // so we can deep-link to PostDetail
+        actorId: myId,                 // who did it
+        actorName: myName,
+        postImageURL: imageUri || null,
+        nav: {                         // generic deep link (NotificationUser can use this)
+          name: "PostDetail",          // <— your screen name; if yours is different, set it
+          params: { postId: post?.id }
+        },
+        ...extraPayload,
+      },
+    });
+  } catch (e) {
+    console.log("Failed to add post notification:", e);
+  }
+};
+  //noti end
+
   // ❤️ Toggle like (like/unlike) atomically with a transaction
   const toggleLike = async () => {
     if (likeInFlight || !postRef) return;
@@ -167,6 +206,16 @@ export default function PostDetail({ navigation, route }) {
           like_count: increment(optimisticNext ? 1 : -1),
         });
       });
+      //noti start
+      // after tx.update(...), still inside try {} but after the update
+      if (optimisticNext) {
+        notifyOwner(
+        "post_like",
+        `${myName} liked your post`,
+        { likeCountAfter: likeCount + 1 }
+      );
+}
+      //noti end
     } catch (e) {
       // revert on error
       setLiked(!optimisticNext);
@@ -191,6 +240,16 @@ export default function PostDetail({ navigation, route }) {
         saved_by: nextSaved ? arrayUnion(myId) : arrayRemove(myId),
         saved_count: increment(nextSaved ? 1 : -1),
       });
+      //noti start
+      // after successful updateDoc in toggleSave()
+      if (nextSaved) {
+        notifyOwner(
+          "post_save",
+          `${myName} saved your post`,
+          { savedCountAfter: savedCount + 1 }
+        );
+      }
+      //noti end
     } catch (e) {
       // revert
       setSaved(!nextSaved);
@@ -207,13 +266,18 @@ export default function PostDetail({ navigation, route }) {
     setSending(true);
     try {
       const commentsCol = collection(db, "plant_identify", post.id, "comments");
-      await addDoc(commentsCol, {
+      const ref = await addDoc(commentsCol, {
         text,
         user_id: myId,
         user_name: myName,
         createdAt: serverTimestamp(),
       });
       await updateDoc(postRef, { comment_count: increment(1) }).catch(() => {});
+      notifyOwner(
+        "post_comment",
+        `${myName} commented: ${text}`,
+        { commentId: ref.id, commentText: text }
+      );
     } catch (e) {
       console.log("Failed to add comment:", e);
     }
