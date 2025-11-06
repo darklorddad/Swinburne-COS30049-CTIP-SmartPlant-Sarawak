@@ -14,6 +14,18 @@ export default function MyPost({ navigation }) {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      headerTitle: "My Posts",
+      headerTitleAlign: "center",
+      headerBackVisible: true, // shows arrow if opened from Profile
+      headerStyle: { backgroundColor: "#fefae0" },
+      headerTintColor: "#333",
+      headerTitleStyle: { fontWeight: "bold", fontSize: 22 },
+    });
+  }, [navigation]);
+
+  useEffect(() => {
     const fetchUserPosts = async () => {
       if (!userId) {
         setLoading(false);
@@ -106,19 +118,6 @@ export default function MyPost({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.background}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            if (navigation.canGoBack()) navigation.goBack();
-            else navigation.navigate("Profile");
-          }}
-        >
-          <Text style={styles.back}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Posts</Text>
-      </View>
-
       {/* Posts */}
       {posts.length === 0 ? (
         <Text style={styles.noPostText}>You haven’t uploaded any posts yet.</Text>
@@ -163,24 +162,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: 20,
     backgroundColor: "#fefae0"
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 30,
-    marginBottom: 10,
-    paddingHorizontal: 20
-  },
-  back: {
-    fontSize: 22,
-    marginRight: 10,
-    marginTop: 30
-  },
-  headerTitle: {
-    fontSize: 18,
-    textAlign: "center",
-    width: "80%",
-    marginTop: 30
   },
   postCard: {
     padding: 16,

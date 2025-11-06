@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert } from "react-native";
 import BottomNav from "../components/Navigation";
 import { getFullProfile } from "../firebase/UserProfile/UserUpdate";
@@ -12,6 +12,19 @@ export default function ProfileScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      headerBackVisible: false,
+      headerLeft: () => null,
+      headerTitle: "Profile",
+      headerTitleAlign: "center",
+      headerStyle: { backgroundColor: "#fefae0" },
+      headerTintColor: "#333",
+      headerTitleStyle: { fontWeight: "bold", fontSize: 22 },
+    });
+  }, [navigation]);
+  
   const fetchProfile = async () => {
       setLoading(true);
       try {
@@ -60,7 +73,6 @@ export default function ProfileScreen({ navigation }) {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Profile</Text>
 
         {/* Profile Image */}
         <View style={styles.profileContainer}>
@@ -148,12 +160,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fefae0",
     alignItems: "center",
     padding: 20,
-  },
-  title: {
-    marginTop: 40,
-    fontSize: 26,
-    fontWeight: "bold",
-    marginVertical: 10,
   },
   profileContainer: {
     alignItems: "center",

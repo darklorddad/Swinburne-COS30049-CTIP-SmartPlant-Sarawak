@@ -9,6 +9,18 @@ export default function MyProfile({ navigation, route }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      headerTitle: "My Profile",
+      headerTitleAlign: "center",
+      headerBackVisible: true, // shows arrow if opened from Profile
+      headerStyle: { backgroundColor: "#fefae0" },
+      headerTintColor: "#333",
+      headerTitleStyle: { fontWeight: "bold", fontSize: 22 },
+    });
+  }, [navigation]);
+  
   // Fetch profile info from Firebase
   useEffect(() => {
     const fetchProfile = async () => {
@@ -49,23 +61,6 @@ export default function MyProfile({ navigation, route }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            if (navigation.canGoBack()) {
-              navigation.goBack();
-            } else {
-              navigation.navigate("Profile");
-            }
-          }}
-        >
-          <Text style={styles.back}>←</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>My profile</Text>
-      </View>
-
       {/* Profile Picture */}
       <View style={styles.profileSection}>
         <Text style={styles.profileLabel}>Profile picture</Text>
@@ -151,22 +146,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fefae0",
     padding: 20,
     minHeight: "100%",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  back: {
-    fontSize: 22,
-    marginRight: 10,
-    marginTop: 30,
-  },
-  headerTitle: {
-    fontSize: 20,
-    marginTop: 30,
-    textAlign: "center",
-    width: "80%",
   },
   profileSection: {
     flexDirection: "row",

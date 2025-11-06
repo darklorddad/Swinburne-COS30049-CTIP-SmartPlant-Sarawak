@@ -19,6 +19,18 @@ export default function SettingsScreen({ navigation }) {
   useEffect(() => setCamera(cameraGranted), [cameraGranted]);
   useEffect(() => setPhotos(photosGranted), [photosGranted]);
 
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      headerTitle: "Settings",
+      headerTitleAlign: "center",
+      headerBackVisible: true, // shows arrow if opened from Profile
+      headerStyle: { backgroundColor: "#fefae0" },
+      headerTintColor: "#333",
+      headerTitleStyle: { fontWeight: "bold", fontSize: 22 },
+    });
+  }, [navigation]);
+
   // Load saved toggle states (not OS state)
   useEffect(() => {
     (async () => {
@@ -99,21 +111,6 @@ export default function SettingsScreen({ navigation }) {
   
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            if (navigation.canGoBack()) {
-              navigation.goBack();
-            } else {
-              navigation.navigate("Profile");
-            }
-          }}
-        >
-          <Text style={styles.back}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Settings</Text>
-      </View>
-
       <View style={styles.row}>
         <Image source={require("../../assets/language.png")} style={styles.icon} />
         <Text style={styles.text}>Choose Language: English</Text>
@@ -164,22 +161,6 @@ const styles = StyleSheet.create({
       backgroundColor: "#fefae0", 
       paddingHorizontal: "5%",
       padding: 20 
-  },
-  header: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: 20,
-  },
-  back: { 
-      fontSize: 22,
-      marginRight: 10,
-      marginTop: 30,
-  },
-  title: { 
-      fontSize: 18, 
-      textAlign: "center",
-      width: "80%",
-      marginTop: 30,
   },
   row: {
       flexDirection: "row",

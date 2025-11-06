@@ -19,6 +19,38 @@ export default function NotificationsScreen({ navigation }) {
   const [filter, setFilter] = React.useState("all"); // 'all' | 'plant' | 'post' | 'admin'
   const [menuOpen, setMenuOpen] = React.useState(false);
 
+  React.useLayoutEffect(() => {
+    const headerText = `Notifications${filter !== "all" ? ` • ${filterLabel(filter)}` : ""}`;
+    const fontSize = 23;
+
+    navigation.setOptions({
+      headerLeft: () => null,
+      headerShown: true,
+      headerTitle: () => (
+        <Text style={{ fontSize, fontWeight: "bold", color: "#111" }} numberOfLines={1} ellipsizeMode="tail">
+          {headerText}
+        </Text>
+      ),
+      headerTitleAlign: "center",
+      headerStyle: { backgroundColor: "#fefae0" },
+      headerTintColor: "#333",
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setMenuOpen((s) => !s)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ marginRight: 16 }}
+        >
+          <View style={{ flexDirection: "row", columnGap: 6 }}>
+            <View style={styles.dot} />
+            <View style={styles.dot} />
+            <View style={styles.dot} />
+          </View>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, filter]);
+
+  
   const applyFilter = (rows) => {
     switch (filter) {
       case "plant":
@@ -232,21 +264,6 @@ const rowMsg =
         contentContainerStyle={[styles.container, { paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Title */}
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>
-            Notifications{filter !== "all" ? ` • ${filterLabel(filter)}` : ""}
-          </Text>
-
-          {/* three-dots button */}
-          <TouchableOpacity
-            style={styles.dotsBtn}
-            onPress={() => setMenuOpen((s) => !s)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="Open filter menu"
-          >
-            <View style={styles.dots}><View style={styles.dot} /><View style={styles.dot} /><View style={styles.dot} /></View>
-          </TouchableOpacity>
 
           {/* tiny popup menu */}
           {menuOpen && (
@@ -271,7 +288,6 @@ const rowMsg =
               </View>
             </>
           )}
-        </View>
 
         {/* New */}
         <View style={styles.section}>
@@ -349,8 +365,8 @@ const styles = StyleSheet.create({
   },
   menu: {
     position: "absolute",
-    right: 0,
-    top: 36,
+    right: 10,
+    top: 10,
     backgroundColor: "#fff",
     borderRadius: 10,
     paddingVertical: 6,

@@ -15,6 +15,18 @@ export default function SavedScreen({ navigation }) {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      headerTitle: "Saved",
+      headerTitleAlign: "center",
+      headerBackVisible: true, // shows arrow if opened from Profile
+      headerStyle: { backgroundColor: "#fefae0" },
+      headerTintColor: "#333",
+      headerTitleStyle: { fontWeight: "bold", fontSize: 22 },
+    });
+  }, [navigation]);
+
+  useEffect(() => {
     const fetchSavedPosts = async () => {
       if (!myId) return;
       setLoading(true);
@@ -106,19 +118,6 @@ export default function SavedScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            if (navigation.canGoBack()) navigation.goBack();
-            else navigation.navigate("Profile");
-          }}
-        >
-          <Text style={styles.back}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Saved</Text>
-      </View>
-
       {/* Saved Posts Grid */}
       <View style={styles.grid}>
         {loading ? (
@@ -152,24 +151,6 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: "#fefae0" 
-  },
-  header: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    marginTop: 30, 
-    marginBottom: 10, 
-    paddingHorizontal: 20 
-  },
-  back: { 
-    fontSize: 22, 
-    marginRight: 10, 
-    marginTop: 30 
-  },
-  headerTitle: { 
-    fontSize: 18, 
-    textAlign: "center", 
-    width: "80%", 
-    marginTop: 30 
   },
   settings: { 
     fontSize: 20,

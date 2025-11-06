@@ -18,6 +18,18 @@ export default function EditProfile({ navigation, route }) {
   const [imageUri, setImageUri] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      headerTitle: "Edit Profile",
+      headerTitleAlign: "center",
+      headerBackVisible: true, // shows arrow if opened from Profile
+      headerStyle: { backgroundColor: "#fefae0" },
+      headerTintColor: "#333",
+      headerTitleStyle: { fontWeight: "bold", fontSize: 22 },
+    });
+  }, [navigation]);
+
   // Fetch profile info from Firebase
   useEffect(() => {
     if (!email) {   
@@ -186,14 +198,6 @@ export default function EditProfile({ navigation, route }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit profile</Text>
-      </View>
-
-
       {/* Profile Picture */}
       <TouchableOpacity style={styles.profileContainer} onPress={pickImage}>
         <Image
@@ -295,22 +299,6 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: "#fefae0",
     padding: 20,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  back: {
-    fontSize: 22,
-    marginRight: 10,
-    marginTop: 30,
-  },
-  headerTitle: {
-    fontSize: 20,
-    marginTop: 30,
-    textAlign: "center",
-    width: "80%",
   },
   profileContainer: {
     alignItems: "center",
