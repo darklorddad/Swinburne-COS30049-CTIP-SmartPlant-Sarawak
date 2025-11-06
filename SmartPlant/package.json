@@ -44,6 +44,7 @@
   },
   "private": true,
   "devDependencies": {
+    "@react-native-community/cli": "latest",
     "@types/react": "^19.2.2",
     "@types/react-native": "^0.72.8",
     "expo-module-scripts": "^5.0.7",
