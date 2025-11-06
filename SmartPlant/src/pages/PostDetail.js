@@ -254,17 +254,16 @@ export default function PostDetail({ navigation, route }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.avatar} />
-          <View>
-            <Text style={styles.name}>{author}</Text>
-            <Text style={styles.meta}>
-              {postTimeMs ? `${timeAgo(postTimeMs)} — ${locality || "—"}` : locality || "—"}
-            </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={styles.avatar} />
+            <View>
+              <Text style={styles.name}>{author}</Text>
+              <Text style={styles.meta}>
+                {postTimeMs ? `${timeAgo(postTimeMs)} — ${locality || "—"}` : locality || "—"}
+              </Text>
+            </View>
           </View>
-        </View>
 
-        {/* Details button */}
-        <View style={styles.detailsRow}>
           <TouchableOpacity
             style={styles.details}
             onPress={() =>
@@ -272,11 +271,11 @@ export default function PostDetail({ navigation, route }) {
                 post: { ...post, author, locality, image: imageUri, caption, time: postTimeMs },
               })
             }
-            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
             <Text style={styles.detailsText}>Details</Text>
           </TouchableOpacity>
         </View>
+
 
         {/* Photo */}
         {Array.isArray(imageUri) && imageUri.length > 0 ? (
@@ -375,10 +374,10 @@ const styles = StyleSheet.create({
   scroller: { marginBottom: -NAV_MARGIN_TOP },
 
   container: { flexGrow: 1, paddingHorizontal: 16 },
-  header: { flexDirection: "row", alignItems: "center" },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#D7E3D8", marginRight: 8 },
   name: { fontWeight: "700" },
-  meta: { fontSize: 12, opacity: 0.7 },
+  meta: { fontSize: 12, opacity: 0.7, marginBottom: 10 },
   detailsRow: { marginTop: 10, alignItems: "flex-end" },
   details: { backgroundColor: "#E7F0E5", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
   detailsText: { fontWeight: "700" },

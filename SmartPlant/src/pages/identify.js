@@ -186,8 +186,8 @@ export default function IdentifyPage() {
             setLoading(true);
             const endpoint =
                 images.length === 3
-                    ? "http://172.16.58.27:3000/predict_multiple"
-                    : "http://172.16.58.27:3000/predict";
+                    ? "http://192.168.1.102:3000/predict_multiple"
+                    : "http://192.168.1.102:3000/predict";
 
             const response = await fetch(endpoint, {
                 method: "POST",
@@ -293,7 +293,7 @@ export default function IdentifyPage() {
                                     <View key={index} style={styles.card}>
                                         <Image source={{ uri }} style={[
                                             styles.image,
-                                            facing === "front" ? { transform: [{ scaleX: -1 }] } : null, // new added
+                                            facing === "front" ? { transform: [{ scaleX: -1 }] } : null, 
                                         ]} />
                                         <TouchableOpacity
                                             style={styles.deleteButton}
@@ -387,18 +387,18 @@ const styles = StyleSheet.create({
 
     },
     previewImage: {
-        resizeMode: 'contain', // keeps aspect ratio 
+        resizeMode: 'contain', 
         width: '100%',
         height: '100%',
     },
     topBar: {
         position: 'absolute',
-        top: 40,
+        top: 20,
         left: 20,
         right: 20,
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center', //new added
+        alignItems: 'center', 
     },
     smallButton: {
         paddingHorizontal: 18,

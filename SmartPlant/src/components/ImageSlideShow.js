@@ -127,9 +127,10 @@ const styles = StyleSheet.create({
     dots: {
         flexDirection: "row",
         justifyContent: "center",
-        marginTop: 200,
-        marginBottom: 8,
-        position:"absolute"
+        position:"absolute",
+        bottom: 10, 
+        left: 0,
+        right: 0,
     },
     dot: {
         width: 8,

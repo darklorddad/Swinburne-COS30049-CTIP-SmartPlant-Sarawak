@@ -81,7 +81,7 @@ export default function ResultScreen() {
     console.log("before try")
     try {
       setLoading(true);
-      const response = await fetch("http://172.16.58.27:3000/heatmap", {
+      const response = await fetch("http://192.168.1.102:3000/heatmap", {
         method: "POST",
         body: formData,
       });

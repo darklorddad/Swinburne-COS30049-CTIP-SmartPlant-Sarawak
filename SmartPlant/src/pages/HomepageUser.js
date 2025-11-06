@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   feedHeader: { flexDirection: "row", alignItems: "center" },
   feedAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#D7E3D8" },
   feedName: { fontWeight: "700", color: "#2b2b2b" },
-  feedMeta: { color: "#2b2b2b", opacity: 0.7, fontSize: 12 },
+  feedMeta: { color: "#2b2b2b", opacity: 0.7, fontSize: 12, marginBottom: 10 },
   detailsPill: { marginLeft: "auto", backgroundColor: "#E7F0E5", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
   feedImage: { height: 140, backgroundColor: "#5A7B60", borderRadius: 10, marginTop: 12 },
 

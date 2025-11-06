@@ -138,12 +138,6 @@ export default function MyPost({ navigation }) {
                   {post.time ? new Date(post.time.seconds * 1000).toLocaleString() : "Unknown"}
                 </Text>
               </View>
-              <TouchableOpacity
-                style={styles.details}
-                onPress={() => navigation.navigate("PlantDetailUser", { post })}
-              >
-                <Text style={styles.detailsText}>Details</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Image */}
@@ -206,17 +200,8 @@ const styles = StyleSheet.create({
   },
   meta: {
     fontSize: 12,
-    opacity: 0.7
-  },
-  details: {
-    marginLeft: "auto",
-    backgroundColor: "#E7F0E5",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6
-  },
-  detailsText: {
-    fontWeight: "700"
+    opacity: 0.7,
+    marginBottom: 10,
   },
   photo: {
     width: "100%",
