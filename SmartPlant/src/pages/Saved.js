@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, TouchableOpacity, StyleSheet, Text, Dimensions, Image, ActivityIndicator } from "react-native";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../firebase/FirebaseConfig";
 import ImageSlideshow from "../components/ImageSlideShow";
 
@@ -27,93 +27,74 @@ export default function SavedScreen({ navigation }) {
   }, [navigation]);
 
   useEffect(() => {
-    const fetchSavedPosts = async () => {
-      if (!myId) return;
-      setLoading(true);
+    if (!myId) return;
 
-      try {
-        // Query plant_identify for posts saved by current user
+    const accountsCol = collection(db, "account");
+    const unsubAccounts = onSnapshot(accountsCol, (accountsSnap) => {
+        const accountsMap = new Map();
+        accountsSnap.forEach(doc => {
+            accountsMap.set(doc.data().user_id, doc.data());
+        });
+
         const plantsQuery = query(
-          collection(db, "plant_identify"),
-          where("saved_by", "array-contains", myId)
-        );
-        const snapshot = await getDocs(plantsQuery);
-
-        const posts = await Promise.all(
-          snapshot.docs.map(async (docSnap) => {
-            const data = docSnap.data();
-
-            // Default uploader info
-            let uploader = {
-              id: data.user_id || "",
-              name: data.uploader_name || "Unknown Uploader",
-              email: data.uploader_email || "",
-              profile_picture: "",
-            };
-
-            // Fetching uploader from 'users' collection
-            if (data.user_id) {
-              try {
-                const usersCol = collection(db, "user");
-                const userQuery = query(usersCol, where("user_id", "==", data.user_id));
-                const userSnap = await getDocs(userQuery);
-
-                if (!userSnap.empty) {
-                  const userData = userSnap.docs[0].data();
-                  uploader = {
-                    id: data.user_id,
-                    name: userData.full_name || userData.email || "Unknown Uploader",
-                    email: userData.email || "",
-                    profile_picture: userData.profile_picture || "",
-                  };
-                }
-              } catch (err) {
-                console.log("Error fetching uploader info:", err);
-              }
-            }
-            
-            // Transform model_predictions into array for top predictions
-            let predictions = [];
-            if (data.model_predictions) {
-              if (data.model_predictions.top_1) predictions.push(data.model_predictions.top_1);
-              if (data.model_predictions.top_2) predictions.push(data.model_predictions.top_2);
-              if (data.model_predictions.top_3) predictions.push(data.model_predictions.top_3);
-            }
-            const imageURIs = Array.isArray(data.ImageURLs)
-            ? data.ImageURLs.filter(u => typeof u === "string" && u.trim() !== "")
-            : data.ImageURLs && typeof data.ImageURLs === "string"
-              ? [data.ImageURLs]
-              : [];
-            console.log("saved page", imageURIs)
-            const postTime = data.time ?? data.createdAt ?? null;
-
-            // Return complete post object
-            return {
-              id: docSnap.id,
-              imageURIs: imageURIs,
-              caption: data.caption || "",
-              locality: data.locality || "",
-              coordinate: data.coordinate || null,   
-              time: postTime, 
-              prediction: predictions, 
-              author: data.author || uploader?.name || "User",
-              liked_by: data.liked_by || [],
-              saved_by: data.saved_by || [],
-              uploader,
-            };
-          })
+            collection(db, "plant_identify"),
+            where("saved_by", "array-contains", myId)
         );
 
-        setSavedPosts(posts);
-      } catch (error) {
-        console.log("Error fetching saved posts:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+        const unsubPosts = onSnapshot(plantsQuery, async (snapshot) => {
+            setLoading(true);
+            const posts = await Promise.all(
+                snapshot.docs.map(async (docSnap) => {
+                    const data = docSnap.data();
+                    const uploaderData = accountsMap.get(data.user_id) || {};
 
-    fetchSavedPosts();
-  }, [myId]);
+                    let uploader = {
+                        id: data.user_id || "",
+                        name: uploaderData.full_name || uploaderData.email || "Unknown Uploader",
+                        email: uploaderData.email || "",
+                        profile_picture: uploaderData.profile_pic || "",
+                    };
+
+                    let predictions = [];
+                    if (data.model_predictions) {
+                        if (data.model_predictions.top_1) predictions.push(data.model_predictions.top_1);
+                        if (data.model_predictions.top_2) predictions.push(data.model_predictions.top_2);
+                        if (data.model_predictions.top_3) predictions.push(data.model_predictions.top_3);
+                    }
+
+                    const postTime = data.time ?? data.createdAt ?? null;
+
+                    let image = null;
+                    if (data.ImageURLs && data.ImageURLs.length > 0) {
+                        image = data.ImageURLs[0];
+                    } else if (data.ImageURL) {
+                        image = data.ImageURL;
+                    }
+
+                    return {
+                        id: docSnap.id,
+                        image: image,
+                        caption: data.caption || "",
+                        locality: data.locality || "",
+                        coordinate: data.coordinate || null,
+                        time: postTime,
+                        prediction: predictions,
+                        author: data.author_name || uploader?.name || "User",
+                        liked_by: data.liked_by || [],
+                        saved_by: data.saved_by || [],
+                        uploader,
+                    };
+                })
+            );
+            setSavedPosts(posts);
+            setLoading(false);
+        });
+
+        return () => unsubPosts();
+    });
+
+    return () => unsubAccounts();
+}, [myId]);
 
 
   return (
@@ -131,7 +112,7 @@ export default function SavedScreen({ navigation }) {
             <TouchableOpacity
               key={i}
               style={[styles.box, { width: boxSize, height: boxSize }]}
-              onPress={() => navigation.navigate("PostDetail", { post })}
+              onPress={() => navigation.navigate("PostDetail", { postId: post.id })}
             >
               <ImageSlideshow
                 imageURIs={ post.imageURIs }
