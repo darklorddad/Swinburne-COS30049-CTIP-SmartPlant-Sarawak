@@ -5,8 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRoute } from "@react-navigation/native"; // ← NEW
 import mapStyle from "../../assets/mapStyle.json";
-import { db } from '../firebase/config.js';
-import { collection, getDocs, onSnapshot, query } from 'firebase/firestore'; 
+import { db, auth } from '../firebase/config.js';
+import { collection, getDocs, onSnapshot, query, doc, runTransaction, arrayUnion, arrayRemove, increment } from 'firebase/firestore'; 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PermissionContext } from "../components/PermissionManager";
 import { TOP_PAD } from '../components/StatusBarManager';
@@ -15,6 +15,8 @@ const { width, height } = Dimensions.get('window');
 
 const MapPage = ({navigation}) => {
   const route = useRoute(); // ← NEW
+  const me = auth.currentUser;
+  const myId = me?.uid ?? "anon";
 
   const [searchText, setSearchText] = useState('');
   const [selectedFilters, setSelectedFilters] = useState(['All']);
@@ -25,6 +27,7 @@ const MapPage = ({navigation}) => {
   const [markers, setMarkers] = useState([]);
   const [loading, setLoading] = useState(true);
   const { locationGranted } = useContext(PermissionContext);
+  const [likeInFlight, setLikeInFlight] = useState(false);
   //const [currentLocation, setCurrentLocation] = useState(null);
 
   // NEW: temporary focus pin when navigating from PlantDetail (or anywhere)
@@ -203,6 +206,8 @@ const MapPage = ({navigation}) => {
           : (data.description || 'No description available'),
         createdAt: data.createdAt,
         source: source,
+        like_count: data.like_count || 0,
+        liked_by: data.liked_by || [],
       };
     } else if (source === 'markers') {
         fixedMarker = {
@@ -289,7 +294,7 @@ const MapPage = ({navigation}) => {
       return markers;
     }
     return markers.filter(marker => {
-      return selectedFilters.some(filter => {
+      return selectedFilters.every(filter => {
         const lowerCaseFilter = filter.toLowerCase();
         if (lowerCaseFilter === 'verified') {
           return marker.identify_status === 'verified';
@@ -387,12 +392,61 @@ const MapPage = ({navigation}) => {
 
   const renderBottomSheet = () => {
     const [isLiked, setIsLiked] = useState(false);
-    const [likeCount, setLikeCount] = useState(42);
+    const [likeCount, setLikeCount] = useState(0);
     const [showMenu, setShowMenu] = useState(false);
 
-    const handleLike = () => {
-      setIsLiked(!isLiked);
-      setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+    useEffect(() => {
+      if (selectedMarker) {
+        setIsLiked((selectedMarker.liked_by || []).includes(myId));
+        setLikeCount(selectedMarker.like_count || 0);
+      }
+    }, [selectedMarker]);
+
+    const toggleLike = async () => {
+      if (likeInFlight || !selectedMarker) return;
+  
+      const [source, docId] = selectedMarker.id.split('-');
+      if (!source || !docId || source !== 'plant_identify') {
+        Alert.alert("Cannot like this item.");
+        return;
+      }
+      const postRef = doc(db, source, docId);
+  
+      setLikeInFlight(true);
+  
+      const optimisticNext = !isLiked;
+      setIsLiked(optimisticNext);
+      setLikeCount(c => optimisticNext ? c + 1 : c - 1);
+  
+      try {
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(postRef);
+          if (!snap.exists()) throw new Error("Post does not exist");
+  
+          const currentLikedBy = snap.data().liked_by || [];
+          const alreadyLiked = currentLikedBy.includes(myId);
+  
+          if (optimisticNext && !alreadyLiked) {
+            tx.update(postRef, {
+              liked_by: arrayUnion(myId),
+              like_count: increment(1),
+            });
+          } else if (!optimisticNext && alreadyLiked) {
+            tx.update(postRef, {
+              liked_by: arrayRemove(myId),
+              like_count: increment(-1),
+            });
+          }
+        });
+      } catch (e) {
+        // Revert optimistic update on failure
+        setIsLiked(!optimisticNext);
+        setLikeCount(c => optimisticNext ? c - 1 : c + 1);
+        console.error("Failed to toggle like:", e);
+        Alert.alert("Error", "Could not update like status.");
+      } finally {
+        setLikeInFlight(false);
+      }
     };
 
     const handleMenuPress = () => { setShowMenu(!showMenu); };
@@ -412,7 +466,13 @@ const MapPage = ({navigation}) => {
           {selectedMarker ? (
             <ScrollView style={styles.detailScrollView} showsVerticalScrollIndicator={true}>
               <View style={styles.markerDetail}>
-                <Text style={styles.markerDetailTitle}>{selectedMarker.title}</Text>
+                <View style={styles.markerDetailHeader}>
+                  <TouchableOpacity onPress={closeMarkerDetail} style={styles.backButton}>
+                    <Ionicons name="chevron-back" size={28} color="#333" />
+                  </TouchableOpacity>
+                  <Text style={styles.markerDetailTitle}>{selectedMarker.title}</Text>
+                  <View style={{ width: 28 }} />
+                </View>
                 <View style={styles.identifiedBy}>
                   <Text style={styles.identifiedText}>Identified by {selectedMarker.identifiedBy}</Text>
                   <Text style={styles.timeText}>{selectedMarker.time}</Text>
@@ -420,7 +480,7 @@ const MapPage = ({navigation}) => {
                 <Image source={{ uri: selectedMarker.image }} style={styles.markerImage} resizeMode="cover" />
                 <Text style={styles.descriptionText}>{selectedMarker.description}</Text>
                 <View style={styles.actionRow}>
-                  <TouchableOpacity style={styles.likeButton} onPress={() => handleLike()}>
+                  <TouchableOpacity style={styles.likeButton} onPress={toggleLike} disabled={likeInFlight}>
                     <Ionicons name={isLiked ? "heart" : "heart-outline"} size={24} color={isLiked ? "#FF3B30" : "#666"} />
                     <Text style={styles.likeCount}>{likeCount}</Text>
                   </TouchableOpacity>
@@ -446,9 +506,6 @@ const MapPage = ({navigation}) => {
                     )}
                   </View>
                 </View>
-                <TouchableOpacity style={styles.closeButton} onPress={closeMarkerDetail}>
-                  <Ionicons name="close" size={15} color="white" />
-                </TouchableOpacity>
               </View>
             </ScrollView>
           ) : (
@@ -633,16 +690,14 @@ const styles = StyleSheet.create({
   flowerMarker: { backgroundColor: '#E91E63' },
   markerText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
   markerDetail: { flex: 1, paddingBottom: 20 },
-  markerDetailTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
+  markerDetailHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  backButton: { padding: 5 },
+  markerDetailTitle: { fontSize: 20, fontWeight: 'bold', flex: 1, textAlign: 'center' },
   identifiedBy: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   identifiedText: { fontSize: 14, color: '#495057' },
   timeText: { color: '#666' },
   markerImage: { width: '100%', height: 200, borderRadius: 10, marginBottom: 15 },
   descriptionText: { fontSize: 16, lineHeight: 22, color: '#555' },
-  closeButton: {
-    position: 'absolute', top: 0, right: 0, backgroundColor: '#4CAF50', borderRadius: 15,
-    width: 20, height: 20, alignItems: 'center', justifyContent: 'center', zIndex: 10,
-  },
   buttonsContainer: { position: 'absolute', right: 20, top: -130, flexDirection: 'column', alignItems: 'center', gap: 10 },
   homeButton: {
     backgroundColor: 'white', borderRadius: 30, width: 50, height: 50, alignItems: 'center',
@@ -659,7 +714,7 @@ const styles = StyleSheet.create({
   likeCount: { fontSize: 14, color: '#666', fontWeight: '500' },
   menuButton: { padding: 5 },
   menuOverlay: {
-    position: 'absolute', top: 40, right: 0, backgroundColor: 'white', borderRadius: 10, padding: 10,
+    position: 'absolute', bottom: 40, right: 0, backgroundColor: 'white', borderRadius: 10, padding: 10,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 5, zIndex: 100, minWidth: 150,
   },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 5 },
