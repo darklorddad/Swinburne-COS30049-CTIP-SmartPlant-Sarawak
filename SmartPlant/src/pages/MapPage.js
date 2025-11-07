@@ -30,8 +30,8 @@ const MapPage = ({navigation}) => {
   const [focusPin, setFocusPin] = useState(null);
 
   const mapRef = useRef(null);
-  const bottomSheetHeight = useRef(new Animated.Value(180)).current;
-  const currentHeightRef = useRef(180);
+  const bottomSheetHeight = useRef(new Animated.Value(100)).current;
+  const currentHeightRef = useRef(100);
 
   const KUCHING_REGION = {
     latitude: 1.5495,
@@ -332,8 +332,8 @@ const MapPage = ({navigation}) => {
               currentHeightRef.current = height * 0.45;
             });
           } else {
-            Animated.spring(bottomSheetHeight, { toValue: 280, useNativeDriver: false }).start(() => {
-              currentHeightRef.current = 280;
+            Animated.spring(bottomSheetHeight, { toValue: 320, useNativeDriver: false }).start(() => {
+              currentHeightRef.current = 320;
             });
           }
         } else {
@@ -371,8 +371,8 @@ const MapPage = ({navigation}) => {
 
   const closeMarkerDetail = useCallback(() => {
     setSelectedMarker(null);
-    Animated.spring(bottomSheetHeight, { toValue: 180, useNativeDriver: false }).start(() => {
-      currentHeightRef.current = 180;
+    Animated.spring(bottomSheetHeight, { toValue: 100, useNativeDriver: false }).start(() => {
+      currentHeightRef.current = 100;
     });
   }, [bottomSheetHeight]);
 
