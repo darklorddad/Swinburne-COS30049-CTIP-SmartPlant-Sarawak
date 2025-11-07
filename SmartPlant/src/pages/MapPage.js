@@ -308,7 +308,7 @@ const MapPage = ({navigation}) => {
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (evt, gestureState) => {
-        const minHeight = selectedMarker ? 200 : 100;
+        const minHeight = 100;
         const maxHeight = selectedMarker ? height * 0.5 : 280;
         const newHeight = Math.max(minHeight, Math.min(maxHeight, currentHeightRef.current - gestureState.dy));
         bottomSheetHeight.setValue(newHeight);
@@ -318,9 +318,7 @@ const MapPage = ({navigation}) => {
         currentHeightRef.current = currentHeightValue;
         if (gestureState.dy > 20) {
           if (selectedMarker) {
-            Animated.spring(bottomSheetHeight, { toValue: 200, useNativeDriver: false }).start(() => {
-              currentHeightRef.current = 200;
-            });
+            closeMarkerDetail();
           } else {
             Animated.spring(bottomSheetHeight, { toValue: 100, useNativeDriver: false }).start(() => {
               currentHeightRef.current = 100;
