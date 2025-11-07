@@ -148,15 +148,10 @@ const styles = StyleSheet.create({
     width: "100%", 
     height: "100%"
   },
-  noPostContainer: {
-  flex: 1,
-  justifyContent: "center",
-  alignItems: "center",
-  width: "100%"
-},
 noPostText: {
+  textAlign: "center",
+  marginTop: 30,
   fontSize: 16,
   color: "#777",
-  textAlign: "center"
 },
 });
