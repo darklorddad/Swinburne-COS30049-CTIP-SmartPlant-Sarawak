@@ -9,6 +9,7 @@ import {
   Platform,
   StatusBar,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BottomNav from "../components/Navigation";
@@ -31,14 +32,15 @@ import {
   orderBy,
   query,
   runTransaction,
+  getDoc,
+  getDocs,
 } from "firebase/firestore";
 import ImageSlideshow from "../components/ImageSlideShow";
 
 const NAV_HEIGHT = 60;      // height of your BottomNav
 const NAV_MARGIN_TOP = 150; // its marginTop from Navigation.js
 
-const TOP_PAD = Platform.OS === "ios" ? 56 : (StatusBar.currentHeight || 0) + 8;
-const EXTRA_TOP_SPACE = 18; // bump this up/down to add breathing room from the top
+import { TOP_PAD, EXTRA_TOP_SPACE } from "../components/StatusBarManager";
 
 const timeAgo = (dateMs) => {
   if (!dateMs) return "";
@@ -53,7 +55,14 @@ const timeAgo = (dateMs) => {
 };
 
 export default function PostDetail({ navigation, route }) {
-  const { post } = route.params || {};
+  const { postId } = route.params || {};
+
+  const [post, setPost] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [savedCount, setSavedCount] = useState(0);
 
   const me = auth.currentUser;
   const myId = me?.uid ?? "anon";
@@ -68,91 +77,92 @@ export default function PostDetail({ navigation, route }) {
     })();
   }, [myId]);
 
-  // Mirror feed fields (seeded from route) and keep live-synced
-  const initialTimeMs =
-    post?.time ??
-    (post?.createdAt?.toMillis?.() ??
-      (post?.createdAt?.seconds ? post.createdAt.seconds * 1000 : null));
-
-  const [postTimeMs, setPostTimeMs] = useState(initialTimeMs);
-  const [author, setAuthor] = useState(post?.author ?? "User");
-  const [locality, setLocality] = useState(post?.locality ?? "—");
-
-  const coerceImages = (src) => {
-    if (!src) return [];
-    if (Array.isArray(src)) return src;
-    return [src];
-  };
-  const [imageURIs, setImageURIs] = useState(
-    coerceImages(
-      post?.imageURIs || post?.ImageURLs || post?.images || post?.image || []
-    ).filter((u) => typeof u === "string" && u.trim() !== "")
-  );
-
-  const [caption, setCaption] = useState(post?.caption ?? "");
-
-  const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [savedCount, setSavedCount] = useState(0);
-
   const [showComposer, setShowComposer] = useState(false);
   const [comment, setComment] = useState("");
   const [sending, setSending] = useState(false);
   const [comments, setComments] = useState([]);
+  const [userProfiles, setUserProfiles] = useState(new Map());
 
   const [likeInFlight, setLikeInFlight] = useState(false);
 
-  // notification target
-  const [ownerId, setOwnerId] = useState(post?.user_id ?? null);
-
-  const canWrite = Boolean(post?.id);
-  const postRef = canWrite ? doc(db, "plant_identify", post.id) : null;
+  const postRef = postId ? doc(db, "plant_identify", postId) : null;
 
   // Live subscribe to post for liked/saved/counts + keep header/meta in sync
   useEffect(() => {
     if (!postRef) return;
-    const unsub = onSnapshot(postRef, (snap) => {
-      if (!snap.exists()) return;
-      const v = snap.data() || {};
-      const likedBy = Array.isArray(v.liked_by) ? v.liked_by : [];
-      const savedBy = Array.isArray(v.saved_by) ? v.saved_by : [];
-
-      setLiked(likedBy.includes(myId));
-      setSaved(savedBy.includes(myId));
-      setLikeCount(typeof v.like_count === "number" ? v.like_count : likedBy.length || 0);
-      setSavedCount(typeof v.saved_count === "number" ? v.saved_count : savedBy.length || 0);
-
-      const ms =
-        v?.createdAt?.toMillis?.() ??
-        (v?.createdAt?.seconds ? v.createdAt.seconds * 1000 : null);
-      if (ms) setPostTimeMs(ms);
-
-      if (v?.author_name) setAuthor(v.author_name);
-      if (v?.locality) setLocality(v.locality);
-
-      const imgs = coerceImages(v.imageURIs || v.ImageURLs || v.images).filter(
-        (u) => typeof u === "string" && u.trim() !== ""
-      );
-      if (imgs.length) setImageURIs(imgs);
-
-      if (v?.user_id) setOwnerId(v.user_id);
-
-      const top1 = v?.model_predictions?.top_1;
-      if (top1) {
-        const pct = Math.round((top1.ai_score || 0) * 100);
-        setCaption(`Top: ${top1.plant_species} (${pct}%)`);
-      } else if (typeof v?.caption === "string") {
-        setCaption(v.caption);
+    const unsub = onSnapshot(postRef, async (snap) => {
+      if (!snap.exists()) {
+        setPost(null);
+        setLoading(false);
+        return;
+      };
+      const postData = snap.data() || {};
+      
+      let uploader = {};
+      if (postData.user_id) {
+        const userRef = doc(db, "account", postData.user_id);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          uploader = {
+            id: postData.user_id,
+            name: userData.full_name || userData.email || "Unknown Uploader",
+            profile_picture: userData.profile_pic || null,
+          };
+        }
       }
+
+      // Construct the final post object
+      const fullPost = {
+        id: snap.id,
+        ...postData,
+        uploader,
+        author: uploader.name || postData.author_name || "User",
+        authorProfilePic: uploader.profile_picture,
+        image: postData.ImageURLs?.[0] || postData.ImageURL,
+        time: postData.createdAt?.toMillis?.() ?? (postData.createdAt?.seconds ? postData.createdAt.seconds * 1000 : null),
+        liked_by: Array.isArray(postData.liked_by) ? postData.liked_by : [],
+        saved_by: Array.isArray(postData.saved_by) ? postData.saved_by : [],
+        like_count: typeof postData.like_count === "number" ? postData.like_count : (postData.liked_by?.length || 0),
+        saved_count: typeof postData.saved_count === "number" ? postData.saved_count : (postData.saved_by?.length || 0),
+      };
+      
+      setPost(fullPost);
+      setLiked(fullPost.liked_by.includes(myId));
+      setSaved(fullPost.saved_by.includes(myId));
+      setLikeCount(fullPost.like_count);
+      setSavedCount(fullPost.saved_count);
+      setLoading(false);
     });
     return () => unsub();
-  }, [postRef, myId]);
+  }, [postId, myId]);
+
+  // Fetch user profiles for comments
+  useEffect(() => {
+    if (!comments.length) return;
+
+    const fetchProfiles = async () => {
+      const userIds = [...new Set(comments.map(c => c.user_id).filter(id => !userProfiles.has(id)))];
+      if (!userIds.length) return;
+
+      const newProfiles = new Map(userProfiles);
+      await Promise.all(userIds.map(async id => {
+        const userRef = doc(db, "account", id);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          newProfiles.set(id, userSnap.data());
+        }
+      }));
+      setUserProfiles(newProfiles);
+    };
+
+    fetchProfiles();
+  }, [comments]);
 
   // Live comments
   useEffect(() => {
-    if (!canWrite) return;
-    const col = collection(db, "plant_identify", post.id, "comments");
+    if (!postId) return;
+    const col = collection(db, "plant_identify", postId, "comments");
     const q = query(col, orderBy("createdAt", "asc"));
     const unsub = onSnapshot(q, (snap) => {
       const rows = snap.docs.map((d) => {
@@ -171,30 +181,7 @@ export default function PostDetail({ navigation, route }) {
       setComments(rows);
     });
     return () => unsub();
-  }, [canWrite, post?.id]);
-
-  // Send noti to the post owner (no-op if me === owner)
-  const notifyOwner = async (type, message, extraPayload = {}) => {
-    if (!ownerId || ownerId === myId) return;
-    try {
-      await addNotification({
-        userId: ownerId,
-        type,
-        title: "Post update",
-        message,
-        payload: {
-          postId: post?.id,
-          actorId: myId,
-          actorName: myName,
-          postImageURL: imageURIs?.[0] || null,
-          nav: { name: "PostDetail", params: { postId: post?.id } },
-          ...extraPayload,
-        },
-      });
-    } catch {
-      // silent on purpose
-    }
-  };
+  }, [postId]);
 
   // ❤️ Toggle like (like/unlike) atomically with a transaction
   const toggleLike = async () => {
@@ -204,7 +191,6 @@ export default function PostDetail({ navigation, route }) {
     // optimistic UI
     const optimisticNext = !liked;
     setLiked(optimisticNext);
-    setLikeCount((c) => (optimisticNext ? c + 1 : Math.max(0, c - 1)));
 
     try {
       await runTransaction(db, async (tx) => {
@@ -229,7 +215,7 @@ export default function PostDetail({ navigation, route }) {
     } catch {
       // revert on error
       setLiked(!optimisticNext);
-      setLikeCount((c) => (optimisticNext ? Math.max(0, c - 1) : c + 1));
+      console.log("Failed to toggle like:", e);
     } finally {
       setLikeInFlight(false);
     }
@@ -242,7 +228,6 @@ export default function PostDetail({ navigation, route }) {
 
     // optimistic UI
     setSaved(nextSaved);
-    setSavedCount((c) => (nextSaved ? c + 1 : Math.max(0, c - 1)));
 
     try {
       await updateDoc(postRef, {
@@ -257,7 +242,7 @@ export default function PostDetail({ navigation, route }) {
     } catch {
       // revert
       setSaved(!nextSaved);
-      setSavedCount((c) => (nextSaved ? Math.max(0, c - 1) : c + 1));
+      console.log("Failed to update save:", e);
     }
   };
 
@@ -265,11 +250,11 @@ export default function PostDetail({ navigation, route }) {
 
   const sendComment = async () => {
     const text = comment.trim();
-    if (!text || !postRef) return;
+    if (!text || !postId) return;
     setSending(true);
     try {
-      const commentsCol = collection(db, "plant_identify", post.id, "comments");
-      const ref = await addDoc(commentsCol, {
+      const commentsCol = collection(db, "plant_identify", postId, "comments");
+      await addDoc(commentsCol, {
         text,
         user_id: myId,
         user_name: myName,
@@ -288,7 +273,21 @@ export default function PostDetail({ navigation, route }) {
     setSending(false);
   };
 
-  const commentCount = comments.length;
+    if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (!post) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>Post not found.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.background}>
@@ -304,21 +303,24 @@ export default function PostDetail({ navigation, route }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
+          {post.authorProfilePic ? (
+            <Image source={{ uri: post.authorProfilePic }} style={styles.avatar} />
+          ) : (
             <View style={styles.avatar} />
-            <View>
-              <Text style={styles.name}>{author}</Text>
-              <Text style={styles.meta}>
-                {postTimeMs ? `${timeAgo(postTimeMs)} — ${locality || "—"}` : locality || "—"}
-              </Text>
-            </View>
+          )}
+          <View>
+            <Text style={styles.name}>{post.author}</Text>
+            <Text style={styles.meta}>
+              {post.time ? `${timeAgo(post.time)} — ${post.locality || "—"}` : post.locality || "—"}
+            </Text>
           </View>
+        </View>
 
           <TouchableOpacity
             style={styles.details}
             onPress={() =>
               navigation.navigate("PlantDetailUser", {
-                post: { ...post, author, locality, image: imageURIs, caption, time: postTimeMs },
+                post: post,
               })
             }
           >
@@ -326,15 +328,15 @@ export default function PostDetail({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        {/* Photos */}
-        {Array.isArray(imageURIs) && imageURIs.length > 0 ? (
-          <ImageSlideshow imageURIs={imageURIs} style={styles.photo} />
+        {/* Photo */}
+        {post.image ? (
+          <Image source={{ uri: post.image }} style={styles.photo} />
         ) : (
           <View style={styles.photo} />
         )}
 
         {/* Caption */}
-        {!!caption && <Text style={{ marginTop: 10 }}>{caption}</Text>}
+        {!!post.caption && <Text style={{ marginTop: 10 }}>{post.caption}</Text>}
 
         {/* Actions */}
         <View style={styles.actions}>
@@ -354,7 +356,7 @@ export default function PostDetail({ navigation, route }) {
           >
             <Ionicons name="chatbubble-ellipses-outline" size={26} />
           </TouchableOpacity>
-          <Text style={styles.countText}>{commentCount}</Text>
+          <Text style={styles.countText}>{comments.length}</Text>
 
           <TouchableOpacity
             onPress={toggleSave}
@@ -390,18 +392,25 @@ export default function PostDetail({ navigation, route }) {
         {/* Comments */}
         {comments.length > 0 && (
           <View style={styles.commentsBlock}>
-            {comments.map((c) => (
-              <View key={c.id} style={styles.commentRow}>
-                <View style={styles.commentAvatar} />
-                <View style={{ flex: 1 }}>
-                  <View style={styles.commentHeader}>
-                    <Text style={styles.commentAuthor}>{c.user_name}</Text>
-                    <Text style={styles.commentTime}>{timeAgo(c.createdAtMs)}</Text>
+            {comments.map((c) => {
+              const userProfile = userProfiles.get(c.user_id) || {};
+              return (
+                <View key={c.id} style={styles.commentRow}>
+                  {userProfile.profile_pic ? (
+                    <Image source={{ uri: userProfile.profile_pic }} style={styles.commentAvatar} />
+                  ) : (
+                    <View style={styles.commentAvatar} />
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.commentHeader}>
+                      <Text style={styles.commentAuthor}>{(userProfile && userProfile.full_name) || c.user_name || "User"}</Text>
+                      <Text style={styles.commentTime}>{timeAgo(c.createdAtMs)}</Text>
+                    </View>
+                    <Text style={styles.commentText}>{c.text}</Text>
                   </View>
-                  <Text style={styles.commentText}>{c.text}</Text>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
       </ScrollView>
