@@ -1,5 +1,5 @@
 // pages/PlantDetailUser.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -38,7 +38,16 @@ const timeAgo = (ms) => {
 
 export default function PlantDetailUser({ navigation, route }) {
   const { post } = route.params || {};
-  const top1 = post?.prediction?.[0];
+
+  const prediction = useMemo(() => {
+    if (post?.prediction) return post.prediction;
+    if (post?.model_predictions) {
+      return [post.model_predictions.top_1, post.model_predictions.top_2, post.model_predictions.top_3].filter(Boolean);
+    }
+    return [];
+  }, [post]);
+  const top1 = prediction?.[0];
+
   const [currentSlide, setCurrentSlide] = useState(0);
   // ---- Live comments pulled from the same place as PostDetail ----
   const [comments, setComments] = useState([]);
@@ -72,7 +81,14 @@ export default function PlantDetailUser({ navigation, route }) {
     ? `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`
     : "—");
 
-  const images = Array.isArray(post?.image) ? post.image : post?.image ? [post.image] : [];
+  const images = useMemo(() => {
+    if (post?.imageURIs) return post.imageURIs;
+    if (Array.isArray(post?.ImageURLs) && post.ImageURLs.length > 0) return post.ImageURLs;
+    if (post?.ImageURL) return [post.ImageURL];
+    if (Array.isArray(post?.image)) return post.image;
+    if (post?.image) return [post.image];
+    return [];
+  }, [post]);
 
   return (
     <View style={styles.background}>
@@ -94,8 +110,6 @@ export default function PlantDetailUser({ navigation, route }) {
             onSlideChange={(index) => setCurrentSlide(index)}
             style={styles.banner}
           />
-        ) : post?.image ? (
-          <Image source={{ uri: post.image }} style={styles.banner} />
         ) : (
           <View style={styles.banner} />
         )}
