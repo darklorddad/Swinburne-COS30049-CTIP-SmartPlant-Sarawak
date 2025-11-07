@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, Image } from "react-native";
-import { getFullProfile} from "../firebase/UserProfile/UserUpdate";
+import { getFullProfile } from "../firebase/UserProfile/UserUpdate";
 import { updateUserProfile } from "../firebase/UserProfile/ProfileUpdate";
 import { storage } from "../firebase/FirebaseConfig";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -68,7 +68,9 @@ export default function EditProfile({ navigation, route }) {
     });
 
     if (!result.canceled && result.assets?.length > 0) {
-      setImageUri(result.assets[0].uri);
+      const newImageUri = result.assets[0].uri;
+      setImageUri(newImageUri);
+      setProfile(prevProfile => ({ ...prevProfile, profile_pic: newImageUri }));
     }
   };
 

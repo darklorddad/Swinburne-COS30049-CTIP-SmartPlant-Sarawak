@@ -18,10 +18,8 @@ import NotificationExpert from "./src/pages/NotificationExpert";
 import MapPage from "./src/pages/MapPage";
 
 import Introduction from "./src/pages/Introduction";
-import LoginSelection from "./src/pages/LoginSelection";
 import UserLogin from "./src/pages/UserLogin";
 import UserRegister from "./src/pages/UserRegister";
-import AdminLogin from "./src/pages/AdminLogin";
 
 import HomepageExpert from "./src/pages/HomepageExpert";
 import HomepageUser from "./src/pages/HomepageUser";
@@ -33,7 +31,8 @@ import ReportError from "./src/pages/ReportError";
 import TopSuggestions from "./src/pages/TopSuggestions";
 import AdminNavigator from './src/admin/AdminNavigator';
 import IoTDashboard from './src/pages/iot_dashboard';
-import FlashMessage, { showMessage } from "react-native-flash-message";
+
+import { AdminProvider } from './src/admin/AdminContext';
 import { PermissionProvider } from "./src/components/PermissionManager";
 
 //testing the component
@@ -44,6 +43,7 @@ const Stack = createStackNavigator();
 export default function App() {
   return (
     <>
+    <AdminProvider>
     <PermissionProvider>
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Introduction" screenOptions={{ headerShown: false }}>
@@ -65,10 +65,8 @@ export default function App() {
           <Stack.Screen name="IdentifyOutput" component={IdentifyOutput}/>
 
           <Stack.Screen name="Introduction" component={Introduction} />
-          <Stack.Screen name="LoginSelection" component={LoginSelection} />
           <Stack.Screen name="UserLogin" component={UserLogin} />
           <Stack.Screen name="UserRegister" component={UserRegister} />
-          <Stack.Screen name="AdminLogin" component={AdminLogin} />
 
           <Stack.Screen name="HomepageExpert" component={HomepageExpert}/>
           <Stack.Screen name="HomepageUser" component={HomepageUser}/>
@@ -82,7 +80,8 @@ export default function App() {
         </Stack.Navigator>
       </NavigationContainer>
     </PermissionProvider>
-    <FlashMessage position="top" />
+    </AdminProvider>
+
     </>
   );
 }

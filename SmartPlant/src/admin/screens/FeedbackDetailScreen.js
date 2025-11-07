@@ -19,6 +19,7 @@ const FeedbackDetailScreen = ({ route, navigation }) => {
 
     const onReply = (id, text) => {
         handleReplyFeedback(id, text);
+        setReplyText('');
     };
 
     useEffect(() => {
@@ -74,20 +75,19 @@ const FeedbackDetailScreen = ({ route, navigation }) => {
                         <Text style={styles.cardBody}>{feedback.body}</Text>
                     </View>
 
-                    {feedback.replies && feedback.replies.map((reply, index) => (
-                        <View key={index} style={[styles.card, styles.replyCard]}>
+                    {feedback.admin_notes &&
+                        <View style={[styles.card, styles.replyCard]}>
                             <View style={styles.cardHeader}>
                                 <View style={styles.replyAvatar}>
                                     <Text style={styles.replyAvatarText}>YOU</Text>
                                 </View>
                                 <View style={styles.cardHeaderText}>
                                     <Text style={styles.cardTitle}>Your Reply</Text>
-                                    <Text style={styles.cardTime}>{reply.time}</Text>
                                 </View>
                             </View>
-                            <Text style={styles.cardBody}>{reply.text}</Text>
+                            <Text style={styles.cardBody}>{feedback.admin_notes}</Text>
                         </View>
-                    ))}
+                    }
                 </ScrollView>
                 <View style={styles.replyContainer}>
                     <TextInput

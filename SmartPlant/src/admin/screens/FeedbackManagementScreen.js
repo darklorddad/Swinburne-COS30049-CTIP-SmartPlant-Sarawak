@@ -3,27 +3,29 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native
 import { BackIcon } from '../Icons';
 import SearchBar from '../components/SearchBar';
 import { useAdminContext } from '../AdminContext';
+import AdminBottomNavBar from '../components/AdminBottomNavBar';
 
 const FeedbackManagementScreen = ({ navigation }) => {
     const { feedbacks } = useAdminContext();
     const [searchQuery, setSearchQuery] = useState('');
+    const [filter, setFilter] = useState('all');
 
     const filteredFeedbacks = feedbacks.filter(
       feedback =>
-        feedback.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        feedback.body.toLowerCase().includes(searchQuery.toLowerCase())
+        (feedback.report_type && feedback.report_type.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (feedback.description && feedback.description.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
     const renderFeedbackItem = ({ item }) => (
         <TouchableOpacity onPress={() => navigation.navigate('FeedbackDetail', { feedback: item })} style={styles.feedbackItem}>
             <View style={styles.avatar} />
             <View style={styles.content}>
-                <Text style={styles.subject} numberOfLines={1}>{item.subject}</Text>
-                <Text style={styles.body} numberOfLines={1}>{item.body}</Text>
+                <Text style={styles.subject} numberOfLines={1}>{item.report_type}</Text>
+                <Text style={styles.body} numberOfLines={1}>{item.description}</Text>
             </View>
             <View style={styles.meta}>
-                <Text style={styles.time}>{item.time}</Text>
-                {item.replies && item.replies.length > 0 && 
+                <Text style={styles.time}>{new Date(item.created_at.seconds * 1000).toLocaleDateString()}</Text>
+                {item.admin_notes && item.admin_notes.length > 0 && 
                     <View style={styles.repliedBadge}>
                         <Text style={styles.repliedText}>Replied</Text>
                     </View>
@@ -41,18 +43,29 @@ const FeedbackManagementScreen = ({ navigation }) => {
                 <Text style={styles.headerTitle}>Feedback Management</Text>
                 <View style={{ width: 24 }} />
             </View>
-            <SearchBar value={searchQuery} onChange={setSearchQuery}/>
+
+            <View style={{paddingHorizontal: 16}}>
+                <SearchBar value={searchQuery} onChange={setSearchQuery}/>
+                <View style={[styles.filterContainer]}>
+                  <TouchableOpacity onPress={() => setFilter('all')} style={[styles.filterButton, filter === 'all' && styles.activeFilter]}>
+                      <Text style={[styles.filterText, filter === 'all' && styles.activeFilterText]}>All</Text>
+                  </TouchableOpacity>
+                </View>
+            </View>
+
             <FlatList
                 data={filteredFeedbacks}
                 renderItem={renderFeedbackItem}
                 keyExtractor={item => item.id.toString()}
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyText}>No feedback found.</Text>
+                        <Text style={styles.emptyText}>No feedback found</Text>
                     </View>
                 }
+                contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, }}
                 style={styles.list}
             />
+        <AdminBottomNavBar navigation={navigation} activeScreen="FeedbackManagement" />
         </View>
     );
 };
@@ -60,7 +73,6 @@ const FeedbackManagementScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        paddingHorizontal: 16,
         backgroundColor: '#FFFBF5',
     },
     header: {
@@ -69,6 +81,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingTop: 16,
         paddingBottom: 8,
+        paddingHorizontal: 16,
     },
     headerTitle: {
         fontSize: 20,
@@ -132,6 +145,28 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         color: '#75685a',
+    },
+    filterContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#e5e7eb',
+        borderRadius: 8,
+        marginVertical: 8,
+    },
+    filterButton: {
+        flex: 1,
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+    activeFilter: {
+        backgroundColor: '#A59480',
+        borderRadius: 8,
+    },
+    filterText: {
+        fontWeight: '600',
+        color: '#75685a',
+    },
+    activeFilterText: {
+        color: 'white',
     },
 });
 

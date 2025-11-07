@@ -17,10 +17,8 @@ import NotificationExpert from "./src/pages/NotificationExpert";
 import MapPage from "./src/pages/MapPage";
 
 import Introduction from "./src/pages/Introduction";
-import LoginSelection from "./src/pages/LoginSelection";
 import UserLogin from "./src/pages/UserLogin";
 import UserRegister from "./src/pages/UserRegister";
-import AdminLogin from "./src/pages/AdminLogin";
 
 import HomepageExpert from "./src/pages/HomepageExpert";
 import HomepageUser from "./src/pages/HomepageUser";
@@ -33,7 +31,7 @@ import TopSuggestions from "./src/pages/TopSuggestions";
 import CreatePost from "./src/pages/CreatePost";
 import AdminNavigator from './src/admin/AdminNavigator';
 import IoTDashboard from './src/pages/iot_dashboard';
-import FlashMessage, { showMessage } from "react-native-flash-message";
+import FlashMessage from "react-native-flash-message";
 
 //testing the component
 import Testing from './src/pages/testing';
@@ -47,8 +45,6 @@ export default function App() {
       <Stack.Navigator initialRouteName="Introduction" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Testing" component={Testing} />
         <Stack.Screen name="Profile" component={Profile} />
-        {/* <Stack.Screen name="IoTDashboard" component={IoTDashboard} /> */}
-        {/* <Stack.Screen name="DashboardScreen" component={DashboardScreen} /> */}
         <Stack.Screen name="MyProfile" component={MyProfile} />
         <Stack.Screen name="EditProfile" component={EditProfile} />
 
@@ -62,10 +58,8 @@ export default function App() {
         <Stack.Screen name="identify_output" component={IdentifyOutput}/>
 
         <Stack.Screen name="Introduction" component={Introduction} />
-        <Stack.Screen name="LoginSelection" component={LoginSelection} />
         <Stack.Screen name="UserLogin" component={UserLogin} />
         <Stack.Screen name="UserRegister" component={UserRegister} />
-        <Stack.Screen name="AdminLogin" component={AdminLogin} />
 
         <Stack.Screen name="HomepageExpert" component={HomepageExpert}/>
         <Stack.Screen name="HomepageUser" component={HomepageUser}/>

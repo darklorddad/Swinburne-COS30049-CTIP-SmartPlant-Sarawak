@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image } from 'react-native';
 import { BackIcon, PlusIcon } from '../Icons';
 import SearchBar from '../components/SearchBar';
 import { useAdminContext } from '../AdminContext';
+import AdminBottomNavBar from '../components/AdminBottomNavBar';
 
 const AccountManagementScreen = ({ navigation }) => {
     const { users } = useAdminContext();
@@ -12,7 +13,7 @@ const AccountManagementScreen = ({ navigation }) => {
     const navigate = (screen, params) => navigation.navigate(screen, params);
 
     const filteredUsers = users.filter(user => {
-        const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = user.name && user.name.toLowerCase().includes(searchQuery.toLowerCase());
         if (!matchesSearch) return false;
         
         if (filter === 'all') return true;
@@ -21,8 +22,17 @@ const AccountManagementScreen = ({ navigation }) => {
     });
 
     const renderUser = ({ item }) => (
-        <TouchableOpacity onPress={() => navigate('UserProfile', { user: item })} style={[styles.userTile, { backgroundColor: item.color }]}>
-            <Text style={styles.userNameText}>{item.name}</Text>
+        <TouchableOpacity onPress={() => navigate('UserProfile', { user: item })} style={styles.userTile}>
+            {item.details.profile_pic ? (
+                <Image source={{ uri: item.details.profile_pic }} style={styles.userTileImage} />
+            ) : (
+                <View style={[styles.userTileInitial, {backgroundColor: item.color || '#c8b6a6'}]}>
+                    <Text style={styles.userTileInitialText}>{item.name.charAt(0)}</Text>
+                </View>
+            )}
+            <View style={styles.userNameContainer}>
+                <Text style={styles.userNameText} numberOfLines={1}>{item.name}</Text>
+            </View>
         </TouchableOpacity>
     );
 
@@ -33,20 +43,22 @@ const AccountManagementScreen = ({ navigation }) => {
                 <Text style={styles.headerTitle}>Account Management</Text>
                 <TouchableOpacity onPress={() => navigate('AddUser')}><PlusIcon color="#3C3633" /></TouchableOpacity>
             </View>
-            <SearchBar value={searchQuery} onChange={setSearchQuery} />
-            <View style={styles.filterContainer}>
+            <View style={{paddingHorizontal: 16}}>
+              <SearchBar value={searchQuery} onChange={setSearchQuery} />
+              <View style={[styles.filterContainer]}>
                 <TouchableOpacity onPress={() => setFilter('all')} style={[styles.filterButton, filter === 'all' && styles.activeFilter]}>
                     <Text style={[styles.filterText, filter === 'all' && styles.activeFilterText]}>All</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setFilter('active')} style={[styles.filterButton, filter === 'active' && styles.activeFilter]}>
                     <Text style={[styles.filterText, filter === 'active' && styles.activeFilterText]}>Active</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setFilter('deactive')} style={[styles.filterButton, filter === 'deactive' && styles.activeFilter]}>
-                    <Text style={[styles.filterText, filter === 'deactive' && styles.activeFilterText]}>Deactive</Text>
+                <TouchableOpacity onPress={() => setFilter('inactive')} style={[styles.filterButton, filter === 'inactive' && styles.activeFilter]}>
+                    <Text style={[styles.filterText, filter === 'inactive' && styles.activeFilterText]}>Inactive</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setFilter('favourite')} style={[styles.filterButton, filter === 'favourite' && styles.activeFilter]}>
                     <Text style={[styles.filterText, filter === 'favourite' && styles.activeFilterText]}>Favourite</Text>
                 </TouchableOpacity>
+              </View>
             </View>
             <FlatList
                 data={filteredUsers}
@@ -54,9 +66,10 @@ const AccountManagementScreen = ({ navigation }) => {
                 keyExtractor={item => item.id.toString()}
                 numColumns={2}
                 columnWrapperStyle={styles.row}
-                ListEmptyComponent={<Text style={styles.noUsersText}>No accounts found.</Text>}
-                contentContainerStyle={{ flexGrow: 1 }}
+                ListEmptyComponent={<Text style={styles.noUsersText}>No accounts found</Text>}
+                contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingBottom: 16 }}
             />
+        <AdminBottomNavBar navigation={navigation} activeScreen="AccountManagement" />
         </View>
     );
 };
@@ -64,13 +77,13 @@ const AccountManagementScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        paddingHorizontal: 16,
         backgroundColor: '#FFFBF5',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        paddingHorizontal: 16,
         paddingTop: 16,
         paddingBottom: 8,
     },
@@ -81,23 +94,20 @@ const styles = StyleSheet.create({
     },
     filterContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        alignItems: 'center',
+        backgroundColor: '#e5e7eb',
+        borderRadius: 8,
         marginVertical: 8,
-        gap: 8,
     },
     filterButton: {
         flex: 1,
-        paddingVertical: 8,
-        paddingHorizontal: 8,
-        borderRadius: 8,
-        backgroundColor: 'white',
+        paddingVertical: 12,
+        alignItems: 'center',
     },
     activeFilter: {
         backgroundColor: '#A59480',
+        borderRadius: 8,
     },
     filterText: {
-        textAlign: 'center',
         fontWeight: '600',
         fontSize: 14,
         color: '#75685a',
@@ -107,20 +117,44 @@ const styles = StyleSheet.create({
     },
     row: {
         justifyContent: 'space-between',
-        gap: 16,
         marginTop: 16,
     },
     userTile: {
-        flex: 1,
+        width: '48%',
         aspectRatio: 1,
         borderRadius: 16,
-        justifyContent: 'flex-end',
-        padding: 16,
+        overflow: 'hidden',
+    },
+    userTileImage: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        resizeMode: 'cover',
+    },
+    userTileInitial: {
+        ...StyleSheet.absoluteFillObject,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    userTileInitialText: {
+        color: 'white',
+        fontSize: 48,
+        fontWeight: 'bold',
+    },
+    userNameContainer: {
+        position: 'absolute',
+        bottom: 8,
+        left: 16,
+        right: 16,
     },
     userNameText: {
-        color: 'white',
         fontWeight: 'bold',
-        fontSize: 16,
+        color: 'white',
+        textShadowColor: 'rgba(0, 0, 0, 0.4)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
     },
     noUsersText: {
         textAlign: 'center',

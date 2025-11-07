@@ -4,8 +4,8 @@ import Swiper from "react-native-swiper";
 import { LinearGradient } from "expo-linear-gradient";
 
 export default function Introduction({navigation}) {
-  function toSelection(){
-    navigation.navigate("LoginSelection");
+  function toLogin(){
+    navigation.navigate("UserLogin");
   }
 
   return (
@@ -41,7 +41,7 @@ export default function Introduction({navigation}) {
           <Text style={styles.title3}>Natural Heritage</Text>
 
           <View style={styles.small_container2}>
-            <TouchableOpacity style={styles.button_intro} onPress={toSelection}>
+            <TouchableOpacity style={styles.button_intro} onPress={toLogin}>
               <Text style={styles.button_intro_text}>Let's Go</Text>
             </TouchableOpacity>
             <Text style={styles.tap_text}>Tap to begin</Text>

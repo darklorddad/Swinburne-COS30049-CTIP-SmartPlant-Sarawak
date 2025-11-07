@@ -1,9 +1,12 @@
 import { auth, db } from "../FirebaseConfig";
+import { getFullProfile } from "../UserProfile/UserUpdate";
 import { signInWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, getDoc, query, collection, where, getDocs } from "firebase/firestore";
+
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export async function loginWithEmail(email, password) {
+async function loginWithEmail(email, password) {
   if (!email || !password) {
     return { success: false, error: "Please enter email and password" };
   }
@@ -34,7 +37,7 @@ export async function loginWithEmail(email, password) {
   }
 }
 
-export async function saveBiometric(email) {
+async function saveBiometric(email) {
   try {
     await AsyncStorage.setItem("savedEmail", email);
     await AsyncStorage.setItem("biometricEnabled", "true");
@@ -44,7 +47,7 @@ export async function saveBiometric(email) {
   }
 }
 
-export async function saveCredentials(email, password) {
+async function saveCredentials(email, password) {
   try {
     if (!email || !password) {
       return { success: false, error: "Missing email or password." };
@@ -54,7 +57,6 @@ export async function saveCredentials(email, password) {
     await AsyncStorage.setItem("savedPassword", password);
     await AsyncStorage.setItem("biometricEnabled", "true");
 
-    // 🔹 Confirm saved items
     const check = await AsyncStorage.getItem("biometricEnabled");
     console.log("Biometric flag saved:", check);
 
@@ -65,13 +67,25 @@ export async function saveCredentials(email, password) {
   }
 }
 
-export async function loginWithGoogle(id_token) {
+async function clearSavedCredentials() {
+  try {
+    await AsyncStorage.removeItem("savedEmail");
+    await AsyncStorage.removeItem("savedPassword");
+    await AsyncStorage.removeItem("biometricEnabled");
+    console.log("✅ All credentials and biometric flags cleared.");
+    return { success: true };
+  } catch (e) {
+    console.error("Error clearing credentials:", e);
+    return { success: false, error: e.message };
+  }
+}
+
+async function loginWithGoogle(id_token) {
   try {
     const credential = GoogleAuthProvider.credential(id_token);
     const userCredential = await signInWithCredential(auth, credential);
     const user = userCredential.user;
 
-    // Save user data in Firestore
     await setDoc(doc(db, "user", user.uid), {
       email: user.email || "",
       full_name: user.displayName || "",
@@ -89,13 +103,12 @@ export async function loginWithGoogle(id_token) {
   }
 }
 
-export async function loginWithFacebook(access_token) {
+async function loginWithFacebook(access_token) {
   try {
     const credential = FacebookAuthProvider.credential(access_token);
     const userCredential = await signInWithCredential(auth, credential);
     const user = userCredential.user;
 
-    // Save user data in Firestore
     await setDoc(doc(db, "user", user.uid), {
       email: user.email || "",
       full_name: user.displayName || "",
@@ -112,3 +125,47 @@ export async function loginWithFacebook(access_token) {
     return { success: false, error: error.message };
   }
 }
+
+async function checkUserRole(uid) {
+  const docRef = doc(db, "account", uid);
+  const docSnap = await getDoc(docRef);
+
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    if (data.role && data.role.toLowerCase() === 'admin') {
+      return 'admin';
+    }
+    return data.role;
+  } else {
+    return null;
+  }
+}
+
+async function getSavedCredentials() {
+  try {
+    const email = await AsyncStorage.getItem("savedEmail");
+    const password = await AsyncStorage.getItem("savedPassword");
+    const biometricEnabled = await AsyncStorage.getItem("biometricEnabled");
+
+    if (email && password && biometricEnabled === "true") {
+      return { email, password };
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+
+
+export { 
+  loginWithEmail, 
+  saveBiometric, 
+  saveCredentials, 
+  clearSavedCredentials, 
+  loginWithGoogle, 
+  loginWithFacebook, 
+  checkUserRole, 
+  getSavedCredentials,
+  getFullProfile
+};

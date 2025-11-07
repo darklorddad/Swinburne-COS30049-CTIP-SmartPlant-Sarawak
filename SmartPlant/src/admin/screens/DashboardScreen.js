@@ -1,111 +1,160 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
-import { UserIcon, MailIcon, FeedbackIcon } from '../Icons';
+import { UserIcon, MailIcon, FeedbackIcon, LogoutIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
+import { getAuth } from 'firebase/auth';
+import AdminBottomNavBar from '../components/AdminBottomNavBar';
 
 const DashboardScreen = ({ navigation }) => {
-    const { users, mails, feedbacks } = useAdminContext();
+    const { users, mails, feedbacks, handleLogout } = useAdminContext();
     const navigate = (screen) => navigation.navigate(screen);
+    const [userName, setUserName] = useState('Admin');
+    const [greeting, setGreeting] = useState('Good morning!');
 
-    const unreadMails = mails.filter(m => m.status === 'unread').length;
-    const pendingFeedbacks = feedbacks.length; // Assuming all are pending
+    useEffect(() => {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (user) {
+            const currentUserData = users.find(u => u.id === user.uid);
+            if (currentUserData) {
+                setUserName(currentUserData.name);
+            }
+        }
+
+        const hour = new Date().getHours();
+        if (hour < 12) {
+            setGreeting('Good morning!');
+        } else if (hour < 18) {
+            setGreeting('Good afternoon!');
+        } else {
+            setGreeting('Good evening!');
+        }
+    }, [users]);
+
+    const unreadMails = mails.filter(m => !m.read).length;
+    const pendingFeedbacks = feedbacks.filter(f => f.status === 'pending').length;
+    const plantCount = users.reduce((acc, user) => acc + (user.plantId || 0), 0);
+    const commonCount = Math.floor(plantCount * 0.8);
+    const rareCount = Math.floor(plantCount * 0.15);
+    const endangeredCount = plantCount - commonCount - rareCount;
+    const currentUserData = users.find(u => u.id === getAuth().currentUser?.uid);
+    const photoURL = currentUserData?.details?.profile_pic;
 
     return (
-        <ScrollView style={styles.container}>
-            <View style={styles.header}>
-                <Image source={{ uri: "https://placehold.co/48x48/c8b6a6/FFF?text=B" }} style={styles.avatar} />
-                <View>
-                    <Text style={styles.greetingText}>Good Morning</Text>
-                    <Text style={styles.userName}>Bryan</Text>
+        <View style={{flex: 1}}>
+            <ScrollView style={styles.container}>
+                <View style={styles.header}>
+                    <View style={{flex: 1, flexDirection: 'row', alignItems: 'center'}}>
+                        {photoURL ? (
+                            <Image source={{ uri: photoURL }} style={styles.avatar} />
+                        ) : (
+                            <View style={[styles.avatar, {backgroundColor: currentUserData?.color || '#c8b6a6'}]}>
+                                <Text style={styles.avatarText}>{userName.charAt(0)}</Text>
+                            </View>
+                        )}
+                        <View>
+                            <Text style={styles.greetingText}>{greeting}</Text>
+                            <Text style={styles.userName}>{userName}</Text>
+                        </View>
+                    </View>
+                    <TouchableOpacity onPress={() => handleLogout(navigation)}>
+                        <LogoutIcon color="#3C3633" />
+                    </TouchableOpacity>
                 </View>
-            </View>
+                <View style={styles.hr} />
 
-            <View style={styles.menuContainer}>
-                <TouchableOpacity onPress={() => navigate('AccountManagement')} style={styles.menuItem}>
-                    <View style={[styles.iconContainer, { backgroundColor: '#fee2e2' }]}>
-                        <UserIcon size={24} color="#ef4444" />
-                    </View>
-                    <View style={styles.menuTextContainer}>
-                        <Text style={styles.menuTitle}>Accounts</Text>
-                        <Text style={styles.menuSubtitle}>{users.length} users</Text>
-                    </View>
-                    <Text style={styles.menuValue}>{users.length}</Text>
-                </TouchableOpacity>
+                <View style={styles.menuContainer}>
+                    <TouchableOpacity onPress={() => navigate('AccountManagement')} style={styles.menuItem}>
+                        <View style={[styles.iconContainer, { backgroundColor: '#fee2e2' }]}>
+                            <UserIcon size={24} color="#ef4444" />
+                        </View>
+                        <View style={styles.menuTextContainer}>
+                            <Text style={styles.menuTitle}>Accounts</Text>
+                            <Text style={styles.menuSubtitle}>{users.length} users</Text>
+                        </View>
+                        <Text style={styles.menuValue}>{users.length}</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => navigate('MailManagement')} style={styles.menuItem}>
-                    <View style={[styles.iconContainer, { backgroundColor: '#dbeafe' }]}>
-                        <MailIcon size={24} color="#3b82f6" />
-                    </View>
-                    <View style={styles.menuTextContainer}>
-                        <Text style={styles.menuTitle}>Mailbox</Text>
-                        <Text style={styles.menuSubtitle}>{unreadMails} unread</Text>
-                    </View>
-                    <Text style={styles.menuValue}>{String(unreadMails).padStart(2, '0')}</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigate('MailManagement')} style={styles.menuItem}>
+                        <View style={[styles.iconContainer, { backgroundColor: '#dbeafe' }]}>
+                            <MailIcon size={24} color="#3b82f6" />
+                        </View>
+                        <View style={styles.menuTextContainer}>
+                            <Text style={styles.menuTitle}>Mailbox</Text>
+                            <Text style={styles.menuSubtitle}>{unreadMails} unread</Text>
+                        </View>
+                        <Text style={styles.menuValue}>{unreadMails}</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => navigate('FeedbackManagement')} style={styles.menuItem}>
-                    <View style={[styles.iconContainer, { backgroundColor: '#dcfce7' }]}>
-                        <FeedbackIcon size={24} color="#22c55e" />
-                    </View>
-                    <View style={styles.menuTextContainer}>
-                        <Text style={styles.menuTitle}>Feedback</Text>
-                        <Text style={styles.menuSubtitle}>{pendingFeedbacks} pending</Text>
-                    </View>
-                    <Text style={styles.menuValue}>{String(pendingFeedbacks).padStart(2, '0')}</Text>
-                </TouchableOpacity>
-            </View>
+                    <TouchableOpacity onPress={() => navigate('FeedbackManagement')} style={styles.menuItem}>
+                        <View style={[styles.iconContainer, { backgroundColor: '#dcfce7' }]}>
+                            <FeedbackIcon size={24} color="#22c55e" />
+                        </View>
+                        <View style={styles.menuTextContainer}>
+                            <Text style={styles.menuTitle}>Feedback</Text>
+                            <Text style={styles.menuSubtitle}>{pendingFeedbacks} pending</Text>
+                        </View>
+                        <Text style={styles.menuValue}>{pendingFeedbacks}</Text>
+                    </TouchableOpacity>
+                </View>
 
-            <View style={styles.distributionContainer}>
-                <Text style={styles.distributionTitle}>Plant Rarity Distribution</Text>
-                <View style={styles.progressItemsContainer}>
-                    <View>
-                        <View style={styles.progressLabelContainer}>
-                            <Text style={styles.progressLabel}>Common</Text>
-                            <Text style={styles.progressValue}>1250 / 1550</Text>
+                <View style={styles.distributionContainer}>
+                    <Text style={styles.distributionTitle}>Plant Rarity Distribution</Text>
+                    <View style={styles.progressItemsContainer}>
+                        <View>
+                            <View style={styles.progressLabelContainer}>
+                                <Text style={styles.progressLabel}>Common</Text>
+                                <Text style={styles.progressValue}>{commonCount} / {plantCount}</Text>
+                            </View>
+                            <View style={styles.progressBarBackground}>
+                                <View style={[styles.progressBar, { width: `${(commonCount / plantCount) * 100}%`, backgroundColor: '#A59480' }]} />
+                            </View>
                         </View>
-                        <View style={styles.progressBarBackground}>
-                            <View style={[styles.progressBar, { width: '80.6%', backgroundColor: '#A59480' }]} />
+                        <View>
+                            <View style={styles.progressLabelContainer}>
+                                <Text style={styles.progressLabel}>Rare</Text>
+                                <Text style={styles.progressValue}>{rareCount} / {plantCount}</Text>
+                            </View>
+                            <View style={styles.progressBarBackground}>
+                                <View style={[styles.progressBar, { width: `${(rareCount / plantCount) * 100}%`, backgroundColor: '#C8B6A6' }]} />
+                            </View>
                         </View>
-                    </View>
-                    <View>
-                        <View style={styles.progressLabelContainer}>
-                            <Text style={styles.progressLabel}>Rare</Text>
-                            <Text style={styles.progressValue}>250 / 1550</Text>
-                        </View>
-                        <View style={styles.progressBarBackground}>
-                            <View style={[styles.progressBar, { width: '16.1%', backgroundColor: '#C8B6A6' }]} />
-                        </View>
-                    </View>
-                    <View>
-                        <View style={styles.progressLabelContainer}>
-                            <Text style={styles.progressLabel}>Endangered</Text>
-                            <Text style={styles.progressValue}>50 / 1550</Text>
-                        </View>
-                        <View style={styles.progressBarBackground}>
-                            <View style={[styles.progressBar, { width: '3.2%', backgroundColor: '#f87171' }]} />
+                        <View>
+                            <View style={styles.progressLabelContainer}>
+                                <Text style={styles.progressLabel}>Endangered</Text>
+                                <Text style={styles.progressValue}>{endangeredCount} / {plantCount}</Text>
+                            </View>
+                            <View style={styles.progressBarBackground}>
+                                <View style={[styles.progressBar, { width: `${(endangeredCount / plantCount) * 100}%`, backgroundColor: '#f87171' }]} />
+                            </View>
                         </View>
                     </View>
                 </View>
-            </View>
-        </ScrollView>
+            </ScrollView>
+            <AdminBottomNavBar navigation={navigation} activeScreen="Dashboard" />
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 16,
+        backgroundColor: '#FFFBF5',
+        paddingHorizontal: 16,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 24,
+        paddingTop: 16,
+        paddingBottom: 0,
     },
     avatar: {
         width: 48,
         height: 48,
         borderRadius: 24,
         marginRight: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     greetingText: {
         fontSize: 16,
@@ -115,6 +164,16 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         color: '#3C3633',
+    },
+    avatarText: {
+        color: 'white',
+        fontSize: 24,
+        fontWeight: 'bold',
+    },
+    hr: {
+        height: 1,
+        backgroundColor: '#e5e7eb',
+        marginVertical: 16,
     },
     menuContainer: {
         gap: 16,
