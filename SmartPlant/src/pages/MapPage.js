@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect,  useContext, useCallback, useMemo } from 'react';
-import { StyleSheet, TextInput, Text, View, TouchableOpacity, ScrollView, Image, Dimensions, Animated, PanResponder, Alert, Platform } from 'react-native';
+import { StyleSheet, TextInput, Text, View, TouchableOpacity, ScrollView, Image, Dimensions, Animated, PanResponder, Alert, Platform, Pressable } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Circle } from "react-native-maps";
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -496,7 +496,7 @@ const MapPage = ({navigation}) => {
                       <Ionicons name="ellipsis-vertical" size={20} color="#666" />
                     </TouchableOpacity>
                     {showMenu && (
-                      <View style={styles.menuOverlay} onMoveShouldSetResponder={() => true}>
+                      <Pressable style={styles.menuOverlay}>
                         <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('more')}>
                           <Ionicons name="information-circle" size={18} color="#666" />
                           <Text style={styles.menuText}>More details</Text>
@@ -509,7 +509,7 @@ const MapPage = ({navigation}) => {
                           <Ionicons name="bookmark" size={18} color="#666" />
                           <Text style={styles.menuText}>Saved</Text>
                         </TouchableOpacity>
-                      </View>
+                      </Pressable>
                     )}
                   </View>
                 </View>
