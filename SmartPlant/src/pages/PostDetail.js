@@ -314,7 +314,6 @@ export default function PostDetail({ navigation, route }) {
               {post.time ? `${timeAgo(post.time)} — ${post.locality || "—"}` : post.locality || "—"}
             </Text>
           </View>
-        </View>
 
           <TouchableOpacity
             style={styles.details}
