@@ -6,12 +6,12 @@ import { useAdminContext } from '../AdminContext';
 import AdminBottomNavBar from '../components/AdminBottomNavBar';
 
 const MailManagementScreen = ({ navigation }) => {
-    const { mails, handleToggleMailFavourite } = useAdminContext();
+    const { mails, handleToggleMailRead } = useAdminContext();
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState('all');
 
-    const onToggleFavourite = (mailId) => {
-        handleToggleMailFavourite(mailId);
+    const onToggleRead = (mailId, currentStatus) => {
+        handleToggleMailRead(mailId, currentStatus);
     };
 
     const filteredMails = mails.filter(mail => {
@@ -33,7 +33,12 @@ const MailManagementScreen = ({ navigation }) => {
     }));
 
     const renderMailItem = ({ item }) => (
-        <TouchableOpacity onPress={() => navigation.navigate('MailDetail', { mail: item })} style={styles.mailItem}>
+        <TouchableOpacity
+            onPress={() => navigation.navigate('MailDetail', { mail: item })}
+            onLongPress={() => onToggleRead(item.id, item.read)}
+            delayLongPress={200}
+            style={styles.mailItem}
+        >
             <View style={[styles.mailStatusIndicator, { backgroundColor: !item.read ? '#A59480' : '#e5e7eb' }]} />
             <View style={styles.mailContent}>
                 <Text style={styles.mailFrom} numberOfLines={1}>{item.title}</Text>

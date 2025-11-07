@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Button } from 'react-native';
 import { BackIcon, TrashIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
 
 const MailDetailScreen = ({ route, navigation }) => {
     const { mail } = route.params;
-    const { handleDeleteMail, handleReplyMail } = useAdminContext();
+    const { handleDeleteMail, handleReplyMail, handleToggleMailRead } = useAdminContext();
     const [replyText, setReplyText] = useState('');
+
+    useEffect(() => {
+        if (mail && !mail.read) {
+            handleToggleMailRead(mail.id, mail.read);
+        }
+    }, [mail?.id]);
 
     const onDelete = () => {
         handleDeleteMail(mail.id);

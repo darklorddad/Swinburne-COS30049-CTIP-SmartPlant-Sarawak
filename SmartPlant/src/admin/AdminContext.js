@@ -16,6 +16,26 @@ export const AdminProvider = ({ children }) => {
     const [plantIdentities, setPlantIdentities] = useState([]);
     const [toastMessage, setToastMessage] = useState('');
 
+    const getTimeGroup = (timestamp) => {
+        if (!timestamp || !timestamp.seconds) return 'Older';
+        const date = new Date(timestamp.seconds * 1000);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        const mailDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+        if (mailDate.getTime() === today.getTime()) return 'Today';
+        if (mailDate.getTime() === yesterday.getTime()) return 'Yesterday';
+        
+        const oneWeekAgo = new Date(today);
+        oneWeekAgo.setDate(today.getDate() - 7);
+        if (mailDate > oneWeekAgo) return 'This Week';
+
+        return 'Older';
+    };
+
     useEffect(() => {
         const db = getFirestore();
         const unsubscribeUsers = onSnapshot(collection(db, "account"), (snapshot) => {
@@ -43,7 +63,14 @@ export const AdminProvider = ({ children }) => {
         });
 
         const unsubscribeMails = onSnapshot(collection(db, "notifications"), (snapshot) => {
-            setMails(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setMails(snapshot.docs.map(doc => {
+                const data = doc.data();
+                return { 
+                    id: doc.id, 
+                    ...data,
+                    timeGroup: getTimeGroup(data.createdAt),
+                };
+            }));
         });
 
         const unsubscribeFeedbacks = onSnapshot(collection(db, "report"), (snapshot) => {
@@ -133,6 +160,16 @@ export const AdminProvider = ({ children }) => {
         showToast("Reply sent successfully!");
     };
 
+    const handleToggleMailRead = async (mailId, currentStatus) => {
+        const mailDocRef = doc(db, "notifications", mailId);
+        try {
+            await updateDoc(mailDocRef, { read: !currentStatus });
+            showToast(`Mail marked as ${!currentStatus ? 'read' : 'unread'}.`);
+        } catch (error) {
+            showToast(`Error updating mail status: ${error.message}`);
+        }
+    };
+
     const handleDeleteFeedback = async (feedbackId) => {
         await deleteDoc(doc(db, "report", feedbackId));
         showToast("Feedback deleted successfully!");
@@ -166,6 +203,7 @@ export const AdminProvider = ({ children }) => {
         handleUpdateUser,
         handleDeleteMail,
         handleReplyMail,
+        handleToggleMailRead,
         handleDeleteFeedback,
         handleReplyFeedback,
         handleLogout,

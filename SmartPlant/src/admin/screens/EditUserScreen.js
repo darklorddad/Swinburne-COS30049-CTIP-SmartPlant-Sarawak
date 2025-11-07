@@ -160,7 +160,7 @@ export default function EditUserScreen({ route, navigation }) {
                     style={styles.input}
                 />
             </View>
-            <View style={styles.inputGroup}>
+            <View style={[styles.inputGroup, { paddingBottom: 24 }]}>
                 <Text style={styles.label}>Division</Text>
                 <TextInput
                     value={division}

@@ -162,7 +162,7 @@ const AddUserScreen = ({ navigation }) => {
                     />
                 </View>
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Postcode</Text>t
+                    <Text style={styles.label}>Postcode</Text>
                     <TextInput
                         value={postcode}
                         onChangeText={setPostcode}
@@ -189,7 +189,7 @@ const AddUserScreen = ({ navigation }) => {
                         placeholder="Enter occupation"
                     />
                 </View>
-                <View style={styles.inputGroup}>
+                <View style={[styles.inputGroup, { paddingBottom: 24 }]}>
                     <Text style={styles.label}>Division</Text>
                     <TextInput
                         value={division}
