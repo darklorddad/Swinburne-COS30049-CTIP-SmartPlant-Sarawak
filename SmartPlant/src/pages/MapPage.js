@@ -290,10 +290,22 @@ const MapPage = ({navigation}) => {
   }, [locationGranted]);
 
   const filteredMarkersForMap = useMemo(() => {
+    const searchedMarkers = searchText.trim() === ''
+      ? markers
+      : markers.filter(marker => {
+          const term = searchText.toLowerCase();
+          return (
+            (marker.title && marker.title.toLowerCase().includes(term)) ||
+            (marker.description && marker.description.toLowerCase().includes(term)) ||
+            (marker.identifiedBy && marker.identifiedBy.toLowerCase().includes(term))
+          );
+        });
+
     if (selectedFilters.includes('All')) {
-      return markers;
+      return searchedMarkers;
     }
-    return markers.filter(marker => {
+
+    return searchedMarkers.filter(marker => {
       return selectedFilters.every(filter => {
         const lowerCaseFilter = filter.toLowerCase();
         if (lowerCaseFilter === 'verified') {
@@ -308,7 +320,7 @@ const MapPage = ({navigation}) => {
         return false;
       });
     });
-  }, [markers, selectedFilters]);
+  }, [markers, selectedFilters, searchText]);
 
   const markersForBottomSheet = useMemo(() => {
     return getLatestInArea(filteredMarkersForMap, 3);
