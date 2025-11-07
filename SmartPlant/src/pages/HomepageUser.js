@@ -86,11 +86,16 @@ export default function HomepageUser({ navigation }) {
                   (v?.createdAt?.seconds ? v.createdAt.seconds * 1000 : Date.now())) ||
                 Date.now();
               const author =
-                v?.author_name || userProfile?.full_name || (v?.user_id ? `@${String(v.user_id).slice(0, 6)}` : "User");
+                userProfile?.full_name || v?.author_name || (v?.user_id ? `@${String(v.user_id).slice(0, 6)}` : "User");
+
+              const imageURIs = Array.isArray(v.ImageURLs) && v.ImageURLs.length > 0
+                ? v.ImageURLs
+                : (v.ImageURL ? [v.ImageURL] : []);
 
               return {
                 id: d.id,
-                image: v?.ImageURLs?.[0] ?? v?.ImageURL ?? null,
+                image: imageURIs[0] || null,
+                imageURIs: imageURIs,
                 userImage: userProfile?.profile_pic || null,
                 caption: top1
                   ? `Top: ${top1.plant_species} (${Math.round((top1.ai_score || 0) * 100)}%)`
@@ -150,7 +155,7 @@ export default function HomepageUser({ navigation }) {
     setTimeout(() => setRefreshing(false), 500);
   }, []);
 
-  const openDetail = (post) => navigation.navigate("PostDetail", { post });
+  const openDetail = (post) => navigation.navigate("PostDetail", { postId: post.id });
 
   const latest = posts[0];
   const formattedDate = useMemo(() => {

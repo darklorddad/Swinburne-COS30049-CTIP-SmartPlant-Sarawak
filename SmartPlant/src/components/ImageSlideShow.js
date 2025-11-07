@@ -14,7 +14,7 @@ import {
  * - measures the real container width so each item fills exactly that width
  * - snapToInterval and getItemLayout use measured width for perfect snap
  */
-export default function ImageSlideshow({ imageURIs = [], onSlideChange }) {
+export default function ImageSlideshow({ imageURIs = [], onSlideChange, style }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [containerWidth, setContainerWidth] = useState(null);
   const flatListRef = useRef(null);
@@ -40,7 +40,7 @@ export default function ImageSlideshow({ imageURIs = [], onSlideChange }) {
   if (!imageURIs.length) return null;
 
   return (
-    <View style={styles.outer} onLayout={onLayout}>
+    <View style={[styles.outer, style]} onLayout={onLayout}>
       <FlatList
         ref={flatListRef}
         data={imageURIs}
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   itemWrap: {
-    height: 300,
+    height: "100%",
     backgroundColor: "black",
   },
   image: {
