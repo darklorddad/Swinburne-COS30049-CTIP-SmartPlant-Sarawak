@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Button } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Button, Image } from 'react-native';
 import { BackIcon, TrashIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
 
@@ -16,6 +16,7 @@ const MailDetailScreen = ({ route, navigation }) => {
 
     const sender = users.find(u => u.id === mail.userId);
     const senderName = sender ? sender.name : 'System';
+    const profilePic = sender ? sender.details.profile_pic : null;
     const mailDate = mail.createdAt && mail.createdAt.seconds ? new Date(mail.createdAt.seconds * 1000).toLocaleDateString() : 'N/A';
 
     const onDelete = () => {
@@ -53,7 +54,13 @@ const MailDetailScreen = ({ route, navigation }) => {
             <ScrollView style={styles.scrollContainer}>
                 <Text style={styles.subject}>{mail.title}</Text>
                 <View style={styles.fromContainer}>
-                    <View style={styles.fromAvatar} />
+                    {profilePic ? (
+                        <Image source={{ uri: profilePic }} style={styles.fromAvatar} />
+                    ) : (
+                        <View style={[styles.fromAvatar, { backgroundColor: sender?.color || '#e5e7eb', justifyContent: 'center', alignItems: 'center' }]}>
+                            <Text style={styles.avatarText}>{senderName.charAt(0)}</Text>
+                        </View>
+                    )}
                     <View style={styles.fromInfo}>
                         <Text style={styles.fromName}>{senderName}</Text>
                     </View>
@@ -188,6 +195,11 @@ const styles = StyleSheet.create({
     replyBody: {
         color: '#15803d',
         lineHeight: 22,
+    },
+    avatarText: {
+        color: 'white',
+        fontSize: 20,
+        fontWeight: 'bold',
     },
 });
 

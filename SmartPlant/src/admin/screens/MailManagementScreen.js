@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SectionList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SectionList, Image } from 'react-native';
 import { BackIcon, StarIcon } from '../Icons';
 import SearchBar from '../components/SearchBar';
 import { useAdminContext } from '../AdminContext';
 import AdminBottomNavBar from '../components/AdminBottomNavBar';
 
 const MailManagementScreen = ({ navigation }) => {
-    const { mails, handleToggleMailRead } = useAdminContext();
+    const { mails, users, handleToggleMailRead } = useAdminContext();
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState('all');
 
@@ -33,23 +33,35 @@ const MailManagementScreen = ({ navigation }) => {
         data: groupedMails[group]
     }));
 
-    const renderMailItem = ({ item }) => (
-        <TouchableOpacity
-            onPress={() => navigation.navigate('MailDetail', { mail: item })}
-            onLongPress={() => onToggleRead(item.id, item.read)}
-            delayLongPress={200}
-            style={styles.mailItem}
-        >
-            <View style={[styles.mailStatusIndicator, { backgroundColor: !item.read ? '#A59480' : '#e5e7eb' }]} />
-            <View style={styles.mailContent}>
-                <Text style={styles.mailFrom} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.mailSubject} numberOfLines={1}>{item.message}</Text>
-            </View>
-            <View style={styles.mailMeta}>
-                <Text style={styles.mailDate}>{item.createdAt && item.createdAt.seconds ? new Date(item.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</Text>
-            </View>
-        </TouchableOpacity>
-    );
+    const renderMailItem = ({ item }) => {
+        const sender = users.find(u => u.id === item.userId);
+        const senderName = sender ? sender.name : 'System';
+        const profilePic = sender ? sender.details.profile_pic : null;
+
+        return (
+            <TouchableOpacity
+                onPress={() => navigation.navigate('MailDetail', { mail: item })}
+                onLongPress={() => onToggleRead(item.id, item.read)}
+                delayLongPress={200}
+                style={styles.mailItem}
+            >
+                {profilePic ? (
+                    <Image source={{ uri: profilePic }} style={styles.mailStatusIndicator} />
+                ) : (
+                    <View style={[styles.mailStatusIndicator, { backgroundColor: sender?.color || '#A59480', justifyContent: 'center', alignItems: 'center' }]}>
+                        <Text style={styles.avatarText}>{senderName.charAt(0)}</Text>
+                    </View>
+                )}
+                <View style={styles.mailContent}>
+                    <Text style={styles.mailFrom} numberOfLines={1}>{item.title}</Text>
+                    <Text style={styles.mailSubject} numberOfLines={1}>{item.message}</Text>
+                </View>
+                <View style={styles.mailMeta}>
+                    <Text style={styles.mailDate}>{item.createdAt && item.createdAt.seconds ? new Date(item.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</Text>
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -179,6 +191,11 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: '#75685a',
         marginTop: 32,
+    },
+    avatarText: {
+        color: 'white',
+        fontSize: 20,
+        fontWeight: 'bold',
     },
 });
 
