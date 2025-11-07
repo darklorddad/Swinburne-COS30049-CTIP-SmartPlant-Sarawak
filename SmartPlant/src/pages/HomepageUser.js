@@ -11,13 +11,14 @@ import {
   Platform,   // ← added
   StatusBar,  // ← added
 } from "react-native";
+import { TOP_PAD, EXTRA_TOP_SPACE } from "../components/StatusBarManager";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import BottomNav from "../components/Navigation";
 
 import { auth, db } from "../firebase/FirebaseConfig";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
-import ImageSlideshow from "../components/ImageSlideShow";
+import { collection, query, orderBy, limit, onSnapshot, getDocs } from "firebase/firestore";
+import { getFullProfile } from "../firebase/UserProfile/UserUpdate";
 
 const NAV_HEIGHT = 60;      // height of your BottomNav
 const NAV_MARGIN_TOP = 150; // its marginTop from Navigation.js
@@ -46,52 +47,80 @@ export default function HomepageUser({ navigation }) {
 
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [userProfile, setUserProfile] = useState(null);
 
-  useEffect(() => {
-    const q = query(collection(db, "plant_identify"), orderBy("createdAt", "desc"), limit(20));
-    const unsub = onSnapshot(q, (snap) => {
-      const items = snap.docs.map((d) => {
-        const v = d.data();
-        const top1 = v?.model_predictions?.top_1;
-        const ms =
-          (v?.createdAt?.toMillis?.() ??
-            (v?.createdAt?.seconds ? v.createdAt.seconds * 1000 : Date.now())) ||
-          Date.now();
-        const author =
-          v?.author_name || (v?.user_id ? `@${String(v.user_id).slice(0, 6)}` : "User");
+  useFocusEffect(
+    useCallback(() => {
+      const fetchCurrentUserProfile = async () => {
+        if (auth.currentUser?.email) {
+          const profileData = await getFullProfile(auth.currentUser.email);
+          setUserProfile(profileData);
+        }
+      };
+      
+      fetchCurrentUserProfile();
+    }, [])
+  );
 
-        return {
-          id: d.id,
-          imageURIs: Array.isArray(v?.ImageURLs)
-            ? v.ImageURLs.filter((u) => typeof u === "string" && u.trim() !== "")
-            : v?.ImageURLs
-            ? [v.ImageURLs]
-            : [],
-          caption: top1
-            ? `Top: ${top1.plant_species} (${Math.round((top1.ai_score || 0) * 100)}%)`
-            : "New identification",
-          author,
-          time: ms,
-          locality: "Kuching",
-          prediction: [v?.model_predictions?.top_1, v?.model_predictions?.top_2, v?.model_predictions?.top_3].filter(Boolean),
-          coordinate: v?.coordinate ?? null,
-          like_count: typeof v?.like_count === "number" ? v.like_count : 0,
-          comment_count: typeof v?.comment_count === "number" ? v.comment_count : 0,
-          saved_by: Array.isArray(v?.saved_by) ? v.saved_by : [],
-          saved_count: typeof v?.saved_count === "number" ? v.saved_count : undefined,
-          identify_status: (v?.identify_status || "pending").toLowerCase(), // <-- already present
-        };
+    useEffect(() => {
+    let unsubPosts = () => {};
+    let unsubAccounts = () => {};
+
+    const accountsCollection = collection(db, "account");
+    unsubAccounts = onSnapshot(accountsCollection, (accountsSnapshot) => {
+      const profilesMap = new Map();
+      accountsSnapshot.forEach(doc => {
+          profilesMap.set(doc.id, doc.data());
       });
 
-      setPosts((prev) => {
-        const map = new Map(prev.map((p) => [p.id, p]));
-        items.forEach((it) => map.set(it.id, it));
-        return Array.from(map.values()).sort((a, b) => b.time - a.time).slice(0, 20);
+      const q = query(collection(db, "plant_identify"), orderBy("createdAt", "desc"), limit(20));
+      if (unsubPosts) unsubPosts(); 
+
+      unsubPosts = onSnapshot(q, (snap) => {
+          const items = snap.docs.map((d) => {
+              const v = d.data();
+              const userProfile = profilesMap.get(v.user_id) || {};
+              
+              const top1 = v?.model_predictions?.top_1;
+              const ms =
+                (v?.createdAt?.toMillis?.() ||
+                  (v?.createdAt?.seconds ? v.createdAt.seconds * 1000 : Date.now())) ||
+                Date.now();
+              const author =
+                v?.author_name || userProfile?.full_name || (v?.user_id ? `@${String(v.user_id).slice(0, 6)}` : "User");
+
+              return {
+                id: d.id,
+                image: v?.ImageURLs?.[0] ?? v?.ImageURL ?? null,
+                userImage: userProfile?.profile_pic || null,
+                caption: top1
+                  ? `Top: ${top1.plant_species} (${Math.round((top1.ai_score || 0) * 100)}%)`
+                  : "New identification",
+                author,
+                time: ms,
+                locality: "Kuching",
+                prediction: [v?.model_predictions?.top_1, v?.model_predictions?.top_2, v?.model_predictions?.top_3].filter(Boolean),
+                coordinate: v?.coordinate ?? null,
+                like_count: typeof v?.like_count === "number" ? v.like_count : 0,
+                comment_count: typeof v?.comment_count === "number" ? v.comment_count : 0,
+                saved_by: Array.isArray(v?.saved_by) ? v.saved_by : [],
+                saved_count: typeof v?.saved_count === "number" ? v.saved_count : undefined,
+              };
+          });
+          
+          setPosts((prev) => {
+              const map = new Map(prev.map((p) => [p.id, p]));
+              items.forEach((it) => map.set(it.id, it));
+              return Array.from(map.values()).sort((a, b) => b.time - a.time).slice(0, 20);
+          });
       });
     });
-    return () => unsub();
-  }, []);
+
+    return () => {
+      if(unsubPosts) unsubPosts();
+      if(unsubAccounts) unsubAccounts();
+    };
+}, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -167,10 +196,14 @@ export default function HomepageUser({ navigation }) {
       >
         {/* Greeting */}
         <View style={styles.greetingCard}>
-          <View style={styles.avatar} />
+          {userProfile?.profile_pic ? (
+            <Image source={{ uri: userProfile.profile_pic }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatar} />
+          )}
           <View style={{ flex: 1 }}>
             <Text style={styles.greetingTitle}>Good Morning</Text>
-            <Text style={styles.greetingSub}>{currentUserName}</Text>
+            <Text style={styles.greetingSub}>{userProfile?.full_name || currentUserName}</Text>
             <Text style={styles.greetingMeta}>{posts.length} 🌱 identified so far!</Text>
           </View>
         </View>
@@ -214,7 +247,11 @@ export default function HomepageUser({ navigation }) {
             <View key={p.id} style={styles.feedCard}>
               <TouchableOpacity onPress={() => openDetail(p)} activeOpacity={0.85}>
                 <View style={styles.feedHeader}>
-                  <View style={styles.feedAvatar} />
+                  {p.userImage ? (
+                    <Image source={{ uri: p.userImage }} style={styles.feedAvatar} />
+                  ) : (
+                    <View style={styles.feedAvatar} />
+                  )}
                   <View style={{ marginLeft: 8 }}>
                     <Text style={styles.feedName}>{p.author ?? "User"}</Text>
                     <Text style={styles.feedMeta}>
@@ -272,7 +309,7 @@ const styles = StyleSheet.create({
   // subtract the nav's marginTop from the ScrollView so you can reach the bottom
   scroller: { marginBottom: -NAV_MARGIN_TOP },
 
-  container: { flexGrow: 1, padding: 16 },
+  container: { flexGrow: 1, padding: 16, paddingTop: TOP_PAD },
 
   greetingCard: {
     backgroundColor: "#FFF",
@@ -281,7 +318,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginTop: 20,
   },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#D7E3D8" },
   greetingTitle: { fontSize: 16, fontWeight: "600", color: "#2b2b2b" },
