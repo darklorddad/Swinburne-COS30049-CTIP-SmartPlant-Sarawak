@@ -320,28 +320,33 @@ const MapPage = ({navigation}) => {
       },
       onPanResponderRelease: (evt, gestureState) => {
         const currentHeightValue = bottomSheetHeight._value;
-        currentHeightRef.current = currentHeightValue;
-        if (gestureState.dy > 20) {
-          if (selectedMarkerRef.current) {
-            closeMarkerDetail();
-          } else {
-            Animated.spring(bottomSheetHeight, { toValue: 100, useNativeDriver: false }).start(() => {
-              currentHeightRef.current = 100;
-            });
-          }
-        } else if (gestureState.dy < -20) {
-          if (selectedMarkerRef.current) {
-            Animated.spring(bottomSheetHeight, { toValue: height * 0.45, useNativeDriver: false }).start(() => {
-              currentHeightRef.current = height * 0.45;
-            });
-          } else {
-            Animated.spring(bottomSheetHeight, { toValue: 320, useNativeDriver: false }).start(() => {
-              currentHeightRef.current = 320;
-            });
-          }
-        } else {
-          Animated.spring(bottomSheetHeight, { toValue: currentHeightValue, useNativeDriver: false }).start();
+        const openHeight = selectedMarkerRef.current ? height * 0.45 : 320;
+        const closedHeight = 100;
+
+        let targetHeight;
+
+        // Check gesture velocity to decide direction
+        if (gestureState.vy > 0.5) { // Flick down
+            targetHeight = closedHeight;
+        } else if (gestureState.vy < -0.5) { // Flick up
+            targetHeight = openHeight;
+        } else { // No strong flick (includes tap), decide based on position
+            const halfway = (openHeight + closedHeight) / 2;
+            if (currentHeightValue < halfway) {
+                targetHeight = closedHeight;
+            } else {
+                targetHeight = openHeight;
+            }
         }
+        
+        if (targetHeight === closedHeight && selectedMarkerRef.current) {
+            // If we are closing and a marker was selected, clear it.
+            setSelectedMarker(null);
+        }
+
+        Animated.spring(bottomSheetHeight, { toValue: targetHeight, useNativeDriver: false }).start(() => {
+            currentHeightRef.current = targetHeight;
+        });
       }
     });
   }, [closeMarkerDetail]);
