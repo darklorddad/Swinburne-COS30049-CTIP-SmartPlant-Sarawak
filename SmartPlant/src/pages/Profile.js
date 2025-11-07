@@ -121,21 +121,12 @@ export default function ProfileScreen({ navigation }) {
           onPress={async () => {
               try {
                 await auth.signOut();
-                navigation.replace("LoginSelection");
+                navigation.replace("UserLogin");
               } catch (error) {
                 console.error("Error logging out:", error);
               }
             }}>
             <Text style={styles.menuText}>Log Out</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-
-          {/* Temporary link to Admin Dashboard */}
-          <TouchableOpacity 
-            style={styles.menuItem}
-            onPress={() => navigation.navigate("AdminDashboard")} 
-          >
-            <Text style={styles.menuText}>Admin Dashboard (temp)</Text>
             <Text style={styles.arrow}>›</Text>
           </TouchableOpacity>
         </View>
@@ -203,4 +194,3 @@ const styles = StyleSheet.create({
     alignItems: "center"
   }
 });
-
