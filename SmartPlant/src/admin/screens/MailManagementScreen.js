@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, SectionList } from 'react-nat
 import { BackIcon, StarIcon } from '../Icons';
 import SearchBar from '../components/SearchBar';
 import { useAdminContext } from '../AdminContext';
+import AdminBottomNavBar from '../components/AdminBottomNavBar';
 
 const MailManagementScreen = ({ navigation }) => {
     const { mails, handleToggleMailFavourite } = useAdminContext();
@@ -14,10 +15,10 @@ const MailManagementScreen = ({ navigation }) => {
     };
 
     const filteredMails = mails.filter(mail => {
-        const matchesSearch = mail.subject.toLowerCase().includes(searchQuery.toLowerCase()) || mail.from.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = (mail.title && mail.title.toLowerCase().includes(searchQuery.toLowerCase())) || 
+                              (mail.message && mail.message.toLowerCase().includes(searchQuery.toLowerCase()));
         if (!matchesSearch) return false;
-        if (filter === 'unread') return mail.status === 'unread';
-        if (filter === 'favourite') return mail.flagged;
+        if (filter === 'unread') return !mail.read;
         return true;
     });
 
@@ -33,16 +34,13 @@ const MailManagementScreen = ({ navigation }) => {
 
     const renderMailItem = ({ item }) => (
         <TouchableOpacity onPress={() => navigation.navigate('MailDetail', { mail: item })} style={styles.mailItem}>
-            <View style={[styles.mailStatusIndicator, { backgroundColor: item.status === 'unread' ? '#A59480' : '#e5e7eb' }]} />
+            <View style={[styles.mailStatusIndicator, { backgroundColor: !item.read ? '#A59480' : '#e5e7eb' }]} />
             <View style={styles.mailContent}>
-                <Text style={styles.mailFrom} numberOfLines={1}>{item.from}</Text>
-                <Text style={styles.mailSubject} numberOfLines={1}>{item.subject}</Text>
+                <Text style={styles.mailFrom} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.mailSubject} numberOfLines={1}>{item.message}</Text>
             </View>
             <View style={styles.mailMeta}>
-                <Text style={styles.mailDate}>{item.date}</Text>
-                <TouchableOpacity onPress={(e) => { e.stopPropagation(); onToggleFavourite(item.id); }} style={styles.starButton}>
-                    <StarIcon filled={item.flagged} size={24} />
-                </TouchableOpacity>
+                <Text style={styles.mailDate}>{item.createdAt && item.createdAt.seconds ? new Date(item.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</Text>
             </View>
         </TouchableOpacity>
     );
@@ -56,17 +54,16 @@ const MailManagementScreen = ({ navigation }) => {
                 <Text style={styles.headerTitle}>Mail Management</Text>
                 <View style={{ width: 24 }} />
             </View>
-            <SearchBar value={searchQuery} onChange={setSearchQuery} />
-            <View style={styles.filterContainer}>
-                <TouchableOpacity onPress={() => setFilter('all')} style={[styles.filterButton, filter === 'all' && styles.activeFilter]}>
-                    <Text style={[styles.filterText, filter === 'all' && styles.activeFilterText]}>All</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setFilter('unread')} style={[styles.filterButton, filter === 'unread' && styles.activeFilter]}>
-                    <Text style={[styles.filterText, filter === 'unread' && styles.activeFilterText]}>Unread</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setFilter('favourite')} style={[styles.filterButton, filter === 'favourite' && styles.activeFilter]}>
-                    <Text style={[styles.filterText, filter === 'favourite' && styles.activeFilterText]}>Favourite</Text>
-                </TouchableOpacity>
+            <View style={{paddingHorizontal: 16}}>
+                <SearchBar value={searchQuery} onChange={setSearchQuery} />
+                <View style={[styles.filterContainer]}>
+                  <TouchableOpacity onPress={() => setFilter('all')} style={[styles.filterButton, filter === 'all' && styles.activeFilter]}>
+                      <Text style={[styles.filterText, filter === 'all' && styles.activeFilterText]}>All</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setFilter('unread')} style={[styles.filterButton, filter === 'unread' && styles.activeFilter]}>
+                      <Text style={[styles.filterText, filter === 'unread' && styles.activeFilterText]}>Unread</Text>
+                  </TouchableOpacity>
+                </View>
             </View>
             <SectionList
                 sections={sections}
@@ -76,9 +73,10 @@ const MailManagementScreen = ({ navigation }) => {
                     <Text style={styles.groupHeader}>{title}</Text>
                 )}
                 ListEmptyComponent={<Text style={styles.noMailText}>No mail found.</Text>}
-                contentContainerStyle={{ flexGrow: 1 }}
+                contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, }}
                 style={styles.list}
             />
+        <AdminBottomNavBar navigation={navigation} activeScreen="MailManagement" />
         </View>
     );
 };
@@ -86,7 +84,6 @@ const MailManagementScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        paddingHorizontal: 16,
         backgroundColor: '#FFFBF5',
     },
     header: {
@@ -95,6 +92,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingTop: 16,
         paddingBottom: 8,
+        paddingHorizontal: 16,
     },
     headerTitle: {
         fontSize: 20,
@@ -103,18 +101,18 @@ const styles = StyleSheet.create({
     },
     filterContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        alignItems: 'center',
+        backgroundColor: '#e5e7eb',
+        borderRadius: 8,
         marginVertical: 8,
     },
     filterButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-        backgroundColor: 'white',
+        flex: 1,
+        paddingVertical: 12,
+        alignItems: 'center',
     },
     activeFilter: {
         backgroundColor: '#A59480',
+        borderRadius: 8,
     },
     filterText: {
         fontWeight: '600',

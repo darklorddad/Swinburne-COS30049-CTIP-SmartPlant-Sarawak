@@ -1,99 +1,174 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { db } from '../firebase/FirebaseConfig';
+import { Alert } from 'react-native';
+import { getFirestore, collection, onSnapshot, doc, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 
-// --- Initial Data ---
-const allUsers = [
-    { id: 1, name: 'Gibson', status: 'active', favourite: true, color: '#fca5a5', details: { age: 32, gender: 'Male', contact: '555-0101', address: '123 Apple St', email: 'gibson@example.com', plantId: 10, role: 'Expert' } },
-    { id: 2, name: 'Esther', status: 'active', favourite: false, color: '#16a34a', details: { age: 28, gender: 'Female', contact: '555-0102', address: '456 Oak Ave', email: 'esther@example.com', plantId: 12, role: 'User' } },
-    { id: 3, name: 'Nothing', status: 'deactive', favourite: false, color: '#a3e635', details: { age: 45, gender: 'Other', contact: '555-0103', address: '789 Pine Ln', email: 'nothing@example.com', plantId: 5, role: 'User' } },
-    { id: 4, name: 'Eric Wee', status: 'active', favourite: true, color: '#fef08a', details: { age: 25, gender: 'Male', contact: '555-0104', address: '321 Birch Rd', email: 'eric.w@example.com', plantId: 8, role: 'Expert' } },
-    { id: 5, name: 'Gibson Lee', status: 'deactive', favourite: false, color: '#16a34a', details: { age: 32, gender: 'Male', contact: '555-0105', address: '654 Maple Ct', email: 'gibson.l@example.com', plantId: 15, role: 'User' } },
-    { id: 6, name: 'Eric', status: 'active', favourite: false, color: '#9ca3af', details: { age: 29, gender: 'Male', contact: '555-0106', address: '987 Cedar Blvd', email: 'eric@example.com', plantId: 7, role: 'User' } },
-    { id: 7, name: 'Samantha', status: 'active', favourite: true, color: '#c084fc', details: { age: 35, gender: 'Female', contact: '555-0107', address: '111 Rosewood Dr', email: 'samantha@example.com', plantId: 22, role: 'Expert' } },
-    { id: 8, name: 'Ben Carter', status: 'deactive', favourite: false, color: '#60a5fa', details: { age: 41, gender: 'Male', contact: '555-0108', address: '222 Willow Way', email: 'ben.c@example.com', plantId: 3, role: 'User' } },
-    { id: 9, name: 'Olivia', status: 'active', favourite: false, color: '#f9a8d4', details: { age: 22, gender: 'Female', contact: '555-0109', address: '333 Daisy Pl', email: 'olivia@example.com', plantId: 18, role: 'User' } },
-];
-
-const allMails = [
-    { id: 1, from: 'Feedback', to: 'me', subject: 'Regarding the new UI', body: 'The new user interface is fantastic! Very intuitive and easy to navigate.', date: 'Tuesday', status: 'unread', flagged: true, timeGroup: 'Yesterday' },
-    { id: 2, from: 'Service Report', to: 'not-me', subject: 'Weekly System Performance', body: 'Please find the attached weekly performance report. Overall system health is at 99.8%.', date: 'Tuesday', status: 'read', flagged: true, timeGroup: 'Yesterday' },
-    { id: 3, from: 'System Alert', to: 'me', subject: 'New login detected', body: 'A new device has logged into your account. If this was not you, please secure your account immediately.', date: '07/05/2025', status: 'read', flagged: false, timeGroup: 'This Week' },
-];
-
-const allFeedbacks = [
-    { id: 1, subject: 'UI Suggestion', body: 'The dashboard looks great, but maybe the colors could be a bit brighter.', time: 'Yesterday', replies: [] },
-    { id: 2, subject: 'Feature Request', body: 'Can we add a dark mode? It would be easier on the eyes at night.', time: '2 days ago', replies: [{ text: "That's a great idea! We'll look into it for a future update.", time: 'Yesterday'}]}
-];
 
 const AdminContext = createContext();
 
 export const useAdminContext = () => useContext(AdminContext);
 
 export const AdminProvider = ({ children }) => {
-    const [users, setUsers] = useState(allUsers);
-    const [mails, setMails] = useState(allMails);
-    const [feedbacks, setFeedbacks] = useState(allFeedbacks);
+    const [users, setUsers] = useState([]);
+    const [mails, setMails] = useState([]);
+    const [feedbacks, setFeedbacks] = useState([]);
+    const [plantIdentities, setPlantIdentities] = useState([]);
     const [toastMessage, setToastMessage] = useState('');
 
-    const showToast = (message) => {
-        setToastMessage(message);
-        setTimeout(() => setToastMessage(''), 3000);
-    };
+    useEffect(() => {
+        const db = getFirestore();
+        const unsubscribeUsers = onSnapshot(collection(db, "account"), (snapshot) => {
+            const usersData = snapshot.docs.map((doc, index) => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    name: data.full_name || "Unnamed User",
+                    status: data.is_active ? 'active' : 'inactive',
+                    favourite: false, // Default value
+                    color: ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'][index % 7],
+                    details: {
+                        ...data, 
+                        role: data.role,
+                        email: data.email,
+                        contact: data.phone_number || 'N/A',
+                        address: data.address || 'N/A',
+                        gender: data.gender || 'N/A',
+                        age: data.date_of_birth ? new Date().getFullYear() - new Date(data.date_of_birth).getFullYear() : 'N/A',
+                        plantId: data.plantId || 0
+                    }
+                };
+            });
+            setUsers(usersData);
+        });
 
-    const handleDeleteUser = (userId) => {
-        setUsers(currentUsers => currentUsers.filter(u => u.id !== userId));
-        showToast("User deleted successfully!");
-    };
+        const unsubscribeMails = onSnapshot(collection(db, "notifications"), (snapshot) => {
+            setMails(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
 
-    const handleAddNewUser = (newUser) => {
-        const userWithId = {
-            ...newUser,
-            id: Date.now(),
-            favourite: false,
-            color: ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'][users.length % 7]
+        const unsubscribeFeedbacks = onSnapshot(collection(db, "report"), (snapshot) => {
+            setFeedbacks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
+
+        const unsubscribePlantIdentities = onSnapshot(collection(db, "plant_identify"), (snapshot) => {
+            setPlantIdentities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
+
+        return () => {
+            unsubscribeUsers();
+            unsubscribeMails();
+            unsubscribeFeedbacks();
+            unsubscribePlantIdentities();
         };
-        setUsers(currentUsers => [...currentUsers, userWithId]);
-        showToast("User added successfully!");
+    }, []);
+
+    const showToast = (message) => {
+        Alert.alert("System Message", message);
     };
 
-    const handleToggleMailFavourite = (mailId) => {
-        setMails(currentMails =>
-            currentMails.map(mail =>
-                mail.id === mailId ? { ...mail, flagged: !mail.flagged } : mail
-            )
-        );
+    const handleDeleteUser = async (userId) => {
+        try {
+            await deleteDoc(doc(db, "account", userId));
+            showToast("User deleted successfully!");
+        } catch (error) {
+            showToast(`Error deleting user: ${error.message}`);
+        }
     };
 
-    const handleDeleteFeedback = (id) => {
-        setFeedbacks(currentFeedbacks => currentFeedbacks.filter(f => f.id !== id));
+    const handleAddNewUser = async (newUser, password) => {
+        const auth = getAuth();
+        try {
+            // Create user in Firebase Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, newUser.details.email, password);
+            const user = userCredential.user;
+
+            // Save user details in Firestore
+            await setDoc(doc(db, "account", user.uid), {
+                ...newUser.details,
+                full_name: newUser.name, 
+                is_active: newUser.status === 'active',
+                user_id: user.uid,
+            });
+
+            showToast("User added successfully!");
+        } catch (error) {
+            // Use a more specific error message if possible
+            if (error.code === 'auth/email-already-in-use') {
+                showToast('Error: This email address is already in use.');
+            } else {
+                showToast(`Error adding user: ${error.message}`);
+            }
+            throw error; // Re-throw the error to be caught in the component
+        }
+    };
+
+    const handleUpdateUser = async (userId, updatedData) => {
+        const userDocRef = doc(db, "account", userId);
+        try {
+            // The 'status' field comes in as 'active'/'inactive'
+            // We convert it to a boolean for Firestore
+            const dataToUpdate = {
+                ...updatedData,
+                is_active: updatedData.status === 'active',
+            };
+            
+            // We don't want to save the 'status' string in Firestore, just the boolean
+            delete dataToUpdate.status;
+            
+            await updateDoc(userDocRef, dataToUpdate);
+            showToast("User updated successfully!");
+        } catch (error) {
+            showToast(`Error updating user: ${error.message}`);
+        }
+    };
+
+    const handleDeleteMail = async (mailId) => {
+        await deleteDoc(doc(db, "notifications", mailId));
+        showToast("Mail deleted successfully!");
+    };
+
+    const handleReplyMail = async (mailId, replyText) => {
+        const mailDocRef = doc(db, "notifications", mailId);
+        await updateDoc(mailDocRef, { reply: replyText });
+        showToast("Reply sent successfully!");
+    };
+
+    const handleDeleteFeedback = async (feedbackId) => {
+        await deleteDoc(doc(db, "report", feedbackId));
         showToast("Feedback deleted successfully!");
     };
 
-    const handleReplyFeedback = (feedbackId, replyText) => {
-        const newReply = { text: replyText, time: 'Just now' };
-        setFeedbacks(currentFeedbacks =>
-            currentFeedbacks.map(fb =>
-                fb.id === feedbackId ? { ...fb, replies: [...(fb.replies || []), newReply] } : fb
-            )
-        );
-        showToast("Reply sent!");
+    const handleReplyFeedback = async (feedbackId, replyText) => {
+        const feedbackDocRef = doc(db, "report", feedbackId);
+        await updateDoc(feedbackDocRef, { admin_notes: replyText });
+        showToast("Reply sent successfully!");
     };
 
-    const handleDeleteMail = (id) => {
-        setMails(currentMails => currentMails.filter(m => m.id !== id));
-        showToast("Mail deleted successfully!");
+    const handleLogout = async (navigation) => {
+        const auth = getAuth();
+        try {
+            await signOut(auth);
+            showToast("You have been logged out.");
+            navigation.navigate("UserLogin");
+        } catch (error) {
+            showToast(`Error logging out: ${error.message}`);
+        }
     };
 
     const value = {
         users,
         mails,
         feedbacks,
+        plantIdentities,
         toastMessage,
         handleDeleteUser,
         handleAddNewUser,
-        handleToggleMailFavourite,
+        handleUpdateUser,
+        handleDeleteMail,
+        handleReplyMail,
         handleDeleteFeedback,
         handleReplyFeedback,
-        handleDeleteMail,
+        handleLogout,
     };
 
     return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

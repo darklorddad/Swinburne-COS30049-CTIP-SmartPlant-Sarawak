@@ -1,15 +1,21 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Button } from 'react-native';
 import { BackIcon, TrashIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
 
 const MailDetailScreen = ({ route, navigation }) => {
     const { mail } = route.params;
-    const { handleDeleteMail } = useAdminContext();
+    const { handleDeleteMail, handleReplyMail } = useAdminContext();
+    const [replyText, setReplyText] = useState('');
 
     const onDelete = () => {
         handleDeleteMail(mail.id);
         navigation.goBack();
+    };
+
+    const onReply = () => {
+        handleReplyMail(mail.id, replyText);
+        setReplyText('');
     };
 
     if (!mail) {
@@ -44,11 +50,21 @@ const MailDetailScreen = ({ route, navigation }) => {
                     <Text style={styles.date}>{mail.date}</Text>
                 </View>
                 <Text style={styles.body}>{mail.body}</Text>
+                {mail.reply &&
+                    <View style={styles.replyContainer}>
+                        <Text style={styles.replyTitle}>Your Reply:</Text>
+                        <Text style={styles.replyBody}>{mail.reply}</Text>
+                    </View>
+                }
             </ScrollView>
-            <View style={styles.replyButtonContainer}>
-                <TouchableOpacity style={styles.replyButton}>
-                    <Text style={styles.replyButtonText}>Reply</Text>
-                </TouchableOpacity>
+            <View style={styles.replyInputContainer}>
+                <TextInput
+                    style={styles.replyInput}
+                    placeholder="Type your reply..."
+                    value={replyText}
+                    onChangeText={setReplyText}
+                />
+                <Button title="Send" onPress={onReply} />
             </View>
         </View>
     );
