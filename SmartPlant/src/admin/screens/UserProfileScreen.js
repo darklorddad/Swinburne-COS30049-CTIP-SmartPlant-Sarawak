@@ -29,7 +29,7 @@ const UserProfileScreen = ({ route, navigation }) => {
     return (
         <View style={styles.outerContainer}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <BackIcon color="#3C3633" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>User Profile</Text>
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         left: 0,
         right: 0,
-        top: 24,
+        top: 18,
         textAlign: 'center',
         fontSize: 20,
         fontWeight: 'bold',
@@ -186,6 +186,7 @@ const styles = StyleSheet.create({
     headerActions: {
         flexDirection: 'row',
         gap: 8,
+        zIndex: 1,
     },
     actionButton: {
         padding: 8,
@@ -309,6 +310,9 @@ const styles = StyleSheet.create({
     activityLabel: {
         fontSize: 14,
         color: '#6b7280',
+    },
+    backButton: {
+        zIndex: 1,
     },
 });
 

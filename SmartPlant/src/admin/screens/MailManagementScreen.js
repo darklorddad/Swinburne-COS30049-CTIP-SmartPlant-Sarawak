@@ -9,9 +9,14 @@ const MailManagementScreen = ({ navigation }) => {
     const { mails, users, handleToggleMailRead } = useAdminContext();
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState('all');
+    const [expandedGroups, setExpandedGroups] = useState({ Today: true });
 
     const onToggleRead = (mailId, currentStatus) => {
         handleToggleMailRead(mailId, currentStatus);
+    };
+
+    const toggleGroup = (title) => {
+        setExpandedGroups(prev => ({ ...prev, [title]: !prev[title] }));
     };
 
     const filteredMails = mails.filter(mail => {
@@ -30,7 +35,7 @@ const MailManagementScreen = ({ navigation }) => {
 
     const sections = Object.keys(groupedMails).map(group => ({
         title: group,
-        data: groupedMails[group]
+        data: expandedGroups[group] ? groupedMails[group] : []
     }));
 
     const renderMailItem = ({ item }) => {
@@ -91,7 +96,10 @@ const MailManagementScreen = ({ navigation }) => {
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={renderMailItem}
                 renderSectionHeader={({ section: { title } }) => (
-                    <Text style={styles.groupHeader}>{title}</Text>
+                    <TouchableOpacity onPress={() => toggleGroup(title)} style={styles.groupHeaderContainer}>
+                        <Text style={styles.groupHeader}>{title}</Text>
+                        <Text style={styles.groupHeaderIcon}>{expandedGroups[title] ? '▼' : '▶'}</Text>
+                    </TouchableOpacity>
                 )}
                 ListEmptyComponent={<Text style={styles.noMailText}>No mail found.</Text>}
                 contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, }}
@@ -148,7 +156,17 @@ const styles = StyleSheet.create({
     groupHeader: {
         fontWeight: 'bold',
         color: '#3C3633',
-        marginVertical: 8,
+    },
+    groupHeaderContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 8,
+    },
+    groupHeaderIcon: {
+        fontWeight: 'bold',
+        color: '#3C3633',
+        fontSize: 16,
     },
     mailItem: {
         flexDirection: 'row',
