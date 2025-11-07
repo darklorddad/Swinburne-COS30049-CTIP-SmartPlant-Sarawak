@@ -463,6 +463,13 @@ const MapPage = ({navigation}) => {
       <Animated.View style={[styles.bottomSheet, { height: bottomSheetHeight }]} {...panResponder.panHandlers}>
         <View style={styles.bottomSheetHandle} />
         <View style={styles.bottomSheetContent}>
+          {showMenu && selectedMarker && (
+            <TouchableOpacity
+              style={styles.menuBackdrop}
+              activeOpacity={1}
+              onPress={() => setShowMenu(false)}
+            />
+          )}
           {selectedMarker ? (
             <ScrollView style={styles.detailScrollView} showsVerticalScrollIndicator={true}>
               <View style={styles.markerDetail}>
@@ -712,10 +719,18 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   likeButton: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingTop: '5' },
   likeCount: { fontSize: 14, color: '#666', fontWeight: '500' },
+  menuContainer: {
+    zIndex: 101,
+  },
   menuButton: { padding: 5 },
+  menuBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    backgroundColor: 'transparent',
+  },
   menuOverlay: {
     position: 'absolute', bottom: 40, right: 0, backgroundColor: 'white', borderRadius: 10, padding: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 5, zIndex: 100, minWidth: 150,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 5, zIndex: 102, minWidth: 150,
   },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 5 },
   menuText: { fontSize: 14, color: '#333' },
