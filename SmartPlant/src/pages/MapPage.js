@@ -279,18 +279,30 @@ const MapPage = ({navigation}) => {
     loadLocation();
   }, [locationGranted]);
 
-  const filteredMarkersForMap = useMemo(() => (selectedTab === 'All' || !selectedTab)
-    ? markers
-    : markers.filter(marker => marker.type === selectedTab),
-  [markers, selectedTab]
-  );
+  const filteredMarkersForMap = useMemo(() => {
+    if (selectedFilters.includes('All')) {
+      return markers;
+    }
+    return markers.filter(marker => {
+      return selectedFilters.some(filter => {
+        const lowerCaseFilter = filter.toLowerCase();
+        if (lowerCaseFilter === 'verified') {
+          return marker.identify_status === 'verified';
+        }
+        if (lowerCaseFilter === 'unverified') {
+          return marker.identify_status && marker.identify_status !== 'verified';
+        }
+        if (marker.type) {
+          return marker.type.toLowerCase() === lowerCaseFilter;
+        }
+        return false;
+      });
+    });
+  }, [markers, selectedFilters]);
 
-    const markersForBottomSheet = useMemo(() => {
-    const visibleMarkers = (selectedTab === 'All' || !selectedTab)
-      ? markers
-      : markers.filter(marker => marker.type === selectedTab);
-    return getLatestInArea(visibleMarkers, 3);
-  }, [markers, selectedTab, getLatestInArea]);
+  const markersForBottomSheet = useMemo(() => {
+    return getLatestInArea(filteredMarkersForMap, 3);
+  }, [filteredMarkersForMap, getLatestInArea]);
 
   const createPanResponder = () => {
     return PanResponder.create({
