@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect,  useContext} from 'react';
+import React, { useState, useRef, useEffect,  useContext, useCallback, useMemo } from 'react';
 import { StyleSheet, TextInput, Text, View, TouchableOpacity, ScrollView, Image, Dimensions, Animated, PanResponder, Alert, Platform } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Circle } from "react-native-maps";
 import { Ionicons } from '@expo/vector-icons';
@@ -6,9 +6,10 @@ import * as Location from 'expo-location';
 import { useRoute } from "@react-navigation/native"; // ← NEW
 import mapStyle from "../../assets/mapStyle.json";
 import { db } from '../firebase/config.js';
-import { collection, getDocs, onSnapshot } from 'firebase/firestore'; 
+import { collection, getDocs, onSnapshot, query } from 'firebase/firestore'; 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PermissionContext } from "../components/PermissionManager";
+import { TOP_PAD } from '../components/StatusBarManager';
 
 const { width, height } = Dimensions.get('window');
 
@@ -16,7 +17,8 @@ const MapPage = ({navigation}) => {
   const route = useRoute(); // ← NEW
 
   const [searchText, setSearchText] = useState('');
-  const [selectedTab, setSelectedTab] = useState(null);
+  const [selectedTab, setSelectedTab] = useState('All');
+
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [markers, setMarkers] = useState([]);
@@ -71,35 +73,58 @@ const MapPage = ({navigation}) => {
     return distance;
   };
 
-  const getSortedMarkersByDistance = (markersList) => {
-    if (!setUserLocation) return markersList;
-    return markersList
-      .map(marker => ({
+  const getLatestMarkers = (markersList, count = 3) => {
+    // sort by time
+    const sorted = markersList.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    const latest = sorted.slice(0, count);
+
+    // add distance to the latest markers
+    if (!userLocation) {
+        return latest;
+    }
+    return latest.map(marker => ({
         ...marker,
         distance: calculateDistance(
-          setUserLocation.latitude,
-          setUserLocation.longitude,
+          userLocation.latitude,
+          userLocation.longitude,
           marker.coordinate.latitude,
           marker.coordinate.longitude
         )
-      }))
-      .sort((a, b) => a.distance - b.distance);
-  };
+      }));
+  }
 
-  const getNearestMarkers = (markersList, count = 3) => {
-    const sorted = getSortedMarkersByDistance(markersList);
+  const getLatestInArea = (markersList, count = 3, radius = 50) => { // radius in km
+    if (!userLocation) {
+      // If no location, fall back to just latest markers globally.
+      const sorted = markersList.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      return sorted.slice(0, count).map(m => ({...m, distance: null}));
+    }
+
+    const markersInArea = markersList.map(marker => ({
+      ...marker,
+      distance: calculateDistance(
+        userLocation.latitude,
+        userLocation.longitude,
+        marker.coordinate.latitude,
+        marker.coordinate.longitude
+      )
+    })).filter(marker => marker.distance <= radius);
+
+    // sort by time
+    const sorted = markersInArea.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
     return sorted.slice(0, count);
   };
 
-  const handleTabPress = (tab) => {
+  const handleTabPress = useCallback((tab) => {
     if (selectedTab === tab) {
-      setSelectedTab(null);
-      console.log(`🔘 取消选择 ${tab}，显示所有植物`);
+      setSelectedTab('All');
     } else {
       setSelectedTab(tab);
-      console.log(`🔘 选择tab: ${tab}`);
     }
-  };
+  }, [selectedTab]);
+
+
 
   const formatTime = (timeData) => {
     if (!timeData) return 'Unknown time';
@@ -122,50 +147,68 @@ const MapPage = ({navigation}) => {
     }
   };
 
-  const fixMarkerData = (doc) => {
+  const fixMarkerData = (doc, source) => {
     const data = doc.data();
 
-    let latitude, longitude;
-    if (data.coordinate) {
-      latitude = typeof data.coordinate.latitude === 'string'
-        ? parseFloat(data.coordinate.latitude)
-        : data.coordinate.latitude;
-      longitude = typeof data.coordinate.longitude === 'string'
-        ? parseFloat(data.coordinate.longitude)
-        : data.coordinate.longitude;
+    if (!data.coordinate || data.coordinate.latitude == null || data.coordinate.longitude == null) {
+      return null;
+    }
+
+    const latitude = typeof data.coordinate.latitude === 'string'
+      ? parseFloat(data.coordinate.latitude)
+      : data.coordinate.latitude;
+    const longitude = typeof data.coordinate.longitude === 'string'
+      ? parseFloat(data.coordinate.longitude)
+      : data.coordinate.longitude;
+
+    if (isNaN(latitude) || isNaN(longitude)) {
+      return null;
+    }
+
+    let fixedMarker;
+
+    if (source === 'plant_identify') {
+      const topPrediction = data.model_predictions?.top_1;
+      fixedMarker = {
+        id: `${source}-${doc.id}`,
+        title: topPrediction?.plant_species || 'Unknown Plant',
+        type: 'Plant', // `plant_identify` items are always of type Plant
+        coordinate: { latitude, longitude },
+        identifiedBy: data.author_name || 'Unknown',
+        time: formatTime(data.createdAt),
+        image: (data.ImageURLs && data.ImageURLs[0]) || 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400',
+        description: topPrediction
+          ? `Top prediction: ${topPrediction.plant_species} with ${Math.round((topPrediction.ai_score || 0) * 100)}% confidence.`
+          : (data.description || 'No description available'),
+        createdAt: data.createdAt,
+        source: source,
+      };
+    } else if (source === 'markers') {
+        fixedMarker = {
+            id: `${source}-${doc.id}`,
+            title: data.title || 'Unknown Location',
+            type: data.type || 'Plant', // Use the type from 'markers' collection, default to 'Plant'
+            coordinate: { latitude, longitude },
+            identifiedBy: data.identifiedBy || 'Unknown',
+            time: formatTime(data.time),
+            image: data.image || 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400',
+            description: data.description || 'No description available',
+            createdAt: data.time, // for sorting by time
+            source: source,
+        };
     } else {
-      latitude = 1.5495;
-      longitude = 110.3632;
+        return null;
     }
 
-    let imageUrl = data.image;
-    if (imageUrl && imageUrl.startsWith('gs://')) {
-      const fileName = imageUrl.replace('gs://smartplantsarawak.firebasestorage.app/', '');
-      imageUrl = `https://firebasestorage.googleapis.com/v0/b/smartplantsarawak.appspot.com/o/${encodeURIComponent(fileName)}?alt=media`;
-    }
-
-    const fixedMarker = {
-      id: doc.id,
-      title: data.title || 'Unknown Plant',
-      type: data.type || 'Plant',
-      coordinate: {
-        latitude: latitude || 1.5495,
-        longitude: longitude || 110.3632
-      },
-      identifiedBy: data.identifiedBy || 'Unknown',
-      time: formatTime(data.time),
-      image: imageUrl || 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400',
-      description: data.description || 'No description available'
-    };
     return fixedMarker;
   };
 
   const fetchMarkers = async () => {
     try {
       setLoading(true);
-      const markersCollection = collection(db, 'markers');
+      const markersCollection = collection(db, 'plant_identify');
       const markerSnapshot = await getDocs(markersCollection);
-      const markersList = markerSnapshot.docs.map(doc => fixMarkerData(doc));
+      const markersList = markerSnapshot.docs.map(doc => fixMarkerData(doc)).filter(Boolean);
       setMarkers(markersList);
     } catch (error) {
       console.error('❌ 获取markers错误:', error);
@@ -176,20 +219,29 @@ const MapPage = ({navigation}) => {
   };
 
   const setupRealtimeListener = () => {
-    try {
-      const markersCollection = collection(db, 'markers');
-      const unsubscribe = onSnapshot(markersCollection, (snapshot) => {
-        const markersList = snapshot.docs.map(doc => fixMarkerData(doc));
-        setMarkers(markersList);
+    const collectionsToFetch = ['plant_identify', 'markers'];
+    const unsubscribes = collectionsToFetch.map(collectionName => {
+      const q = query(collection(db, collectionName));
+      return onSnapshot(q, (snapshot) => {
+        const newMarkers = snapshot.docs.map(doc => fixMarkerData(doc, collectionName)).filter(Boolean);
+        setMarkers(prev => {
+          const otherMarkers = prev.filter(m => m.source !== collectionName);
+          return [...otherMarkers, ...newMarkers];
+        });
+        setLoading(false);
       }, (error) => {
-        console.error('❌ 实时监听错误:', error);
+        console.error(`Error fetching from ${collectionName}:`, error);
+        setLoading(false);
       });
-      return unsubscribe;
-    } catch (error) {
-      console.error('❌ 设置实时监听错误:', error);
-      return () => {};
-    }
+    });
+
+    return () => unsubscribes.forEach(unsub => unsub());
   };
+
+  useEffect(() => {
+    const unsubscribe = setupRealtimeListener();
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const loadLocation = async () => {
@@ -210,20 +262,25 @@ const MapPage = ({navigation}) => {
     loadLocation();
   }, [locationGranted]);
 
-  const filteredMarkersForMap = selectedTab
-    ? markers.filter(marker => marker.type === selectedTab)
-    : markers;
+  const filteredMarkersForMap = useMemo(() => (selectedTab === 'All' || !selectedTab)
+    ? markers
+    : markers.filter(marker => marker.type === selectedTab),
+  [markers, selectedTab]
+  );
 
-  const markersForBottomSheet = selectedTab
-    ? getNearestMarkers(markers.filter(marker => marker.type === selectedTab), 3)
-    : getNearestMarkers(markers, 3);
+    const markersForBottomSheet = useMemo(() => {
+    const visibleMarkers = (selectedTab === 'All' || !selectedTab)
+      ? markers
+      : markers.filter(marker => marker.type === selectedTab);
+    return getLatestInArea(visibleMarkers, 3);
+  }, [markers, selectedTab, getLatestInArea]);
 
   const createPanResponder = () => {
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (evt, gestureState) => {
         const minHeight = selectedMarker ? 200 : 100;
-        const maxHeight = selectedMarker ? height * 0.7 : 280;
+        const maxHeight = selectedMarker ? height * 0.5 : 280;
         const newHeight = Math.max(minHeight, Math.min(maxHeight, currentHeightRef.current - gestureState.dy));
         bottomSheetHeight.setValue(newHeight);
       },
@@ -242,8 +299,8 @@ const MapPage = ({navigation}) => {
           }
         } else if (gestureState.dy < -20) {
           if (selectedMarker) {
-            Animated.spring(bottomSheetHeight, { toValue: height * 0.6, useNativeDriver: false }).start(() => {
-              currentHeightRef.current = height * 0.6;
+            Animated.spring(bottomSheetHeight, { toValue: height * 0.45, useNativeDriver: false }).start(() => {
+              currentHeightRef.current = height * 0.45;
             });
           } else {
             Animated.spring(bottomSheetHeight, { toValue: 280, useNativeDriver: false }).start(() => {
@@ -257,13 +314,12 @@ const MapPage = ({navigation}) => {
     });
   };
 
-  const [panResponder, setPanResponder] = useState(() => createPanResponder());
-  useEffect(() => { setPanResponder(createPanResponder()); }, [selectedMarker]);
+  const panResponder = useMemo(() => createPanResponder(), [selectedMarker]);
 
-  const handleMarkerPress = (marker) => {
+  const handleMarkerPress = useCallback((marker) => {
     setSelectedMarker(marker);
-    Animated.spring(bottomSheetHeight, { toValue: 300, useNativeDriver: false }).start(() => {
-      currentHeightRef.current = 300;
+    Animated.spring(bottomSheetHeight, { toValue: height * 0.45, useNativeDriver: false }).start(() => {
+      currentHeightRef.current = height * 0.45;
     });
     mapRef.current.animateToRegion({
       latitude: marker.coordinate.latitude,
@@ -271,9 +327,9 @@ const MapPage = ({navigation}) => {
       latitudeDelta: 0.01,
       longitudeDelta: 0.01,
     }, 1000);
-  };
+  }, [bottomSheetHeight]);
 
-  const focusOnUserLocation = () => {
+  const focusOnUserLocation = useCallback(() => {
     if (userLocation) {
       mapRef.current.animateToRegion({
         latitude: userLocation.latitude,
@@ -282,14 +338,14 @@ const MapPage = ({navigation}) => {
         longitudeDelta: 0.01,
       }, 1000);
     }
-  };
+  }, [userLocation]);
 
-  const closeMarkerDetail = () => {
+  const closeMarkerDetail = useCallback(() => {
     setSelectedMarker(null);
     Animated.spring(bottomSheetHeight, { toValue: 180, useNativeDriver: false }).start(() => {
       currentHeightRef.current = 180;
     });
-  };
+  }, [bottomSheetHeight]);
 
   const renderBottomSheet = () => {
     const [isLiked, setIsLiked] = useState(false);
@@ -360,17 +416,17 @@ const MapPage = ({navigation}) => {
           ) : (
             <>
               <Text style={styles.sectionTitle}>
-                {selectedTab ? `${selectedTab}s nearby` : 'Latest in the area'}
+                {(selectedTab && selectedTab !== 'All') ? `Latest ${selectedTab}s` : 'Latest in the area'}
               </Text>
               {loading ? (
                 <Text style={styles.loadingText}>Loading plants...</Text>
               ) : markersForBottomSheet.length === 0 ? (
                 <View style={styles.noDataContainer}>
                   <Text style={styles.noDataText}>
-                    {selectedTab ? `No ${selectedTab.toLowerCase()}s nearby` : 'No plants nearby'}
+                    {(selectedTab && selectedTab !== 'All') ? `No ${selectedTab.toLowerCase()}s nearby` : 'No plants nearby'}
                   </Text>
                   <Text style={styles.noDataSubtext}>
-                    {selectedTab ? 'Try exploring other areas' : 'Move around to discover plants'}
+                    {(selectedTab && selectedTab !== 'All') ? 'Try exploring other areas' : 'Move around to discover plants'}
                   </Text>
                 </View>
               ) : (
@@ -389,7 +445,7 @@ const MapPage = ({navigation}) => {
                       </View>
                       {index === 0 && (
                         <View style={styles.closestBadge}>
-                          <Text style={styles.closestBadgeText}>Closest</Text>
+                          <Text style={styles.closestBadgeText}>Latest</Text>
                         </View>
                       )}
                     </TouchableOpacity>
@@ -423,20 +479,18 @@ const MapPage = ({navigation}) => {
         showsMyLocationButton={false}
         showsCompass={true}
         customMapStyle={mapStyle}
+        onPress={closeMarkerDetail}
+        scrollEnabled={!selectedMarker}
       >
-        {/* 地图显示所有或筛选后的植物 */}
+        {/* Use plant images for markers */}
         {filteredMarkersForMap.map(marker => (
           <Marker
             key={marker.id}
             coordinate={marker.coordinate}
             onPress={() => handleMarkerPress(marker)}
+            tracksViewChanges={false}
           >
-            <View style={[
-              styles.marker,
-              marker.type === 'Flower' ? styles.flowerMarker : styles.plantMarker
-            ]}>
-              <Text style={styles.markerText}>{marker.title}</Text>
-            </View>
+            <Image source={{ uri: marker.image }} style={styles.mapMarkerImage} />
           </Marker>
         ))}
 
@@ -468,7 +522,7 @@ const MapPage = ({navigation}) => {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabContainer}>
-          {['Plant', 'Flower', 'More ...'].map(tab => (
+          {['All', 'Plant', 'Flower', 'More ...'].map(tab => (
             <TouchableOpacity
               key={tab}
               style={[styles.tab, selectedTab === tab && styles.selectedTab]}
@@ -490,7 +544,7 @@ const MapPage = ({navigation}) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { width: '100%', height: '100%' },
-  searchContainer: { position: 'absolute', top: Platform.OS === 'ios' ? 50 : 30, left: 20, right: 20 },
+  searchContainer: { position: 'absolute', top: TOP_PAD, left: 20, right: 20 },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', borderRadius: 10,
     paddingHorizontal: 15, paddingVertical: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
@@ -516,7 +570,7 @@ const styles = StyleSheet.create({
   latestImage: { width: '100%', height: 100, borderRadius: 8, marginBottom: 8 },
   latestTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
   latestInfo: { fontSize: 12, color: '#666' },
-  marker: { padding: 8, borderRadius: 20, borderWidth: 2, borderColor: 'white' },
+  mapMarkerImage: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: 'white' },
   plantMarker: { backgroundColor: '#4CAF50' },
   flowerMarker: { backgroundColor: '#E91E63' },
   markerText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
