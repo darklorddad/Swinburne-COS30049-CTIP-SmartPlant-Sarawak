@@ -27,11 +27,11 @@ const AccountManagementScreen = ({ navigation }) => {
                 <Image source={{ uri: item.details.profile_pic }} style={styles.userTileImage} />
             ) : (
                 <View style={[styles.userTileInitial, {backgroundColor: item.color || '#c8b6a6'}]}>
-                    <Text style={styles.userTileInitialText}>{item.name.charAt(0)}</Text>
+                    <Text style={styles.userTileInitialText}>{(item.name || 'U').charAt(0)}</Text>
                 </View>
             )}
             <View style={styles.userNameContainer}>
-                <Text style={styles.userNameText} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.userNameText} numberOfLines={1}>{item.name || 'Unnamed User'}</Text>
             </View>
         </TouchableOpacity>
     );

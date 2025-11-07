@@ -49,10 +49,10 @@ const UserProfileScreen = ({ route, navigation }) => {
                         <Image source={{ uri: user.details.profile_pic }} style={styles.avatar} />
                     ) : (
                         <View style={[styles.avatar, {backgroundColor: user.color || '#c8b6a6'}]}>
-                            <Text style={styles.avatarText}>{user.name.charAt(0)}</Text>
+                            <Text style={styles.avatarText}>{(user.name || 'U').charAt(0)}</Text>
                         </View>
                     )}
-                    <Text style={styles.userName}>{user.name}</Text>
+                    <Text style={styles.userName}>{user.name || 'Unnamed User'}</Text>
                     <Text style={styles.userRole}>{user.details.role.charAt(0).toUpperCase() + user.details.role.slice(1)}</Text>
                     <View style={styles.statusContainer}>
                         <View style={[styles.statusIndicator, { backgroundColor: user.status === 'active' ? '#22c55e' : '#9ca3af' }]} />
