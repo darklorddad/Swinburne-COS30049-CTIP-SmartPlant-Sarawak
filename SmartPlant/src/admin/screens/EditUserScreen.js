@@ -13,7 +13,7 @@ export default function EditUserScreen({ route, navigation }) {
   
   const [name, setName] = useState(user.details.full_name);
   const [email, setEmail] = useState(user.details.email);
-  const [role, setRole] = useState(user.details.role);
+  const [role, setRole] = useState(user.details.role || 'User');
   const [phone, setPhone] = useState(user.details.phone_number);
   const [address, setAddress] = useState(user.details.address);
   const [dob, setDob] = useState(user.details.date_of_birth);

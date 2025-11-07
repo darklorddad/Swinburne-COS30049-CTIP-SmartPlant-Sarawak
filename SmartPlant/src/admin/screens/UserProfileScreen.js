@@ -53,7 +53,7 @@ const UserProfileScreen = ({ route, navigation }) => {
                         </View>
                     )}
                     <Text style={styles.userName}>{user.name || 'Unnamed User'}</Text>
-                    <Text style={styles.userRole}>{user.details.role.charAt(0).toUpperCase() + user.details.role.slice(1)}</Text>
+                    <Text style={styles.userRole}>{user.details.role ? user.details.role.charAt(0).toUpperCase() + user.details.role.slice(1) : 'User'}</Text>
                     <View style={styles.statusContainer}>
                         <View style={[styles.statusIndicator, { backgroundColor: user.status === 'active' ? '#22c55e' : '#9ca3af' }]} />
                         <Text style={styles.statusText}>{user.status}</Text>

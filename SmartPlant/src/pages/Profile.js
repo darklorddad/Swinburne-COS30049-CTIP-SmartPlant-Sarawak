@@ -1,6 +1,7 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert } from "react-native";
 import BottomNav from "../components/Navigation";
+import BottomNavExpert from "../components/NavigationExpert";
 import { getFullProfile } from "../firebase/UserProfile/UserUpdate";
 import { auth } from "../firebase/FirebaseConfig";
 import { useFocusEffect } from '@react-navigation/native';
@@ -78,6 +79,8 @@ export default function ProfileScreen({ navigation }) {
     );
   }
 
+  const isExpert = profile?.role?.toLowerCase() === 'expert';
+
   return (
     <View style={styles.background}>
       <ScrollView style={styles.scroller} 
@@ -150,7 +153,7 @@ export default function ProfileScreen({ navigation }) {
       </ScrollView>
 
       {/* Fixed Bottom Nav */}
-      <BottomNav navigation={navigation} />
+      {isExpert ? <BottomNavExpert navigation={navigation} /> : <BottomNav navigation={navigation} />}
     </View>
   );
 }
