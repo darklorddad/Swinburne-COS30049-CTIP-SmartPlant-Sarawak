@@ -64,16 +64,13 @@ export default function SavedScreen({ navigation }) {
 
                     const postTime = data.time ?? data.createdAt ?? null;
 
-                    let image = null;
-                    if (data.ImageURLs && data.ImageURLs.length > 0) {
-                        image = data.ImageURLs[0];
-                    } else if (data.ImageURL) {
-                        image = data.ImageURL;
-                    }
+                    const imageURIs = Array.isArray(data.ImageURLs) && data.ImageURLs.length > 0
+                        ? data.ImageURLs
+                        : (data.ImageURL ? [data.ImageURL] : []);
 
                     return {
                         id: docSnap.id,
-                        image: image,
+                        imageURIs: imageURIs,
                         caption: data.caption || "",
                         locality: data.locality || "",
                         coordinate: data.coordinate || null,

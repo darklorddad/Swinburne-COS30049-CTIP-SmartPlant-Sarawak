@@ -10,6 +10,7 @@ import {
   StatusBar,
   TextInput,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BottomNav from "../components/Navigation";
@@ -113,13 +114,17 @@ export default function PostDetail({ navigation, route }) {
       }
 
       // Construct the final post object
+      const imageURIs = Array.isArray(postData.ImageURLs) && postData.ImageURLs.length > 0
+        ? postData.ImageURLs
+        : (postData.ImageURL ? [postData.ImageURL] : []);
+
       const fullPost = {
         id: snap.id,
         ...postData,
         uploader,
         author: uploader.name || postData.author_name || "User",
         authorProfilePic: uploader.profile_picture,
-        image: postData.ImageURLs?.[0] || postData.ImageURL,
+        imageURIs: imageURIs,
         time: postData.createdAt?.toMillis?.() ?? (postData.createdAt?.seconds ? postData.createdAt.seconds * 1000 : null),
         liked_by: Array.isArray(postData.liked_by) ? postData.liked_by : [],
         saved_by: Array.isArray(postData.saved_by) ? postData.saved_by : [],
@@ -328,8 +333,8 @@ export default function PostDetail({ navigation, route }) {
         </View>
 
         {/* Photo */}
-        {post.image ? (
-          <Image source={{ uri: post.image }} style={styles.photo} />
+        {post.imageURIs && post.imageURIs.length > 0 ? (
+          <ImageSlideshow imageURIs={post.imageURIs} style={styles.photo} />
         ) : (
           <View style={styles.photo} />
         )}
