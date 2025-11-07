@@ -445,17 +445,17 @@ const MapPage = ({navigation}) => {
           ) : (
             <>
               <Text style={styles.sectionTitle}>
-                {(selectedTab && selectedTab !== 'All') ? `Latest ${selectedTab}s` : 'Latest in the area'}
+                {!selectedFilters.includes('All') ? `Latest ${selectedFilters.join(', ')}` : 'Latest in the area'}
               </Text>
               {loading ? (
                 <Text style={styles.loadingText}>Loading plants...</Text>
               ) : markersForBottomSheet.length === 0 ? (
                 <View style={styles.noDataContainer}>
                   <Text style={styles.noDataText}>
-                    {(selectedTab && selectedTab !== 'All') ? `No ${selectedTab.toLowerCase()}s nearby` : 'No plants nearby'}
+                    {!selectedFilters.includes('All') ? `No ${selectedFilters.join(', ').toLowerCase()} nearby` : 'No plants nearby'}
                   </Text>
                   <Text style={styles.noDataSubtext}>
-                    {(selectedTab && selectedTab !== 'All') ? 'Try exploring other areas' : 'Move around to discover plants'}
+                    {!selectedFilters.includes('All') ? 'Try exploring other areas' : 'Move around to discover plants'}
                   </Text>
                 </View>
               ) : (
