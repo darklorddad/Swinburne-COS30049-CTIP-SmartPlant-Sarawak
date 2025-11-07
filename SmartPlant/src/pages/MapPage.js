@@ -6,7 +6,7 @@ import * as Location from 'expo-location';
 import { useRoute } from "@react-navigation/native"; // ← NEW
 import mapStyle from "../../assets/mapStyle.json";
 import { db } from '../firebase/config.js';
-import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore'; 
+import { collection, getDocs, onSnapshot, query } from 'firebase/firestore'; 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PermissionContext } from "../components/PermissionManager";
 import { TOP_PAD } from '../components/StatusBarManager';
@@ -221,12 +221,7 @@ const MapPage = ({navigation}) => {
   const setupRealtimeListener = () => {
     const collectionsToFetch = ['plant_identify', 'markers'];
     const unsubscribes = collectionsToFetch.map(collectionName => {
-      let q;
-      if (collectionName === 'plant_identify') {
-        q = query(collection(db, collectionName), where("identify_status", "==", "verified"));
-      } else {
-        q = query(collection(db, collectionName));
-      }
+      const q = query(collection(db, collectionName));
       return onSnapshot(q, (snapshot) => {
         const newMarkers = snapshot.docs.map(doc => fixMarkerData(doc, collectionName)).filter(Boolean);
         setMarkers(prev => {
