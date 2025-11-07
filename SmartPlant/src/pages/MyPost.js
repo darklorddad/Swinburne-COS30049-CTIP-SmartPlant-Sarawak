@@ -33,13 +33,24 @@ export default function MyPost({ navigation }) {
       }
 
       try {
-        const userRef = doc(db, "user", userId);
+        const userRef = doc(db, "account", userId);
         const userSnap = await getDoc(userRef);
         let fullName = "";
+        let profilePicture = "";
+
         if (userSnap.exists()) {
           const userData = userSnap.data();
           fullName = userData.full_name || "";
+          profilePicture = userData.profile_pic || "";
           setUserFullName(fullName);
+        } else {
+          const userRef = doc(db, "user", userId);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            fullName = userData.full_name || "";
+            setUserFullName(fullName);
+          } 
         }
 
         // Only the posts uploaded by this user
@@ -77,6 +88,13 @@ export default function MyPost({ navigation }) {
           
           const postTime = data.time ?? data.createdAt ?? null;
 
+          let image = null;
+          if (data.ImageURLs && data.ImageURLs.length > 0) {
+            image = data.ImageURLs[0];
+          } else if (data.ImageURL) {
+            image = data.ImageURL;
+          }
+
           return {
             id: docSnap.id,
             imageURIs: imageURIs,
@@ -85,15 +103,26 @@ export default function MyPost({ navigation }) {
             coordinate: data.coordinate || null,
             time: postTime,
             prediction: predictions,
+            like_count: data.like_count || 0,
+            comment_count: data.comment_count || 0,
+            saved_by: data.saved_by || [],
+            liked_by_me: (data.liked_by || []).includes(userId),
+            saved_by_me: (data.saved_by || []).includes(userId),
+            user: {
+              id: userId,
+              name: fullName,
+              email: userEmail,
+              profile_picture: profilePicture,
+            },
             liked_by: data.liked_by || [],
             saved_by: data.saved_by || [],
             uploader: {
               id: userId,
               name: fullName,
               email: userEmail,
-              profile_picture: auth.currentUser?.photoURL || "",
+              profile_picture: profilePicture,
             },
-            
+            user_id: userId,
           };
           
         });
@@ -126,7 +155,7 @@ export default function MyPost({ navigation }) {
           <TouchableOpacity
             key={post.id}
             style={styles.postCard}
-            onPress={() => navigation.navigate("PostDetail", { post })}
+            onPress={() => navigation.navigate("PostDetail", { postId: post.id })}
           >
             {/* Header */}
             <View style={styles.postHeader}>
@@ -147,8 +176,12 @@ export default function MyPost({ navigation }) {
 
             {/* Actions */}
             <View style={styles.actions}>
-              <Ionicons name="heart-outline" size={22} color="#333" />
+              <Ionicons name={post.liked_by_me ? "heart" : "heart-outline"} size={22} color="#333" />
+              <Text style={styles.countText}>{post.like_count}</Text>
               <Ionicons name="chatbubble-ellipses-outline" size={22} color="#333" style={styles.icon} />
+              <Text style={styles.countText}>{post.comment_count}</Text>
+              <Ionicons name={post.saved_by_me ? "bookmark" : "bookmark-outline"} size={22} color="#333" style={styles.icon} />
+              <Text style={styles.countText}>{post.saved_by.length}</Text>
             </View>
           </TouchableOpacity>
         ))
@@ -210,5 +243,10 @@ const styles = StyleSheet.create({
   },
   icon: {
     marginLeft: 14,
+  },
+  countText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: "#333",
   },
 });
