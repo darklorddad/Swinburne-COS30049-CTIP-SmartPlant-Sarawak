@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect,  useContext, useCallback, useMemo } from 'react';
-import { StyleSheet, TextInput, Text, View, TouchableOpacity, ScrollView, Image, Dimensions, Animated, PanResponder, Alert, Platform, Pressable } from 'react-native';
+import { StyleSheet, TextInput, Text, View, TouchableOpacity, ScrollView, Image, Dimensions, Animated, PanResponder, Alert, Platform } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Circle } from "react-native-maps";
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -463,13 +463,6 @@ const MapPage = ({navigation}) => {
       <Animated.View style={[styles.bottomSheet, { height: bottomSheetHeight }]} {...panResponder.panHandlers}>
         <View style={styles.bottomSheetHandle} />
         <View style={styles.bottomSheetContent}>
-          {showMenu && selectedMarker && (
-            <TouchableOpacity
-              style={styles.menuBackdrop}
-              activeOpacity={1}
-              onPress={() => setShowMenu(false)}
-            />
-          )}
           {selectedMarker ? (
             <ScrollView style={styles.detailScrollView} showsVerticalScrollIndicator={true}>
               <View style={styles.markerDetail}>
@@ -496,7 +489,7 @@ const MapPage = ({navigation}) => {
                       <Ionicons name="ellipsis-vertical" size={20} color="#666" />
                     </TouchableOpacity>
                     {showMenu && (
-                      <Pressable style={styles.menuOverlay}>
+                      <View style={styles.menuOverlay}>
                         <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('more')}>
                           <Ionicons name="information-circle" size={18} color="#666" />
                           <Text style={styles.menuText}>More details</Text>
@@ -509,7 +502,7 @@ const MapPage = ({navigation}) => {
                           <Ionicons name="bookmark" size={18} color="#666" />
                           <Text style={styles.menuText}>Saved</Text>
                         </TouchableOpacity>
-                      </Pressable>
+                      </View>
                     )}
                   </View>
                 </View>
@@ -723,11 +716,6 @@ const styles = StyleSheet.create({
     zIndex: 101,
   },
   menuButton: { padding: 5 },
-  menuBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 100,
-    backgroundColor: 'transparent',
-  },
   menuOverlay: {
     position: 'absolute', bottom: 40, right: 0, backgroundColor: 'white', borderRadius: 10, padding: 10,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 5, zIndex: 102, minWidth: 150,
