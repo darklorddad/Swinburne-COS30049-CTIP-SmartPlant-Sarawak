@@ -1,30 +1,57 @@
+
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { BackIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
 
-const AddUserScreen = ({ navigation, route }) => {
+const AddUserScreen = ({ navigation }) => {
     const { handleAddNewUser } = useAdminContext();
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [role, setRole] = useState('User');
     const [status, setStatus] = useState('active');
+    const [phone, setPhone] = useState('');
+    const [address, setAddress] = useState('');
+    const [dob, setDob] = useState('');
+    const [nric, setNric] = useState('');
+    const [postcode, setPostcode] = useState('');
+    const [race, setRace] = useState('');
+    const [occupation, setOccupation] = useState('');
+    const [division, setDivision] = useState('');
+    const [password, setPassword] = useState('');
 
-    const handleSave = () => {
-        if (!name || !email) {
-            Alert.alert("Please fill in all fields.");
+    const handleSave = async () => {
+        if (!name || !email || !password) {
+            Alert.alert("Error", "Please fill in Name, Email, and Password.");
             return;
         }
+
         const newUser = {
             name,
             status,
-            details: { email, role, age: 0, gender: 'N/A', contact: 'N/A', address: 'N/A', plantId: 0 }
+            details: {
+                email,
+                role,
+                phone_number: phone,
+                address,
+                date_of_birth: dob,
+                nric,
+                postcode,
+                race,
+                occupation,
+                division,
+            },
         };
-        handleAddNewUser(newUser);
-        navigation.goBack();
-    }
+
+        try {
+            await handleAddNewUser(newUser, password);
+            navigation.goBack();
+        } catch (error) {
+            Alert.alert("Error", error.message);
+        }
+    };
 
     return (
         <View style={styles.container}>
@@ -42,6 +69,7 @@ const AddUserScreen = ({ navigation, route }) => {
                         value={name}
                         onChangeText={setName}
                         style={styles.input}
+                        placeholder="Enter full name"
                     />
                 </View>
                 <View style={styles.inputGroup}>
@@ -52,6 +80,17 @@ const AddUserScreen = ({ navigation, route }) => {
                         style={styles.input}
                         keyboardType="email-address"
                         autoCapitalize="none"
+                        placeholder="user@example.com"
+                    />
+                </View>
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Password</Text>
+                    <TextInput
+                        value={password}
+                        onChangeText={setPassword}
+                        style={styles.input}
+                        secureTextEntry
+                        placeholder="Enter a strong password"
                     />
                 </View>
                 <View style={styles.inputGroup}>
@@ -64,6 +103,7 @@ const AddUserScreen = ({ navigation, route }) => {
                         >
                             <Picker.Item label="User" value="User" />
                             <Picker.Item label="Expert" value="Expert" />
+                            <Picker.Item label="Admin" value="Admin" />
                         </Picker>
                     </View>
                 </View>
@@ -83,6 +123,80 @@ const AddUserScreen = ({ navigation, route }) => {
                             <Text>Deactive</Text>
                         </TouchableOpacity>
                     </View>
+                </View>
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Phone</Text>
+                    <TextInput
+                        value={phone}
+                        onChangeText={setPhone}
+                        style={styles.input}
+                        keyboardType="phone-pad"
+                        placeholder="Enter phone number"
+                    />
+                </View>
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Address</Text>
+                    <TextInput
+                        value={address}
+                        onChangeText={setAddress}
+                        style={styles.input}
+                        placeholder="Enter address"
+                    />
+                </View>
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Date of Birth</Text>
+                    <TextInput
+                        value={dob}
+                        onChangeText={setDob}
+                        style={styles.input}
+                        placeholder="DD-MM-YYYY"
+                    />
+                </View>
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>NRIC</Text>
+                    <TextInput
+                        value={nric}
+                        onChangeText={setNric}
+                        style={styles.input}
+                        placeholder="Enter NRIC"
+                    />
+                </View>
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Postcode</Text>t
+                    <TextInput
+                        value={postcode}
+                        onChangeText={setPostcode}
+                        style={styles.input}
+                        keyboardType="numeric"
+                        placeholder="Enter postcode"
+                    />
+                </View>
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Race</Text>
+                    <TextInput
+                        value={race}
+                        onChangeText={setRace}
+                        style={styles.input}
+                        placeholder="Enter race"
+                    />
+                </View>
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Occupation</Text>
+                    <TextInput
+                        value={occupation}
+                        onChangeText={setOccupation}
+                        style={styles.input}
+                        placeholder="Enter occupation"
+                    />
+                </View>
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Division</Text>
+                    <TextInput
+                        value={division}
+                        onChangeText={setDivision}
+                        style={styles.input}
+                        placeholder="Enter division"
+                    />
                 </View>
             </ScrollView>
             <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
@@ -195,3 +309,4 @@ const styles = StyleSheet.create({
 });
 
 export default AddUserScreen;
+
