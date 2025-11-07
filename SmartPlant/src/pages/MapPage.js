@@ -17,7 +17,7 @@ const MapPage = ({navigation}) => {
   const route = useRoute(); // ← NEW
 
   const [searchText, setSearchText] = useState('');
-  const [selectedTab, setSelectedTab] = useState('All');
+  const [selectedFilters, setSelectedFilters] = useState(['All']);
 
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
@@ -117,12 +117,27 @@ const MapPage = ({navigation}) => {
   };
 
   const handleTabPress = useCallback((tab) => {
-    if (selectedTab === tab) {
-      setSelectedTab('All');
-    } else {
-      setSelectedTab(tab);
-    }
-  }, [selectedTab]);
+    setSelectedFilters(prev => {
+      if (tab === 'All') {
+        return ['All'];
+      }
+      
+      let newFilters = prev.includes('All') ? [] : [...prev];
+      
+      const index = newFilters.indexOf(tab);
+      if (index > -1) {
+        newFilters.splice(index, 1);
+      } else {
+        newFilters.push(tab);
+      }
+
+      if (newFilters.length === 0) {
+        return ['All'];
+      }
+      
+      return newFilters;
+    });
+  }, []);
 
 
 
@@ -173,6 +188,7 @@ const MapPage = ({navigation}) => {
         id: `${source}-${doc.id}`,
         title: topPrediction?.plant_species || 'Unknown Plant',
         type: 'Plant', // `plant_identify` items are always of type Plant
+        identify_status: data.identify_status || 'pending',
         coordinate: { latitude, longitude },
         identifiedBy: data.author_name || 'Unknown',
         time: formatTime(data.createdAt),
@@ -188,6 +204,7 @@ const MapPage = ({navigation}) => {
             id: `${source}-${doc.id}`,
             title: data.title || 'Unknown Location',
             type: data.type || 'Plant', // Use the type from 'markers' collection, default to 'Plant'
+            identify_status: 'verified', // Assume markers from 'markers' collection are verified
             coordinate: { latitude, longitude },
             identifiedBy: data.identifiedBy || 'Unknown',
             time: formatTime(data.time),
@@ -522,13 +539,13 @@ const MapPage = ({navigation}) => {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabContainer}>
-          {['All', 'Plant', 'Flower', 'More ...'].map(tab => (
+          {['All', 'Verified', 'Unverified', 'Plant', 'Flower'].map(tab => (
             <TouchableOpacity
               key={tab}
-              style={[styles.tab, selectedTab === tab && styles.selectedTab]}
+              style={[styles.tab, selectedFilters.includes(tab) && styles.selectedTab]}
               onPress={() => handleTabPress(tab)}
             >
-              <Text style={[styles.tabText, selectedTab === tab && styles.selectedTabText]}>
+              <Text style={[styles.tabText, selectedFilters.includes(tab) && styles.selectedTabText]}>
                 {tab}
               </Text>
             </TouchableOpacity>
