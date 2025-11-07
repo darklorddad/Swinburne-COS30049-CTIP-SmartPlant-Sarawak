@@ -1,7 +1,8 @@
 // pages/TopSuggestions.js
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, StatusBar } from "react-native";
 import BottomNav from "../components/Navigation";
+import { TOP_PAD } from "../components/StatusBarManager";
 
 export default function TopSuggestions({ navigation }) {
   const cards = [
@@ -34,7 +35,7 @@ export default function TopSuggestions({ navigation }) {
 
 const styles = StyleSheet.create({
   background: { flex: 1, backgroundColor: "#FFF8EE" },
-  container: { flexGrow: 1, padding: 16, paddingBottom: 110 },
+  container: { flexGrow: 1, padding: 16, paddingTop: TOP_PAD, paddingBottom: 110 },
   header: { fontSize: 16, fontWeight: "800", marginBottom: 10 },
   card: { backgroundColor: "#E7F0E5", borderRadius: 16, padding: 12, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
   thumb: { width: 72, height: 72, borderRadius: 12, backgroundColor: "#FFF" },

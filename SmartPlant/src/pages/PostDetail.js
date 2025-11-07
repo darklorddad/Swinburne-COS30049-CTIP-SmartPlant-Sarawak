@@ -322,7 +322,7 @@ export default function PostDetail({ navigation, route }) {
             {post.authorProfilePic ? (
               <Image source={{ uri: post.authorProfilePic }} style={styles.avatar} />
             ) : (
-              <View style={[styles.avatar, { backgroundColor: getColorForId(post.uploader.id) }]}>
+              <View style={[styles.avatar, { backgroundColor: getColorForId(post.user_id) }]}>
                 <Text style={styles.avatarText}>{(post.author || "U").charAt(0)}</Text>
               </View>
             )}

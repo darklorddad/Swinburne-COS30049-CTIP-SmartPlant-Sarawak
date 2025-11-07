@@ -1,8 +1,9 @@
 // pages/ReportError.js
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from "react-native";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, Platform, StatusBar } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import BottomNav from "../components/Navigation";
+import { TOP_PAD } from "../components/StatusBarManager";
 
 export default function ReportError({ navigation }) {
   const [title, setTitle] = useState("");
@@ -51,7 +52,7 @@ export default function ReportError({ navigation }) {
 
 const styles = StyleSheet.create({
   background: { flex: 1, backgroundColor: "#FFF8EE" },
-  container: { flex: 1, padding: 16, paddingBottom: 110 },
+  container: { flex: 1, padding: 16, paddingTop: TOP_PAD, paddingBottom: 110 },
   header: { fontSize: 18, fontWeight: "800", marginBottom: 8 },
   label: { fontWeight: "600", marginTop: 6 },
   input: { backgroundColor: "#fff", borderRadius: 8, borderWidth: 1, borderColor: "#cfcfcf", padding: 10, marginTop: 4 },

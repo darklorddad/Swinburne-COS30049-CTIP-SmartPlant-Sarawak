@@ -288,8 +288,10 @@ export default function ResultScreen() {
   };
 
   const getPlantImage = async (speciesName) => {
+    if (!speciesName) return null;
     try {
-      const docRef = doc(db, "plant", speciesName);
+      const docId = speciesName.replace(/ /g, "_");
+      const docRef = doc(db, "plant", docId);
       const docSnap = await getDoc(docRef);
       return docSnap.exists() ? docSnap.data().plant_image : null;
     } catch {
