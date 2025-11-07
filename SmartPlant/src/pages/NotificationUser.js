@@ -210,20 +210,10 @@ const rowMsg =
       Alert.alert("Missing post", "This notification has no postId.");
       return;
     }
-    try {
-      const snap = await getDoc(doc(db, "plant_identify", postId));
-      if (!snap.exists()) {
-        Alert.alert("Not found", "This post may have been removed.");
-        return;
-      }
-      const post = { id: snap.id, ...snap.data() };
-      // ⚠️ Use your actual route name. Your file is PostDetailUser.js,
-      // so most stacks register the screen as "PostDetailUser".
-      navigation.navigate("PostDetail", { post });
-    } catch (e) {
-      console.log("Failed to fetch post:", e);
-      Alert.alert("Error", "Failed to open the post.");
-    }
+    // The PostDetail screen fetches the post data itself using the postId.
+    // ⚠️ Use your actual route name. Your file is PostDetailUser.js,
+    // so most stacks register the screen as "PostDetailUser".
+    navigation.navigate("PostDetail", { postId });
     return;
   }
 
