@@ -496,7 +496,7 @@ const MapPage = ({navigation}) => {
                       <Ionicons name="ellipsis-vertical" size={20} color="#666" />
                     </TouchableOpacity>
                     {showMenu && (
-                      <View style={styles.menuOverlay}>
+                      <View style={styles.menuOverlay} onStartShouldSetResponder={() => true}>
                         <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('more')}>
                           <Ionicons name="information-circle" size={18} color="#666" />
                           <Text style={styles.menuText}>More details</Text>
