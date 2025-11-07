@@ -29,7 +29,7 @@ const UserProfileScreen = ({ route, navigation }) => {
     return (
         <View style={styles.outerContainer}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.navigate('AccountManagement')}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
                     <BackIcon color="#3C3633" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>User Profile</Text>
