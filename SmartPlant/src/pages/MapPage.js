@@ -322,13 +322,13 @@ const MapPage = ({navigation}) => {
       },
       onPanResponderMove: (evt, gestureState) => {
         const minHeight = 100;
-        const maxHeight = selectedMarkerRef.current ? height * 0.5 : 320;
+        const maxHeight = selectedMarkerRef.current ? height * 0.45 : 320;
         const newHeight = Math.max(minHeight, Math.min(maxHeight, currentHeightRef.current - gestureState.dy));
         bottomSheetHeight.setValue(newHeight);
       },
       onPanResponderRelease: (evt, gestureState) => {
         const currentHeightValue = bottomSheetHeight._value;
-        const openHeight = selectedMarkerRef.current ? height * 0.5 : 320;
+        const openHeight = selectedMarkerRef.current ? height * 0.45 : 320;
         const closedHeight = 100;
 
         let targetHeight;
@@ -361,8 +361,8 @@ const MapPage = ({navigation}) => {
 
   const handleMarkerPress = useCallback((marker) => {
     setSelectedMarker(marker);
-    Animated.spring(bottomSheetHeight, { toValue: height * 0.5, useNativeDriver: false }).start(() => {
-      currentHeightRef.current = height * 0.5;
+    Animated.spring(bottomSheetHeight, { toValue: height * 0.45, useNativeDriver: false }).start(() => {
+      currentHeightRef.current = height * 0.45;
     });
     mapRef.current.animateToRegion({
       latitude: marker.coordinate.latitude,
@@ -455,7 +455,7 @@ const MapPage = ({navigation}) => {
       switch(action) {
         case 'more':  Alert.alert('More Details', 'Showing more details...'); break;
         case 'report':Alert.alert('Report', 'Reporting this plant...'); break;
-        case 'save':  Alert.alert('Saved', 'Plant saved to your collection!'); break;
+        case 'save':  Alert.alert('Save', 'Saving this plant...'); break;
       }
     };
 
