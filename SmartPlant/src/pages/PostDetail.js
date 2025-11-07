@@ -38,6 +38,16 @@ import {
 } from "firebase/firestore";
 import ImageSlideshow from "../components/ImageSlideShow";
 
+const colors = ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'];
+const getColorForId = (id) => {
+  if (!id) return colors[0];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 const NAV_HEIGHT = 60;      // height of your BottomNav
 const NAV_MARGIN_TOP = 150; // its marginTop from Navigation.js
 
@@ -312,7 +322,9 @@ export default function PostDetail({ navigation, route }) {
             {post.authorProfilePic ? (
               <Image source={{ uri: post.authorProfilePic }} style={styles.avatar} />
             ) : (
-              <View style={styles.avatar} />
+              <View style={[styles.avatar, { backgroundColor: getColorForId(post.uploader.id) }]}>
+                <Text style={styles.avatarText}>{(post.author || "U").charAt(0)}</Text>
+              </View>
             )}
             <View>
               <Text style={styles.name}>{post.author}</Text>
@@ -405,7 +417,9 @@ export default function PostDetail({ navigation, route }) {
                   {userProfile.profile_pic ? (
                     <Image source={{ uri: userProfile.profile_pic }} style={styles.commentAvatar} />
                   ) : (
-                    <View style={styles.commentAvatar} />
+                    <View style={[styles.commentAvatar, { backgroundColor: getColorForId(c.user_id) }]}>
+                      <Text style={styles.avatarText}>{(userProfile.full_name || c.user_name || "U").charAt(0)}</Text>
+                    </View>
                   )}
                   <View style={{ flex: 1 }}>
                     <View style={styles.commentHeader}>
@@ -431,7 +445,8 @@ const styles = StyleSheet.create({
   scroller: { marginBottom: -NAV_MARGIN_TOP },
   container: { flexGrow: 1, paddingHorizontal: 16 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#D7E3D8", marginRight: 8 },
+  avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#D7E3D8", marginRight: 8, alignItems: "center", justifyContent: "center" },
+  avatarText: { color: "white", fontSize: 14, fontWeight: "bold" },
   name: { fontWeight: "700" },
   meta: { fontSize: 12, opacity: 0.7, marginBottom: 10 },
   details: { backgroundColor: "#E7F0E5", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
@@ -452,7 +467,7 @@ const styles = StyleSheet.create({
   sendText: { color: "#fff", fontWeight: "700" },
   commentsBlock: { marginTop: 14 },
   commentRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
-  commentAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#D7E3D8" },
+  commentAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#D7E3D8", alignItems: "center", justifyContent: "center" },
   commentHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   commentAuthor: { fontWeight: "700", color: "#222" },
   commentTime: { fontSize: 12, color: "#666" },

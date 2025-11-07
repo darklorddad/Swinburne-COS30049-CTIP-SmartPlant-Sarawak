@@ -37,6 +37,16 @@ const timeAgo = (ms) => {
   return `${d}d`;
 };
 
+const colors = ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'];
+const getColorForId = (id) => {
+  if (!id) return colors[0];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 export default function HomepageUser({ navigation }) {
   const route = useRoute();
 
@@ -96,6 +106,8 @@ export default function HomepageUser({ navigation }) {
 
               return {
                 id: d.id,
+                user_id: v.user_id,
+                identify_status: (v.identify_status || "pending").toLowerCase(),
                 image: imageURIs[0] || null,
                 imageURIs: imageURIs,
                 userImage: userProfile?.profile_pic || null,
@@ -205,7 +217,9 @@ export default function HomepageUser({ navigation }) {
           {userProfile?.profile_pic ? (
             <Image source={{ uri: userProfile.profile_pic }} style={styles.avatar} />
           ) : (
-            <View style={styles.avatar} />
+            <View style={[styles.avatar, { backgroundColor: getColorForId(userProfile?.user_id) }]}>
+              <Text style={styles.avatarText}>{(userProfile?.full_name || currentUserName || "U").charAt(0)}</Text>
+            </View>
           )}
           <View style={{ flex: 1 }}>
             <Text style={styles.greetingTitle}>Good Morning</Text>
@@ -256,7 +270,9 @@ export default function HomepageUser({ navigation }) {
                   {p.userImage ? (
                     <Image source={{ uri: p.userImage }} style={styles.feedAvatar} />
                   ) : (
-                    <View style={styles.feedAvatar} />
+                    <View style={[styles.feedAvatar, { backgroundColor: getColorForId(p.user_id) }]}>
+                      <Text style={styles.feedAvatarText}>{(p.author || "U").charAt(0)}</Text>
+                    </View>
                   )}
                   <View style={{ marginLeft: 8 }}>
                     <Text style={styles.feedName}>{p.author ?? "User"}</Text>
@@ -325,7 +341,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#D7E3D8" },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#D7E3D8", alignItems: "center", justifyContent: "center" },
+  avatarText: { color: "white", fontSize: 22, fontWeight: "bold" },
   greetingTitle: { fontSize: 16, fontWeight: "600", color: "#2b2b2b" },
   greetingSub: { fontSize: 14, color: "#2b2b2b", marginTop: 2 },
   greetingMeta: { fontSize: 12, color: "#4c6b50", marginTop: 6 },
@@ -346,7 +363,8 @@ const styles = StyleSheet.create({
 
   feedCard: { marginTop: 16, backgroundColor: "#FFF", borderRadius: 12, padding: 12 },
   feedHeader: { flexDirection: "row", alignItems: "center" },
-  feedAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#D7E3D8" },
+  feedAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#D7E3D8", alignItems: "center", justifyContent: "center" },
+  feedAvatarText: { color: "white", fontSize: 12, fontWeight: "bold" },
   feedName: { fontWeight: "700", color: "#2b2b2b" },
   feedMeta: { color: "#2b2b2b", opacity: 0.7, fontSize: 12, marginBottom: 10 },
   detailsPill: { marginLeft: "auto", backgroundColor: "#E7F0E5", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },

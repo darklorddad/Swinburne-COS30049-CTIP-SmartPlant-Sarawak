@@ -5,6 +5,16 @@ import { db, auth } from "../firebase/FirebaseConfig";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import ImageSlideshow from "../components/ImageSlideShow";
 
+const colors = ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'];
+const getColorForId = (id) => {
+  if (!id) return colors[0];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 export default function MyPost({ navigation }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -154,10 +164,16 @@ export default function MyPost({ navigation }) {
           >
             {/* Header */}
             <View style={styles.postHeader}>
-              <Image
-                source={{ uri: post.uploader.profile_picture }}
-                style={styles.avatar}
-              />
+              {post.uploader.profile_picture ? (
+                <Image
+                  source={{ uri: post.uploader.profile_picture }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: getColorForId(post.uploader.id) }]}>
+                  <Text style={styles.avatarText}>{(post.uploader.name || "U").charAt(0)}</Text>
+                </View>
+              )}
               <View>
                 <Text style={styles.name}>{post.uploader.name}</Text>
                 <Text style={styles.meta}>
@@ -205,7 +221,14 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     backgroundColor: "#D7E3D8",
-    marginRight: 8
+    marginRight: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "bold",
   },
   name: {
     fontWeight: "700"
