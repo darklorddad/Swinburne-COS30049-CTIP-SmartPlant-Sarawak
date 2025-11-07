@@ -308,16 +308,18 @@ export default function PostDetail({ navigation, route }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          {post.authorProfilePic ? (
-            <Image source={{ uri: post.authorProfilePic }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatar} />
-          )}
-          <View>
-            <Text style={styles.name}>{post.author}</Text>
-            <Text style={styles.meta}>
-              {post.time ? `${timeAgo(post.time)} — ${post.locality || "—"}` : post.locality || "—"}
-            </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {post.authorProfilePic ? (
+              <Image source={{ uri: post.authorProfilePic }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatar} />
+            )}
+            <View>
+              <Text style={styles.name}>{post.author}</Text>
+              <Text style={styles.meta}>
+                {post.time ? `${timeAgo(post.time)} — ${post.locality || "—"}` : post.locality || "—"}
+              </Text>
+            </View>
           </View>
 
           <TouchableOpacity
