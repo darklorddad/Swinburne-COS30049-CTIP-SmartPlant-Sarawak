@@ -312,6 +312,9 @@ const MapPage = ({navigation}) => {
   const panResponder = useMemo(() => {
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt, gestureState) => {
+        currentHeightRef.current = bottomSheetHeight._value;
+      },
       onPanResponderMove: (evt, gestureState) => {
         const minHeight = 100;
         const maxHeight = selectedMarkerRef.current ? height * 0.5 : 280;
