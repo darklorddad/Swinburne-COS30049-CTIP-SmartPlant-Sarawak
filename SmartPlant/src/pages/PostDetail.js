@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Platform,
   StatusBar,
   TextInput,
@@ -14,7 +13,11 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import BottomNav from "../components/Navigation";
 
+// notifications
+import { addNotification } from "../firebase/notification_user/addNotification";
+
 import { auth, db } from "../firebase/FirebaseConfig";
+import { getDisplayName } from "../firebase/UserProfile/getDisplayName";
 import {
   doc,
   updateDoc,
@@ -29,6 +32,7 @@ import {
   query,
   runTransaction,
 } from "firebase/firestore";
+import ImageSlideshow from "../components/ImageSlideShow";
 
 const NAV_HEIGHT = 60;      // height of your BottomNav
 const NAV_MARGIN_TOP = 150; // its marginTop from Navigation.js
@@ -53,8 +57,16 @@ export default function PostDetail({ navigation, route }) {
 
   const me = auth.currentUser;
   const myId = me?.uid ?? "anon";
-  const myName =
-    me?.displayName || (me?.email ? me.email.split("@")[0] : null) || "User";
+
+  const [myName, setMyName] = useState(
+    me?.displayName || (me?.email ? me.email.split("@")[0] : null) || "User"
+  );
+  useEffect(() => {
+    (async () => {
+      const canonical = await getDisplayName(myId, myName);
+      setMyName(canonical);
+    })();
+  }, [myId]);
 
   // Mirror feed fields (seeded from route) and keep live-synced
   const initialTimeMs =
@@ -65,7 +77,18 @@ export default function PostDetail({ navigation, route }) {
   const [postTimeMs, setPostTimeMs] = useState(initialTimeMs);
   const [author, setAuthor] = useState(post?.author ?? "User");
   const [locality, setLocality] = useState(post?.locality ?? "—");
-  const [imageUri, setImageUri] = useState(post?.image ?? null);
+
+  const coerceImages = (src) => {
+    if (!src) return [];
+    if (Array.isArray(src)) return src;
+    return [src];
+  };
+  const [imageURIs, setImageURIs] = useState(
+    coerceImages(
+      post?.imageURIs || post?.ImageURLs || post?.images || post?.image || []
+    ).filter((u) => typeof u === "string" && u.trim() !== "")
+  );
+
   const [caption, setCaption] = useState(post?.caption ?? "");
 
   const [liked, setLiked] = useState(false);
@@ -79,6 +102,9 @@ export default function PostDetail({ navigation, route }) {
   const [comments, setComments] = useState([]);
 
   const [likeInFlight, setLikeInFlight] = useState(false);
+
+  // notification target
+  const [ownerId, setOwnerId] = useState(post?.user_id ?? null);
 
   const canWrite = Boolean(post?.id);
   const postRef = canWrite ? doc(db, "plant_identify", post.id) : null;
@@ -97,7 +123,6 @@ export default function PostDetail({ navigation, route }) {
       setLikeCount(typeof v.like_count === "number" ? v.like_count : likedBy.length || 0);
       setSavedCount(typeof v.saved_count === "number" ? v.saved_count : savedBy.length || 0);
 
-      // Meta & content sync (to mirror feed formatting)
       const ms =
         v?.createdAt?.toMillis?.() ??
         (v?.createdAt?.seconds ? v.createdAt.seconds * 1000 : null);
@@ -105,7 +130,13 @@ export default function PostDetail({ navigation, route }) {
 
       if (v?.author_name) setAuthor(v.author_name);
       if (v?.locality) setLocality(v.locality);
-      if (v?.ImageURL) setImageUri(v.ImageURL);
+
+      const imgs = coerceImages(v.imageURIs || v.ImageURLs || v.images).filter(
+        (u) => typeof u === "string" && u.trim() !== ""
+      );
+      if (imgs.length) setImageURIs(imgs);
+
+      if (v?.user_id) setOwnerId(v.user_id);
 
       const top1 = v?.model_predictions?.top_1;
       if (top1) {
@@ -142,6 +173,29 @@ export default function PostDetail({ navigation, route }) {
     return () => unsub();
   }, [canWrite, post?.id]);
 
+  // Send noti to the post owner (no-op if me === owner)
+  const notifyOwner = async (type, message, extraPayload = {}) => {
+    if (!ownerId || ownerId === myId) return;
+    try {
+      await addNotification({
+        userId: ownerId,
+        type,
+        title: "Post update",
+        message,
+        payload: {
+          postId: post?.id,
+          actorId: myId,
+          actorName: myName,
+          postImageURL: imageURIs?.[0] || null,
+          nav: { name: "PostDetail", params: { postId: post?.id } },
+          ...extraPayload,
+        },
+      });
+    } catch {
+      // silent on purpose
+    }
+  };
+
   // ❤️ Toggle like (like/unlike) atomically with a transaction
   const toggleLike = async () => {
     if (likeInFlight || !postRef) return;
@@ -167,11 +221,15 @@ export default function PostDetail({ navigation, route }) {
           like_count: increment(optimisticNext ? 1 : -1),
         });
       });
-    } catch (e) {
+      if (optimisticNext) {
+        notifyOwner("post_like", `${myName} liked your post`, {
+          likeCountAfter: likeCount + 1,
+        });
+      }
+    } catch {
       // revert on error
       setLiked(!optimisticNext);
       setLikeCount((c) => (optimisticNext ? Math.max(0, c - 1) : c + 1));
-      console.log("Failed to toggle like:", e);
     } finally {
       setLikeInFlight(false);
     }
@@ -191,11 +249,15 @@ export default function PostDetail({ navigation, route }) {
         saved_by: nextSaved ? arrayUnion(myId) : arrayRemove(myId),
         saved_count: increment(nextSaved ? 1 : -1),
       });
-    } catch (e) {
+      if (nextSaved) {
+        notifyOwner("post_save", `${myName} saved your post`, {
+          savedCountAfter: savedCount + 1,
+        });
+      }
+    } catch {
       // revert
       setSaved(!nextSaved);
       setSavedCount((c) => (nextSaved ? Math.max(0, c - 1) : c + 1));
-      console.log("Failed to update save:", e);
     }
   };
 
@@ -207,15 +269,19 @@ export default function PostDetail({ navigation, route }) {
     setSending(true);
     try {
       const commentsCol = collection(db, "plant_identify", post.id, "comments");
-      await addDoc(commentsCol, {
+      const ref = await addDoc(commentsCol, {
         text,
         user_id: myId,
         user_name: myName,
         createdAt: serverTimestamp(),
       });
       await updateDoc(postRef, { comment_count: increment(1) }).catch(() => {});
-    } catch (e) {
-      console.log("Failed to add comment:", e);
+      notifyOwner("post_comment", `${myName} commented: ${text}`, {
+        commentId: ref.id,
+        commentText: text,
+      });
+    } catch {
+      // silent
     }
     setComment("");
     setShowComposer(false);
@@ -231,41 +297,38 @@ export default function PostDetail({ navigation, route }) {
         contentContainerStyle={[
           styles.container,
           {
-            // Extra spacing so it doesn't touch the top
             paddingTop: TOP_PAD + EXTRA_TOP_SPACE,
-            paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16, // room for bottom nav
+            paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16,
           },
         ]}
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.avatar} />
-          <View>
-            <Text style={styles.name}>{author}</Text>
-            <Text style={styles.meta}>
-              {postTimeMs ? `${timeAgo(postTimeMs)} — ${locality || "—"}` : locality || "—"}
-            </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={styles.avatar} />
+            <View>
+              <Text style={styles.name}>{author}</Text>
+              <Text style={styles.meta}>
+                {postTimeMs ? `${timeAgo(postTimeMs)} — ${locality || "—"}` : locality || "—"}
+              </Text>
+            </View>
           </View>
-        </View>
 
-        {/* Details button */}
-        <View style={styles.detailsRow}>
           <TouchableOpacity
             style={styles.details}
             onPress={() =>
               navigation.navigate("PlantDetailUser", {
-                post: { ...post, author, locality, image: imageUri, caption, time: postTimeMs },
+                post: { ...post, author, locality, image: imageURIs, caption, time: postTimeMs },
               })
             }
-            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
             <Text style={styles.detailsText}>Details</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Photo */}
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.photo} />
+        {/* Photos */}
+        {Array.isArray(imageURIs) && imageURIs.length > 0 ? (
+          <ImageSlideshow imageURIs={imageURIs} style={styles.photo} />
         ) : (
           <View style={styles.photo} />
         )}
@@ -350,16 +413,12 @@ export default function PostDetail({ navigation, route }) {
 
 const styles = StyleSheet.create({
   background: { flex: 1, backgroundColor: "#FFF8EE" },
-
-  // lets the list scroll “under” the raised nav, so you can reach the end
   scroller: { marginBottom: -NAV_MARGIN_TOP },
-
   container: { flexGrow: 1, paddingHorizontal: 16 },
-  header: { flexDirection: "row", alignItems: "center" },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#D7E3D8", marginRight: 8 },
   name: { fontWeight: "700" },
-  meta: { fontSize: 12, opacity: 0.7 },
-  detailsRow: { marginTop: 10, alignItems: "flex-end" },
+  meta: { fontSize: 12, opacity: 0.7, marginBottom: 10 },
   details: { backgroundColor: "#E7F0E5", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
   detailsText: { fontWeight: "700" },
   photo: { height: 320, backgroundColor: "#5A7B60", borderRadius: 10, marginTop: 12 },

@@ -15,6 +15,7 @@ import BottomNav from "../components/Navigation";
 // Firestore (live comments)
 import { db } from "../firebase/FirebaseConfig";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import ImageSlideshow from "../components/ImageSlideShow";
 
 // --- match your raised BottomNav ---
 const NAV_HEIGHT = 60;      // height of BottomNav
@@ -38,7 +39,7 @@ const timeAgo = (ms) => {
 export default function PlantDetailUser({ navigation, route }) {
   const { post } = route.params || {};
   const top1 = post?.prediction?.[0];
-
+  const [currentSlide, setCurrentSlide] = useState(0);
   // ---- Live comments pulled from the same place as PostDetail ----
   const [comments, setComments] = useState([]);
 
@@ -71,6 +72,8 @@ export default function PlantDetailUser({ navigation, route }) {
     ? `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`
     : "—");
 
+  const images = Array.isArray(post?.image) ? post.image : post?.image ? [post.image] : [];
+
   return (
     <View style={styles.background}>
       <ScrollView
@@ -85,7 +88,13 @@ export default function PlantDetailUser({ navigation, route }) {
         showsVerticalScrollIndicator={false}
       >
         {/* Banner / photo */}
-        {post?.image ? (
+        {images.length > 0 ? (
+          <ImageSlideshow
+            imageURIs={images}
+            onSlideChange={(index) => setCurrentSlide(index)}
+            style={styles.banner}
+          />
+        ) : post?.image ? (
           <Image source={{ uri: post.image }} style={styles.banner} />
         ) : (
           <View style={styles.banner} />
@@ -207,7 +216,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   viewOnMapText: { color: "#2b2b2b", fontWeight: "700" },
-
   location: { height: 80, borderRadius: 8, backgroundColor: "#CFD4D0", marginTop: 4 },
   quote: { marginTop: 6, fontStyle: "italic", color: "#333" },
   suggestion: {

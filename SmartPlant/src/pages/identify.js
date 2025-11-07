@@ -186,8 +186,8 @@ export default function IdentifyPage() {
             setLoading(true);
             const endpoint =
                 images.length === 3
-                    ? "http://10.26.195.57:3000/predict_multiple"
-                    : "http://10.26.195.57:3000/predict";
+                    ? "http://192.168.1.8:3000/predict_multiple"
+                    : "http://192.168.1.8:3000/predict";
 
             const response = await fetch(endpoint, {
                 method: "POST",
@@ -272,7 +272,7 @@ export default function IdentifyPage() {
             {/* Camera */}
             {images.length === 0 || mode === "multiple" ? (
                 <CameraView style={styles.camera} ref={cameraRef} facing={facing}>
-                    <View style={{flex:1}}>
+                    <View style={{ flex: 1 }}>
                         <View style={styles.overlay} pointerEvents="box-none">
                             <View style={styles.topBar}>
                                 <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -291,7 +291,10 @@ export default function IdentifyPage() {
                             <ScrollView horizontal contentContainerStyle={styles.previewRow}>
                                 {images.map((uri, index) => (
                                     <View key={index} style={styles.card}>
-                                        <Image source={{ uri }} style={styles.image} />
+                                        <Image source={{ uri }} style={[
+                                            styles.image,
+                                            facing === "front" ? { transform: [{ scaleX: -1 }] } : null, 
+                                        ]} />
                                         <TouchableOpacity
                                             style={styles.deleteButton}
                                             onPress={() => removeImage(uri)}
@@ -341,7 +344,10 @@ export default function IdentifyPage() {
                 </CameraView>
             ) : (
                 // Single image preview mode
-                <ImageBackground source={{ uri: images[0] }} style={styles.camera} imageStyle={[styles.previewImage, facing === "front" ? { transform: [{ scaleX: -1 }] } : null,]}>
+                <ImageBackground source={{ uri: images[0] }} style={styles.camera} imageStyle={[
+                    styles.previewImage,
+                    facing === "front" ? { transform: [{ scaleX: -1 }] } : null, // flip only for front
+                ]}>
                     <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                         <View style={styles.bottomRow}>
                             <CustomButton title={'Retake'} icon="retweet" onPress={() => setImages([])} />
@@ -381,17 +387,18 @@ const styles = StyleSheet.create({
 
     },
     previewImage: {
-        resizeMode: 'contain', // keeps aspect ratio 
+        resizeMode: 'contain', 
         width: '100%',
         height: '100%',
     },
     topBar: {
         position: 'absolute',
-        top: 40,
+        top: 20,
         left: 20,
         right: 20,
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center', 
     },
     smallButton: {
         paddingHorizontal: 18,
@@ -452,6 +459,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "center",
         alignItems: "center",
+        width: "100%", // new added
     },
     identifyButton: {
         backgroundColor: 'green',
