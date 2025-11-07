@@ -132,10 +132,10 @@ async function checkUserRole(uid) {
 
   if (docSnap.exists()) {
     const data = docSnap.data();
-    if (data.role && data.role.toLowerCase() === 'admin') {
-      return 'admin';
+    if (data.role) {
+      return data.role.toLowerCase();
     }
-    return data.role;
+    return null;
   } else {
     return null;
   }

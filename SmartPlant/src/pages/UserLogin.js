@@ -49,7 +49,7 @@ export default function UserLogin({ navigation }) {
                     const userRole = await checkUserRole(user.uid);
                     if (userRole === 'admin') {
                         navigation.navigate("AdminDashboard", { userEmail: user.email });
-                    } else if (userRole && userRole.toLowerCase() === 'expert') {
+                    } else if (userRole === 'expert') {
                         navigation.navigate("HomepageExpert", { userEmail: user.email });
                     } else {
                         navigation.navigate("HomepageUser", { userEmail: user.email });
@@ -70,7 +70,7 @@ export default function UserLogin({ navigation }) {
                     const userRole = await checkUserRole(res.user.uid);
                     if (userRole === 'admin') {
                         navigation.navigate("AdminDashboard", { userEmail: res.user.email });
-                    } else if (userRole && userRole.toLowerCase() === 'expert') {
+                    } else if (userRole === 'expert') {
                         navigation.navigate("HomepageExpert", { userEmail: res.user.email });
                     } else {
                         navigation.navigate("HomepageUser", { userEmail: res.user.email });
@@ -106,7 +106,7 @@ export default function UserLogin({ navigation }) {
         await saveBiometric(email);
         const saveResult = await saveCredentials(email, password);
         if (saveResult.success) {
-            if (userRole && userRole.toLowerCase() === 'expert') {
+            if (userRole === 'expert') {
                 navigation.navigate("HomepageExpert", { userEmail: email });
             } else {
                 navigation.navigate("HomepageUser", { userEmail: email });
@@ -128,7 +128,7 @@ export default function UserLogin({ navigation }) {
                     const userRole = await checkUserRole(result.user.uid);
                     if (userRole === 'admin') {
                         navigation.navigate("AdminDashboard", { userEmail: credentials.email });
-                    } else if (userRole && userRole.toLowerCase() === 'expert') {
+                    } else if (userRole === 'expert') {
                         navigation.navigate("HomepageExpert", { userEmail: credentials.email });
                     } else {
                         navigation.navigate("HomepageUser", { userEmail: credentials.email });

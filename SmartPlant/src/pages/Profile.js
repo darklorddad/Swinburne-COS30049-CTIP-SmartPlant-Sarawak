@@ -77,7 +77,7 @@ export default function ProfileScreen({ navigation }) {
         {/* Profile Image */}
         <View style={styles.profileContainer}>
           <Image
-            source={profile.profile_pic ? { uri: profile.profile_pic } : require("../../assets/user2.png")}
+            source={profile?.profile_pic ? { uri: profile.profile_pic } : require("../../assets/user2.png")}
             style={styles.profileImage}
           />
           <Text style={styles.username}>{profile.full_name}</Text>

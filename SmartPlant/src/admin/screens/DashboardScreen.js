@@ -44,7 +44,7 @@ const DashboardScreen = ({ navigation }) => {
         <View style={{flex: 1}}>
             <ScrollView style={styles.container}>
                 <View style={styles.header}>
-                    <View style={{flex: 1, flexDirection: 'row', alignItems: 'center'}}>
+                    <TouchableOpacity style={{flex: 1, flexDirection: 'row', alignItems: 'center'}} onPress={() => navigation.navigate('EditProfile', { email: getAuth().currentUser?.email })}>
                         {photoURL ? (
                             <Image source={{ uri: photoURL }} style={styles.avatar} />
                         ) : (
@@ -56,7 +56,7 @@ const DashboardScreen = ({ navigation }) => {
                             <Text style={styles.greetingText}>{greeting}</Text>
                             <Text style={styles.userName}>{userName}</Text>
                         </View>
-                    </View>
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={() => handleLogout(navigation)}>
                         <LogoutIcon color="#3C3633" />
                     </TouchableOpacity>
