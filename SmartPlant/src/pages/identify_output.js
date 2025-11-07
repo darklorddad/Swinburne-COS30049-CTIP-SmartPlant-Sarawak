@@ -1,5 +1,6 @@
 // pages/identify_output.js
 import React, { useState, useEffect } from "react";
+import { API_URL } from "../config";
 import {
   View,
   Text,
@@ -91,7 +92,7 @@ export default function ResultScreen() {
 
     try {
       setLoading(true);
-      const response = await fetch("http://192.168.1.8:3000/heatmap", {
+      const response = await fetch(`${API_URL}/heatmap`, {
         method: "POST",
         body: formData,
       });

@@ -12,6 +12,7 @@ import { PermissionContext } from "../components/PermissionManager";
 import { useIsFocused } from '@react-navigation/native';
 import { Camera } from 'expo-camera';
 import CustomButton from '../components/Button';
+import { API_URL } from '../config';
 
 //noti start
 import { addNotification } from "../firebase/notification_user/addNotification";
@@ -186,8 +187,8 @@ export default function IdentifyPage() {
             setLoading(true);
             const endpoint =
                 images.length === 3
-                    ? "http://192.168.1.8:3000/predict_multiple"
-                    : "http://192.168.1.8:3000/predict";
+                    ? `${API_URL}/predict_multiple`
+                    : `${API_URL}/predict`;
 
             const response = await fetch(endpoint, {
                 method: "POST",
