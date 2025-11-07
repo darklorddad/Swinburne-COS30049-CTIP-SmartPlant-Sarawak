@@ -101,7 +101,7 @@ export default function SavedScreen({ navigation }) {
         {loading ? (
           <ActivityIndicator size="large" color="#00796b" style={styles.loading} />
         ) : savedPosts.length === 0 ? (
-          <Text style={styles.noPostText}>No saved posts yet</Text>
+          <Text style={styles.noPostText}>No saved posts yet.</Text>
         ) : (
           savedPosts.map((post, i) => (
             <TouchableOpacity

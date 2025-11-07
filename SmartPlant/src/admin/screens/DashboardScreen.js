@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { UserIcon, MailIcon, FeedbackIcon, LogoutIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
 import { getAuth } from 'firebase/auth';
@@ -44,12 +44,18 @@ const DashboardScreen = ({ navigation }) => {
         <View style={{flex: 1}}>
             <ScrollView style={styles.container}>
                 <View style={styles.header}>
-                    <TouchableOpacity style={{flex: 1, flexDirection: 'row', alignItems: 'center'}} onPress={() => navigation.navigate('EditProfile', { email: getAuth().currentUser?.email })}>
+                    <TouchableOpacity style={{flex: 1, flexDirection: 'row', alignItems: 'center'}} onPress={() => {
+                        if (currentUserData) {
+                            navigation.navigate('EditUser', { user: currentUserData });
+                        } else {
+                            Alert.alert("Error", "Could not find your user data to edit.");
+                        }
+                    }}>
                         {photoURL ? (
                             <Image source={{ uri: photoURL }} style={styles.avatar} />
                         ) : (
                             <View style={[styles.avatar, {backgroundColor: currentUserData?.color || '#c8b6a6'}]}>
-                                <Text style={styles.avatarText}>{userName.charAt(0)}</Text>
+                                <Text style={styles.avatarText}>{(userName || 'A').charAt(0)}</Text>
                             </View>
                         )}
                         <View>
