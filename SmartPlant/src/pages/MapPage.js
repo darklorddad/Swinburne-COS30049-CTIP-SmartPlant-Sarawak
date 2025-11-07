@@ -519,7 +519,9 @@ const MapPage = ({navigation}) => {
             onPress={() => handleMarkerPress(marker)}
             tracksViewChanges={false}
           >
-            <Image source={{ uri: marker.image }} style={styles.mapMarkerImage} />
+            <View style={styles.mapMarkerContainer}>
+              <Image source={{ uri: marker.image }} style={styles.mapMarkerImage} />
+            </View>
           </Marker>
         ))}
 
@@ -599,7 +601,17 @@ const styles = StyleSheet.create({
   latestImage: { width: '100%', height: 100, borderRadius: 8, marginBottom: 8 },
   latestTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
   latestInfo: { fontSize: 12, color: '#666' },
-  mapMarkerImage: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: 'white' },
+  mapMarkerContainer: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
+    borderColor: 'white',
+    backgroundColor: '#ccc',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapMarkerImage: { width: 30, height: 30, borderRadius: 15 },
   plantMarker: { backgroundColor: '#4CAF50' },
   flowerMarker: { backgroundColor: '#E91E63' },
   markerText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
