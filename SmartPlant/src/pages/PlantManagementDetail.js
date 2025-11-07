@@ -3,8 +3,17 @@ import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { db, auth } from "../firebase/FirebaseConfig";
-import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import ImageSlideshow from "../components/ImageSlideShow"; // << added
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  serverTimestamp,
+  setDoc,            // << added
+  collection,        // << added (for moderation_logs)
+  addDoc,            // << added (for moderation_logs)
+  arrayUnion,        // << added (append sample_images)
+} from "firebase/firestore";
+import ImageSlideshow from "../components/ImageSlideShow"; // << already added
 
 const fmtDate = (ts) => {
   if (!ts) return "—";
@@ -26,7 +35,7 @@ export default function PlantManagementDetail({ route, navigation }) {
   const [category, setCategory] = useState(null);
 
   // match PlantDetailUser pattern for slideshow
-  const [currentSlide, setCurrentSlide] = useState(0); // << added
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -55,6 +64,18 @@ export default function PlantManagementDetail({ route, navigation }) {
   const identifyStatus = (post?.identify_status || "pending").toLowerCase();
   const coords = post?.coordinate || null;
 
+  // All available images for this identification (used to enrich plant catalog)
+  const images = useMemo(() => {
+    if (!post) return [];
+    if (Array.isArray(post?.ImageURLs) && post.ImageURLs.length) {
+      return post.ImageURLs.filter((u) => typeof u === "string" && u.trim() !== "");
+    }
+    if (typeof post?.ImageURL === "string" && post.ImageURL.trim() !== "") {
+      return [post.ImageURL.trim()];
+    }
+    return [];
+  }, [post]);
+
   const approve = async () => {
     if (!post?.id) return;
 
@@ -66,6 +87,7 @@ export default function PlantManagementDetail({ route, navigation }) {
 
     setLoadingAction(true);
     try {
+      // 1) Update the identification document
       await updateDoc(doc(db, "plant_identify", post.id), {
         identify_status: "verified",
         verified_by: auth.currentUser?.uid || "expert",
@@ -75,13 +97,41 @@ export default function PlantManagementDetail({ route, navigation }) {
         categorized_by: auth.currentUser?.uid || "expert",
         categorized_at: serverTimestamp(),
       });
+
+      // 2) ALSO persist into the plant catalog (merge, do not overwrite existing fields)
+      //    We DO NOT touch existing plant_image; instead we keep a growing sample_images array.
+      if (sciName && sciName !== "—") {
+        const plantRef = doc(db, "plant", sciName);
+        const sampleImagesPayload = images.length ? { sample_images: arrayUnion(...images) } : {};
+        await setDoc(
+          plantRef,
+          {
+            scientific_name: sciName,
+            conservation_status: category,       // keep latest chosen status
+            last_verified_at: serverTimestamp(),
+            last_verified_by: auth.currentUser?.uid || "expert",
+            last_identify_id: post.id,
+            ...sampleImagesPayload,
+          },
+          { merge: true }
+        );
+      }
+
+      // 3) Optional: moderation log (handy for auditing)
+      await addDoc(collection(db, "plant_identify", post.id, "moderation_logs"), {
+        action: "approved",
+        by: auth.currentUser?.uid || "expert",
+        at: serverTimestamp(),
+        category,
+      });
+
       setPost((p) => ({ ...p, identify_status: "verified", conservation_status: category }));
 
       Alert.alert("Approved", "Post has been verified and categorized.");
       // redirect after approval
       navigation.navigate("PlantManagementList");
-    } catch {
-      Alert.alert("Error", "Failed to approve.");
+    } catch (e) {
+      Alert.alert("Error", e?.message || "Failed to approve.");
     } finally {
       setLoadingAction(false);
     }
@@ -91,17 +141,26 @@ export default function PlantManagementDetail({ route, navigation }) {
     if (!post?.id) return;
     setLoadingAction(true);
     try {
+      // 1) Update the identification document
       await updateDoc(doc(db, "plant_identify", post.id), {
         identify_status: "rejected",
         verified_by: auth.currentUser?.uid || "expert",
         verified_at: serverTimestamp(),
       });
+
+      // 2) Optional: moderation log
+      await addDoc(collection(db, "plant_identify", post.id, "moderation_logs"), {
+        action: "rejected",
+        by: auth.currentUser?.uid || "expert",
+        at: serverTimestamp(),
+      });
+
       setPost((p) => ({ ...p, identify_status: "rejected" }));
       Alert.alert("Rejected", "Post has been rejected.");
       // redirect after reject
       navigation.navigate("PlantManagementList");
-    } catch {
-      Alert.alert("Error", "Failed to reject.");
+    } catch (e) {
+      Alert.alert("Error", e?.message || "Failed to reject.");
     } finally {
       setLoadingAction(false);
     }
@@ -134,18 +193,6 @@ export default function PlantManagementDetail({ route, navigation }) {
       </View>
     );
   }, [identifyStatus]);
-
-  // Same source logic as before, but turn it into an array for the slideshow
-  const images = useMemo(() => {
-    if (!post) return [];
-    if (Array.isArray(post?.ImageURLs) && post.ImageURLs.length) {
-      return post.ImageURLs.filter((u) => typeof u === "string" && u.trim() !== "");
-    }
-    if (typeof post?.ImageURL === "string" && post.ImageURL.trim() !== "") {
-      return [post.ImageURL.trim()];
-    }
-    return [];
-  }, [post]);
 
   // Kept for any other usage you already do; not used for rendering now
   const bannerURI = useMemo(() => {
