@@ -361,8 +361,8 @@ const MapPage = ({navigation}) => {
 
   const handleMarkerPress = useCallback((marker) => {
     setSelectedMarker(marker);
-    Animated.spring(bottomSheetHeight, { toValue: height * 0.45, useNativeDriver: false }).start(() => {
-      currentHeightRef.current = height * 0.45;
+    Animated.spring(bottomSheetHeight, { toValue: height * 0.5, useNativeDriver: false }).start(() => {
+      currentHeightRef.current = height * 0.5;
     });
     mapRef.current.animateToRegion({
       latitude: marker.coordinate.latitude,
