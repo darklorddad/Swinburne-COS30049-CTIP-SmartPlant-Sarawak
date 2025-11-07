@@ -19,6 +19,7 @@ const MailManagementScreen = ({ navigation }) => {
                               (mail.message && mail.message.toLowerCase().includes(searchQuery.toLowerCase()));
         if (!matchesSearch) return false;
         if (filter === 'unread') return !mail.read;
+        if (filter === 'read') return mail.read;
         return true;
     });
 
@@ -67,6 +68,9 @@ const MailManagementScreen = ({ navigation }) => {
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setFilter('unread')} style={[styles.filterButton, filter === 'unread' && styles.activeFilter]}>
                       <Text style={[styles.filterText, filter === 'unread' && styles.activeFilterText]}>Unread</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setFilter('read')} style={[styles.filterButton, filter === 'read' && styles.activeFilter]}>
+                      <Text style={[styles.filterText, filter === 'read' && styles.activeFilterText]}>Read</Text>
                   </TouchableOpacity>
                 </View>
             </View>

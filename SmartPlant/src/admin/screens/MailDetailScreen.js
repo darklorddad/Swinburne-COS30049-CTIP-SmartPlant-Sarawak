@@ -5,7 +5,7 @@ import { useAdminContext } from '../AdminContext';
 
 const MailDetailScreen = ({ route, navigation }) => {
     const { mail } = route.params;
-    const { handleDeleteMail, handleReplyMail, handleToggleMailRead } = useAdminContext();
+    const { users, handleDeleteMail, handleReplyMail, handleToggleMailRead } = useAdminContext();
     const [replyText, setReplyText] = useState('');
 
     useEffect(() => {
@@ -13,6 +13,10 @@ const MailDetailScreen = ({ route, navigation }) => {
             handleToggleMailRead(mail.id, mail.read);
         }
     }, [mail?.id]);
+
+    const sender = users.find(u => u.id === mail.userId);
+    const senderName = sender ? sender.name : 'System';
+    const mailDate = mail.createdAt && mail.createdAt.seconds ? new Date(mail.createdAt.seconds * 1000).toLocaleDateString() : 'N/A';
 
     const onDelete = () => {
         handleDeleteMail(mail.id);
@@ -47,15 +51,15 @@ const MailDetailScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
             </View>
             <ScrollView style={styles.scrollContainer}>
-                <Text style={styles.subject}>{mail.subject}</Text>
+                <Text style={styles.subject}>{mail.title}</Text>
                 <View style={styles.fromContainer}>
                     <View style={styles.fromAvatar} />
                     <View style={styles.fromInfo}>
-                        <Text style={styles.fromName}>{mail.from}</Text>
+                        <Text style={styles.fromName}>{senderName}</Text>
                     </View>
-                    <Text style={styles.date}>{mail.date}</Text>
+                    <Text style={styles.date}>{mailDate}</Text>
                 </View>
-                <Text style={styles.body}>{mail.body}</Text>
+                <Text style={styles.body}>{mail.message}</Text>
                 {mail.reply &&
                     <View style={styles.replyContainer}>
                         <Text style={styles.replyTitle}>Your Reply:</Text>
@@ -152,6 +156,38 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
         fontSize: 16,
+    },
+    replyInputContainer: {
+        flexDirection: 'row',
+        padding: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#e5e7eb',
+        backgroundColor: '#FFFBF5',
+        alignItems: 'center',
+    },
+    replyInput: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        borderRadius: 8,
+        padding: 12,
+        marginRight: 8,
+        backgroundColor: 'white',
+    },
+    replyContainer: {
+        marginTop: 20,
+        padding: 16,
+        backgroundColor: '#f0fdf4',
+        borderRadius: 8,
+    },
+    replyTitle: {
+        fontWeight: 'bold',
+        color: '#166534',
+        marginBottom: 8,
+    },
+    replyBody: {
+        color: '#15803d',
+        lineHeight: 22,
     },
 });
 
