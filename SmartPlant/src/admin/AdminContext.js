@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { db } from '../firebase/FirebaseConfig';
 import { Alert } from 'react-native';
-import { getFirestore, collection, onSnapshot, doc, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot, doc, deleteDoc, updateDoc, setDoc, query, orderBy } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 
 
@@ -62,7 +62,8 @@ export const AdminProvider = ({ children }) => {
             setUsers(usersData);
         });
 
-        const unsubscribeMails = onSnapshot(collection(db, "notifications"), (snapshot) => {
+        const mailQuery = query(collection(db, "notifications"), orderBy("createdAt", "desc"));
+        const unsubscribeMails = onSnapshot(mailQuery, (snapshot) => {
             setMails(snapshot.docs.map(doc => {
                 const data = doc.data();
                 return { 

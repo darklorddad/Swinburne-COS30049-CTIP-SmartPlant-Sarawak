@@ -33,9 +33,13 @@ const MailManagementScreen = ({ navigation }) => {
         return acc;
     }, {});
 
-    const sections = Object.keys(groupedMails).map(group => ({
-        title: group,
-        data: expandedGroups[group] ? groupedMails[group] : []
+    const groupOrder = ["Today", "Yesterday", "This Week", "Older"];
+
+    const sections = groupOrder
+        .filter(group => groupedMails[group] && groupedMails[group].length > 0)
+        .map(group => ({
+            title: group,
+            data: expandedGroups[group] ? groupedMails[group] : []
     }));
 
     const renderMailItem = ({ item }) => {
