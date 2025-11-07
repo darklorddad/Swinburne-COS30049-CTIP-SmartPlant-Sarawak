@@ -58,7 +58,6 @@ export default function MyPost({ navigation }) {
           where("user_id", "==", userId),
           where("identify_status", "==", "verified")
         );
-        console.log("Current User UID:", userId);
         const snapshot = await getDocs(postsQuery);
 
         if (snapshot.empty) {
@@ -78,13 +77,9 @@ export default function MyPost({ navigation }) {
             if (data.model_predictions.top_3) predictions.push(data.model_predictions.top_3);
           }
 
-          const imageURIs = Array.isArray(data.ImageURLs)
-            ? data.ImageURLs.filter(u => typeof u === "string" && u.trim() !== "")
-            : data.ImageURLs && typeof data.ImageURLs === "string"
-              ? [data.ImageURLs]
-              : [];
-
-          console.log(`Post ${docSnap.id} imageURIs:`, imageURIs);
+          const imageURIs = Array.isArray(data.ImageURLs) && data.ImageURLs.length > 0
+            ? data.ImageURLs
+            : (data.ImageURL ? [data.ImageURL] : []);
           
           const postTime = data.time ?? data.createdAt ?? null;
 
