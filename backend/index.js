@@ -16,7 +16,7 @@ app.use("/predict", predictRoutes);
 app.use("/predict_multiple", predictMultipleRoutes);      
 app.use("/heatmap", heatmapRoutes); 
 
-const HOST = '192.168.1.8'; // Your machine's IP address
+const HOST = '0.0.0.0'; // Listen on all available network interfaces
 
 app.listen(3000, HOST, () => {
   console.log(`✅ Server running on http://${HOST}:3000`);
