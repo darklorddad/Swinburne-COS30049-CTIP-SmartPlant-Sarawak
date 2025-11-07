@@ -322,13 +322,13 @@ const MapPage = ({navigation}) => {
       },
       onPanResponderMove: (evt, gestureState) => {
         const minHeight = 100;
-        const maxHeight = selectedMarkerRef.current ? height * 0.5 : 280;
+        const maxHeight = selectedMarkerRef.current ? height * 0.5 : 320;
         const newHeight = Math.max(minHeight, Math.min(maxHeight, currentHeightRef.current - gestureState.dy));
         bottomSheetHeight.setValue(newHeight);
       },
       onPanResponderRelease: (evt, gestureState) => {
         const currentHeightValue = bottomSheetHeight._value;
-        const openHeight = selectedMarkerRef.current ? height * 0.45 : 320;
+        const openHeight = selectedMarkerRef.current ? height * 0.5 : 320;
         const closedHeight = 100;
 
         let targetHeight;
@@ -470,9 +470,9 @@ const MapPage = ({navigation}) => {
                   <TouchableOpacity onPress={closeMarkerDetail} style={styles.backButton}>
                     <Ionicons name="chevron-back" size={28} color="#333" />
                   </TouchableOpacity>
-                  <Text style={styles.markerDetailTitle}>{selectedMarker.title}</Text>
                   <View style={{ width: 28 }} />
                 </View>
+                <Text style={styles.markerDetailTitle}>{selectedMarker.title}</Text>
                 <View style={styles.identifiedBy}>
                   <Text style={styles.identifiedText}>Identified by {selectedMarker.identifiedBy}</Text>
                   <Text style={styles.timeText}>{selectedMarker.time}</Text>
@@ -690,9 +690,9 @@ const styles = StyleSheet.create({
   flowerMarker: { backgroundColor: '#E91E63' },
   markerText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
   markerDetail: { flex: 1, paddingBottom: 20 },
-  markerDetailHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  markerDetailHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backButton: { padding: 5 },
-  markerDetailTitle: { fontSize: 20, fontWeight: 'bold', flex: 1, textAlign: 'center' },
+  markerDetailTitle: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginVertical: 10 },
   identifiedBy: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   identifiedText: { fontSize: 14, color: '#495057' },
   timeText: { color: '#666' },
