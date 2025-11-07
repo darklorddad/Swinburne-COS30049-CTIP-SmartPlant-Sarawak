@@ -16,6 +16,7 @@ export default function UserLogin({ navigation }) {
     const [password, setPassword] = useState("");
     const recaptchaRef = React.useRef();
     const [showCaptcha, setShowCaptcha] = useState(false);
+    const [loggedInUser, setLoggedInUser] = useState(null);
 
     const SITE_KEY = "6LeViOkrAAAAAHFmBLtVJO5pc3VaeC6OINL3ThsB";
     const BASE_URL = "https://smartplantsarawak.com";
@@ -42,16 +43,38 @@ export default function UserLogin({ navigation }) {
         if (response?.type === 'success') {
             const { access_token } = response.params;
             const credential = FacebookAuthProvider.credential(access_token);
-            signInWithCredential(auth, credential).catch((err) => console.error('❌ Firebase sign-in error:', err));
+            signInWithCredential(auth, credential)
+                .then(async (userCredential) => {
+                    const user = userCredential.user;
+                    const userRole = await checkUserRole(user.uid);
+                    if (userRole === 'admin') {
+                        navigation.navigate("AdminDashboard", { userEmail: user.email });
+                    } else if (userRole && userRole.toLowerCase() === 'expert') {
+                        navigation.navigate("HomepageExpert", { userEmail: user.email });
+                    } else {
+                        navigation.navigate("HomepageUser", { userEmail: user.email });
+                    }
+                })
+                .catch((err) => {
+                    console.error('❌ Firebase sign-in error:', err);
+                    Alert.alert("Login Failed", err.message);
+                });
         }
     }, [response]);
 
     useEffect(() => {
         if (googleResponse?.type === "success") {
             const { id_token } = googleResponse.authentication;
-            loginWithGoogle(id_token).then((res) => {
+            loginWithGoogle(id_token).then(async (res) => {
                 if (res.success) {
-                    navigation.navigate("HomepageUser", { userEmail: res.user.email });
+                    const userRole = await checkUserRole(res.user.uid);
+                    if (userRole === 'admin') {
+                        navigation.navigate("AdminDashboard", { userEmail: res.user.email });
+                    } else if (userRole && userRole.toLowerCase() === 'expert') {
+                        navigation.navigate("HomepageExpert", { userEmail: res.user.email });
+                    } else {
+                        navigation.navigate("HomepageUser", { userEmail: res.user.email });
+                    }
                 } else {
                     Alert.alert("Login Failed", res.error);
                 }
@@ -68,6 +91,7 @@ export default function UserLogin({ navigation }) {
             await saveCredentials(email, password);
             navigation.navigate("AdminDashboard", { userEmail: email });
         } else {
+            setLoggedInUser(result.user);
             setShowCaptcha(true);
             setTimeout(() => recaptchaRef.current.open(), 500);
         }
@@ -76,10 +100,17 @@ export default function UserLogin({ navigation }) {
     async function onCaptchaSuccess(token) {
         setShowCaptcha(false);
         if (!token) return Alert.alert("Error", "reCAPTCHA failed. Please try again.");
+
+        const userRole = loggedInUser ? await checkUserRole(loggedInUser.uid) : null;
+
         await saveBiometric(email);
         const saveResult = await saveCredentials(email, password);
         if (saveResult.success) {
-            navigation.navigate("HomepageUser", { userEmail: email });
+            if (userRole && userRole.toLowerCase() === 'expert') {
+                navigation.navigate("HomepageExpert", { userEmail: email });
+            } else {
+                navigation.navigate("HomepageUser", { userEmail: email });
+            }
         } else {
             Alert.alert("Error", saveResult.error || "Unable to save credentials.");
         }
@@ -95,7 +126,13 @@ export default function UserLogin({ navigation }) {
                 const result = await loginWithEmail(credentials.email, credentials.password);
                 if (result.success) {
                     const userRole = await checkUserRole(result.user.uid);
-                    navigation.navigate(userRole === 'admin' ? "AdminDashboard" : "HomepageUser", { userEmail: credentials.email });
+                    if (userRole === 'admin') {
+                        navigation.navigate("AdminDashboard", { userEmail: credentials.email });
+                    } else if (userRole && userRole.toLowerCase() === 'expert') {
+                        navigation.navigate("HomepageExpert", { userEmail: credentials.email });
+                    } else {
+                        navigation.navigate("HomepageUser", { userEmail: credentials.email });
+                    }
                 } else {
                     Alert.alert("Quick Login Failed", result.error);
                 }
