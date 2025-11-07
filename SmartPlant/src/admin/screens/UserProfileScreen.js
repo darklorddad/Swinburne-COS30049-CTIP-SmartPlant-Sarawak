@@ -1,16 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { BackIcon, EditIcon, TrashIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
 
 const UserProfileScreen = ({ route, navigation }) => {
-    const { handleDeleteUser } = useAdminContext();
+    const { handleDeleteUser, plantIdentities, feedbacks } = useAdminContext();
     const { user } = route.params;
-    const onDelete = (userId) => {
-        handleDeleteUser(userId);
-        navigation.navigate('AccountManagement');
-    };
-
 
     if (!user) {
         return (
@@ -23,6 +18,14 @@ const UserProfileScreen = ({ route, navigation }) => {
         );
     }
 
+    const onDelete = (userId) => {
+        handleDeleteUser(userId);
+        navigation.navigate('AccountManagement');
+    };
+
+    const plantsIddCount = plantIdentities.filter(p => p.user_id === user.id).length;
+    const reportsCount = feedbacks.filter(f => f.user_id == user.id).length;
+
     return (
         <View style={styles.outerContainer}>
             <View style={styles.header}>
@@ -31,7 +34,7 @@ const UserProfileScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>User Profile</Text>
                 <View style={styles.headerActions}>
-                    <TouchableOpacity style={styles.actionButton}>
+                    <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('EditUser', { user: user })}>
                         <EditIcon color="#4b5563" />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => onDelete(user.id)} style={styles.actionButton}>
@@ -42,11 +45,15 @@ const UserProfileScreen = ({ route, navigation }) => {
             
             <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer}>
                 <View style={styles.profileHeader}>
-                    <View style={[styles.avatar, { backgroundColor: user.color }]}>
-                        <Text style={styles.avatarText}>{user.name.charAt(0)}</Text>
-                    </View>
+                        {user.details.profile_pic ? (
+                        <Image source={{ uri: user.details.profile_pic }} style={styles.avatar} />
+                    ) : (
+                        <View style={[styles.avatar, {backgroundColor: user.color || '#c8b6a6'}]}>
+                            <Text style={styles.avatarText}>{user.name.charAt(0)}</Text>
+                        </View>
+                    )}
                     <Text style={styles.userName}>{user.name}</Text>
-                    <Text style={styles.userRole}>{user.details.role}</Text>
+                    <Text style={styles.userRole}>{user.details.role.charAt(0).toUpperCase() + user.details.role.slice(1)}</Text>
                     <View style={styles.statusContainer}>
                         <View style={[styles.statusIndicator, { backgroundColor: user.status === 'active' ? '#22c55e' : '#9ca3af' }]} />
                         <Text style={styles.statusText}>{user.status}</Text>
@@ -54,30 +61,75 @@ const UserProfileScreen = ({ route, navigation }) => {
                 </View>
 
                 <View style={styles.infoCard}>
-                    <Text style={styles.cardTitle}>Personal Information</Text>
+                    <Text style={styles.cardTitle}>Information</Text>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>User ID</Text>
+                        <Text style={styles.infoValue}>{user.id}</Text>
+                    </View>
+                    <View style={styles.hr} />
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Email</Text>
-                        <Text style={styles.infoValue}>{user.details.email}</Text>
+                        <Text style={styles.infoValue}>{user.details.email || 'N/A'}</Text>
                     </View>
                     <View style={styles.hr} />
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Contact</Text>
-                        <Text style={styles.infoValue}>{user.details.contact}</Text>
+                        <Text style={styles.infoValue}>{user.details.contact || 'N/A'}</Text>
                     </View>
                     <View style={styles.hr} />
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Address</Text>
-                        <Text style={styles.infoValue}>{user.details.address}</Text>
+                        <Text style={styles.infoValue}>{user.details.address || 'N/A'}</Text>
                     </View>
                     <View style={styles.hr} />
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Gender</Text>
-                        <Text style={styles.infoValue}>{user.details.gender}</Text>
+                        <Text style={styles.infoValue}>{user.details.gender || 'N/A'}</Text>
                     </View>
                     <View style={styles.hr} />
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Age</Text>
-                        <Text style={styles.infoValue}>{user.details.age}</Text>
+                        <Text style={styles.infoValue}>{user.details.age || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.hr} />
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Date of Birth</Text>
+                        <Text style={styles.infoValue}>{user.details.date_of_birth || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.hr} />
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>NRIC</Text>
+                        <Text style={styles.infoValue}>{user.details.nric || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.hr} />
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Postcode</Text>
+                        <Text style={styles.infoValue}>{user.details.postcode || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.hr} />
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Race</Text>
+                        <Text style={styles.infoValue}>{user.details.race || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.hr} />
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Occupation</Text>
+                        <Text style={styles.infoValue}>{user.details.occupation || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.hr} />
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Division</Text>
+                        <Text style={styles.infoValue}>{user.details.division || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.hr} />
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Login Method</Text>
+                        <Text style={styles.infoValue}>{user.details.login_method || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.hr} />
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Created At</Text>
+                        <Text style={styles.infoValue}>{user.details.created_at && user.details.created_at.seconds ? new Date(user.details.created_at.seconds * 1000).toLocaleDateString() : 'N/A'}</Text>
                     </View>
                 </View>
                 
@@ -85,15 +137,15 @@ const UserProfileScreen = ({ route, navigation }) => {
                     <Text style={styles.cardTitle}>Activity</Text>
                     <View style={styles.activityContainer}>
                         <View style={styles.activityItem}>
-                            <Text style={styles.activityValue}>{user.details.plantId}</Text>
+                            <Text style={styles.activityValue}>{plantsIddCount}</Text>
                             <Text style={styles.activityLabel}>Plants ID'd</Text>
                         </View>
                         <View style={styles.activityItem}>
-                            <Text style={styles.activityValue}>12</Text>
+                            <Text style={styles.activityValue}>{reportsCount}</Text>
                             <Text style={styles.activityLabel}>Reports</Text>
                         </View>
                         <View style={styles.activityItem}>
-                            <Text style={styles.activityValue}>5</Text>
+                            <Text style={styles.activityValue}>{reportsCount}</Text>
                             <Text style={styles.activityLabel}>Feedbacks</Text>
                         </View>
                     </View>
@@ -125,6 +177,8 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         color: '#3C3633',
+        flex: 1,
+        textAlign: 'center',
     },
     headerActions: {
         flexDirection: 'row',
