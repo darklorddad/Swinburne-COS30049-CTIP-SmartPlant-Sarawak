@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect,  useContext, useCallback, useMemo } from 'react';
-import { StyleSheet, TextInput, Text, View, TouchableOpacity, ScrollView, Image, Dimensions, Animated, PanResponder, Alert, Platform } from 'react-native';
+import { StyleSheet, TextInput, Text, View, TouchableOpacity, ScrollView, Image, Dimensions, Animated, PanResponder, Alert, Platform, Modal, Pressable } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Circle } from "react-native-maps";
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -394,6 +394,8 @@ const MapPage = ({navigation}) => {
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
     const [showMenu, setShowMenu] = useState(false);
+    const menuButtonRef = useRef(null);
+    const [menuPosition, setMenuPosition] = useState(null);
 
     useEffect(() => {
       if (selectedMarker) {
@@ -449,7 +451,25 @@ const MapPage = ({navigation}) => {
       }
     };
 
-    const handleMenuPress = () => { setShowMenu(!showMenu); };
+    const handleMenuPress = () => {
+      if (showMenu) {
+        setShowMenu(false);
+        return;
+      }
+      if (menuButtonRef.current) {
+        menuButtonRef.current.measureInWindow((x, y, w, h) => {
+          const menuHeight = 130; // Estimate menu height to position it above the button
+          setMenuPosition({
+            top: y - menuHeight,
+            right: width - (x + w),
+          });
+          setShowMenu(true);
+        });
+      }
+    };
+
+    const handleCloseMenu = () => setShowMenu(false);
+
     const handleMenuAction = (action) => {
       setShowMenu(false);
       switch(action) {
@@ -485,25 +505,34 @@ const MapPage = ({navigation}) => {
                     <Text style={styles.likeCount}>{likeCount}</Text>
                   </TouchableOpacity>
                   <View style={styles.menuContainer}>
-                    <TouchableOpacity style={styles.menuButton} onPress={handleMenuPress}>
+                    <TouchableOpacity ref={menuButtonRef} style={styles.menuButton} onPress={handleMenuPress}>
                       <Ionicons name="ellipsis-vertical" size={20} color="#666" />
                     </TouchableOpacity>
-                    {showMenu && (
-                      <View style={styles.menuOverlay}>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('more')}>
-                          <Ionicons name="information-circle" size={18} color="#666" />
-                          <Text style={styles.menuText}>More details</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('report')}>
-                          <Ionicons name="flag" size={18} color="#666" />
-                          <Text style={styles.menuText}>Report</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('save')}>
-                          <Ionicons name="bookmark" size={18} color="#666" />
-                          <Text style={styles.menuText}>Saved</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                    <Modal
+                      transparent
+                      visible={showMenu}
+                      onRequestClose={handleCloseMenu}
+                      animationType="fade"
+                    >
+                      <Pressable style={styles.modalBackdrop} onPress={handleCloseMenu}>
+                        {menuPosition && (
+                          <Pressable style={[styles.menuOverlay, { top: menuPosition.top, right: menuPosition.right }]}>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('more')}>
+                              <Ionicons name="information-circle" size={18} color="#666" />
+                              <Text style={styles.menuText}>More details</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('report')}>
+                              <Ionicons name="flag" size={18} color="#666" />
+                              <Text style={styles.menuText}>Report</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuAction('save')}>
+                              <Ionicons name="bookmark" size={18} color="#666" />
+                              <Text style={styles.menuText}>Saved</Text>
+                            </TouchableOpacity>
+                          </Pressable>
+                        )}
+                      </Pressable>
+                    </Modal>
                   </View>
                 </View>
               </View>
@@ -712,13 +741,23 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   likeButton: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingTop: '5' },
   likeCount: { fontSize: 14, color: '#666', fontWeight: '500' },
-  menuContainer: {
-    zIndex: 101,
-  },
+  menuContainer: {},
   menuButton: { padding: 5 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
   menuOverlay: {
-    position: 'absolute', bottom: 40, right: 0, backgroundColor: 'white', borderRadius: 10, padding: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 5, zIndex: 102, minWidth: 150,
+    position: 'absolute',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    minWidth: 150,
   },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 5 },
   menuText: { fontSize: 14, color: '#333' },
