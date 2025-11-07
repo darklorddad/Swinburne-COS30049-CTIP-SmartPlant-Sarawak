@@ -20,6 +20,7 @@ const MapPage = ({navigation}) => {
   const [selectedFilters, setSelectedFilters] = useState(['All']);
 
   const [selectedMarker, setSelectedMarker] = useState(null);
+  const selectedMarkerRef = useRef(selectedMarker);
   const [userLocation, setUserLocation] = useState(null);
   const [markers, setMarkers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +29,10 @@ const MapPage = ({navigation}) => {
 
   // NEW: temporary focus pin when navigating from PlantDetail (or anywhere)
   const [focusPin, setFocusPin] = useState(null);
+
+  useEffect(() => {
+    selectedMarkerRef.current = selectedMarker;
+  }, [selectedMarker]);
 
   const mapRef = useRef(null);
   const bottomSheetHeight = useRef(new Animated.Value(100)).current;
@@ -304,12 +309,12 @@ const MapPage = ({navigation}) => {
     return getLatestInArea(filteredMarkersForMap, 3);
   }, [filteredMarkersForMap, getLatestInArea]);
 
-  const createPanResponder = () => {
+  const panResponder = useMemo(() => {
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (evt, gestureState) => {
         const minHeight = 100;
-        const maxHeight = selectedMarker ? height * 0.5 : 280;
+        const maxHeight = selectedMarkerRef.current ? height * 0.5 : 280;
         const newHeight = Math.max(minHeight, Math.min(maxHeight, currentHeightRef.current - gestureState.dy));
         bottomSheetHeight.setValue(newHeight);
       },
@@ -317,7 +322,7 @@ const MapPage = ({navigation}) => {
         const currentHeightValue = bottomSheetHeight._value;
         currentHeightRef.current = currentHeightValue;
         if (gestureState.dy > 20) {
-          if (selectedMarker) {
+          if (selectedMarkerRef.current) {
             closeMarkerDetail();
           } else {
             Animated.spring(bottomSheetHeight, { toValue: 100, useNativeDriver: false }).start(() => {
@@ -325,7 +330,7 @@ const MapPage = ({navigation}) => {
             });
           }
         } else if (gestureState.dy < -20) {
-          if (selectedMarker) {
+          if (selectedMarkerRef.current) {
             Animated.spring(bottomSheetHeight, { toValue: height * 0.45, useNativeDriver: false }).start(() => {
               currentHeightRef.current = height * 0.45;
             });
@@ -339,9 +344,7 @@ const MapPage = ({navigation}) => {
         }
       }
     });
-  };
-
-  const panResponder = useMemo(() => createPanResponder(), [selectedMarker]);
+  }, [closeMarkerDetail]);
 
   const handleMarkerPress = useCallback((marker) => {
     setSelectedMarker(marker);
