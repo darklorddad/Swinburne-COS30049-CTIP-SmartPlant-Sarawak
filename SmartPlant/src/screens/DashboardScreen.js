@@ -1,13 +1,22 @@
 import React from "react";
-import { View, Text, ScrollView, StyleSheet, Dimensions } from "react-native";
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  StyleSheet, 
+  Dimensions, 
+  TouchableOpacity 
+} from "react-native";
 import { AnimatedCircularProgress } from "react-native-circular-progress";
 import { LineChart } from "react-native-chart-kit";
+import { useNavigation } from "@react-navigation/native";
 import useLiveReading from "../hooks/useLiveReading";
 
 const screenWidth = Dimensions.get("window").width;
-const itemSize = screenWidth / 2 - 24; // 2x2 grid spacing
+const itemSize = screenWidth / 2 - 24;
 
 export default function DashboardScreen() {
+  const navigation = useNavigation();
   const live = useLiveReading();
 
   if (!live)
@@ -18,7 +27,6 @@ export default function DashboardScreen() {
     );
 
   // --- Prepare radar graph data ---
-  // We'll create an array of 181 points (0°–180°) but highlight the current one
   const maxAngle = 180;
   const radarAngles = Array.from({ length: maxAngle + 1 }, (_, i) => i);
   const radarDistances = radarAngles.map((a) =>
@@ -140,7 +148,7 @@ export default function DashboardScreen() {
           labels: ["0°", "45°", "90°", "135°", "180°"],
           datasets: [
             {
-              data: radarDistances.map((v) => (v ?? 0)), // safe values
+              data: radarDistances.map((v) => v ?? 0),
               color: () => "#2ecc71",
             },
           ],
@@ -169,11 +177,19 @@ export default function DashboardScreen() {
       <Text style={styles.subtitle}>
         Angle: {live.angle ?? 0}° | Distance: {live.distance?.toFixed(1) ?? 0} cm
       </Text>
+
+      <TouchableOpacity
+        style={styles.backBtn}
+        onPress={() => navigation.navigate("AdminDashboard")}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.backBtnText}>Back to Admin Dashboard</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
-// 💅 Styles
+// Styles
 const styles = StyleSheet.create({
   container: {
     padding: 16,
@@ -187,7 +203,7 @@ const styles = StyleSheet.create({
   subtitle: {
     textAlign: "center",
     fontSize: 14,
-    marginBottom: 30,
+    marginBottom: 20,
     color: "#666",
   },
   grid: {
@@ -248,5 +264,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  backBtn: {
+    width: screenWidth - 24,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: "#222",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
+  },
+  backBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 });
