@@ -470,9 +470,9 @@ const MapPage = ({navigation}) => {
                   <TouchableOpacity onPress={closeMarkerDetail} style={styles.backButton}>
                     <Ionicons name="chevron-back" size={28} color="#333" />
                   </TouchableOpacity>
+                  <Text style={styles.markerDetailTitle}>{selectedMarker.title}</Text>
                   <View style={{ width: 28 }} />
                 </View>
-                <Text style={styles.markerDetailTitle}>{selectedMarker.title}</Text>
                 <View style={styles.identifiedBy}>
                   <Text style={styles.identifiedText}>Identified by {selectedMarker.identifiedBy}</Text>
                   <Text style={styles.timeText}>{selectedMarker.time}</Text>
@@ -690,9 +690,9 @@ const styles = StyleSheet.create({
   flowerMarker: { backgroundColor: '#E91E63' },
   markerText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
   markerDetail: { flex: 1, paddingBottom: 20 },
-  markerDetailHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  markerDetailHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   backButton: { padding: 5 },
-  markerDetailTitle: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginVertical: 10 },
+  markerDetailTitle: { fontSize: 20, fontWeight: 'bold', flex: 1, textAlign: 'center' },
   identifiedBy: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   identifiedText: { fontSize: 14, color: '#495057' },
   timeText: { color: '#666' },
