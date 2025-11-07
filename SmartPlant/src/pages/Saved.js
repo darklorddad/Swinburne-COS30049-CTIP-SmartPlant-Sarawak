@@ -153,5 +153,6 @@ noPostText: {
   marginTop: 30,
   fontSize: 16,
   color: "#777",
+  width: "100%",
 },
 });

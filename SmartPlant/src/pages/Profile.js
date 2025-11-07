@@ -8,6 +8,17 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const NAV_HEIGHT = 60;
 const NAV_MARGIN_TOP =150;
+
+const colors = ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'];
+const getColorForId = (id) => {
+  if (!id) return colors[0];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 export default function ProfileScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -76,10 +87,16 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Profile Image */}
         <View style={styles.profileContainer}>
-          <Image
-            source={profile?.profile_pic ? { uri: profile.profile_pic } : require("../../assets/user2.png")}
-            style={styles.profileImage}
-          />
+          {profile?.profile_pic ? (
+            <Image
+              source={{ uri: profile.profile_pic }}
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={[styles.profileImage, { backgroundColor: getColorForId(profile.user_id), justifyContent: 'center', alignItems: 'center' }]}>
+              <Text style={styles.avatarText}>{(profile.full_name || "U").charAt(0)}</Text>
+            </View>
+          )}
           <Text style={styles.username}>{profile.full_name}</Text>
         </View>
 
@@ -192,5 +209,10 @@ const styles = StyleSheet.create({
     flex: 1, 
     justifyContent: "center", 
     alignItems: "center"
-  }
+  },
+  avatarText: {
+    color: 'white',
+    fontSize: 48,
+    fontWeight: 'bold',
+  },
 });

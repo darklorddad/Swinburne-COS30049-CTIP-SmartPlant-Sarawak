@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { useAdminContext } from '../AdminContext';
 import { Picker } from '@react-native-picker/picker';
 import { BackIcon } from '../Icons';
+import * as ImagePicker from 'expo-image-picker';
+import { storage } from '../../firebase/FirebaseConfig';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function EditUserScreen({ route, navigation }) {
   const { handleUpdateUser } = useAdminContext();
@@ -20,14 +23,47 @@ export default function EditUserScreen({ route, navigation }) {
   const [occupation, setOccupation] = useState(user.details.occupation);
   const [division, setDivision] = useState(user.details.division);
   const [status, setStatus] = useState(user.status);
+  const [imageUri, setImageUri] = useState(user.details.profile_pic);
 
-  const onSave = () => {
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("Permission Required", "Permission to access the photo library is required.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets?.length > 0) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  const uploadImage = async (uri, email) => {
+    if (!uri) return null;
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const filename = `profile_pictures/${email}_${Date.now()}.jpg`;
+      const imageRef = ref(storage, filename);
+      await uploadBytes(imageRef, blob);
+      return await getDownloadURL(imageRef);
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      throw error;
+    }
+  };
+
+  const onSave = async () => {
     if (!name || !email) {
         Alert.alert("Error", "Name and email are required.");
         return;
     }
     
-    handleUpdateUser(user.id, {
+    const dataToUpdate = {
         full_name: name, 
         email, 
         role, 
@@ -39,8 +75,20 @@ export default function EditUserScreen({ route, navigation }) {
         race, 
         occupation, 
         division,
-        status, // Pass status to the context
-    });
+        status,
+    };
+
+    if (imageUri && imageUri !== user.details.profile_pic) {
+        try {
+            const downloadURL = await uploadImage(imageUri, email);
+            dataToUpdate.profile_pic = downloadURL;
+        } catch (error) {
+            Alert.alert("Upload Failed", "Could not upload the new profile picture. Please try again.");
+            return;
+        }
+    }
+    
+    handleUpdateUser(user.id, dataToUpdate);
     navigation.goBack();
   };
 
@@ -54,6 +102,19 @@ export default function EditUserScreen({ route, navigation }) {
             <View style={{ width: 24 }} />
         </View>
         <ScrollView style={styles.formContainer}>
+            <View style={styles.inputGroup}>
+                <Text style={styles.label}>Profile Picture</Text>
+                <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
+                    {imageUri ? (
+                        <Image source={{ uri: imageUri }} style={styles.avatar} />
+                    ) : (
+                        <View style={[styles.avatar, { backgroundColor: user.color || '#c8b6a6', justifyContent: 'center', alignItems: 'center' }]}>
+                            <Text style={styles.avatarText}>{(name || 'U').charAt(0)}</Text>
+                        </View>
+                    )}
+                    <Text style={styles.changeText}>Change Picture</Text>
+                </TouchableOpacity>
+            </View>
             <View style={styles.inputGroup}>
                 <Text style={styles.label}>Name</Text>
                 <TextInput
@@ -275,5 +336,24 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
         fontSize: 16,
+    },
+    avatarContainer: {
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    avatar: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+    },
+    avatarText: {
+        color: 'white',
+        fontSize: 48,
+        fontWeight: 'bold',
+    },
+    changeText: {
+        color: '#3b82f6',
+        marginTop: 8,
+        fontWeight: '600',
     },
 });

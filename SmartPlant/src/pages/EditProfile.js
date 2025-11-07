@@ -7,6 +7,16 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
+const colors = ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'];
+const getColorForId = (id) => {
+  if (!id) return colors[0];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 export default function EditProfile({ navigation, route }) {
   // Get email passed from MyProfile
   const { email } = route.params; 
@@ -202,10 +212,16 @@ export default function EditProfile({ navigation, route }) {
     <ScrollView contentContainerStyle={styles.container}>
       {/* Profile Picture */}
       <TouchableOpacity style={styles.profileContainer} onPress={pickImage}>
-        <Image
-          source={imageUri ? { uri: imageUri } : require("../../assets/user2.png")}
-          style={styles.profileImage}
-        />
+        {imageUri ? (
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.profileImage}
+          />
+        ) : (
+          <View style={[styles.profileImage, { backgroundColor: getColorForId(profile?.user_id), justifyContent: 'center', alignItems: 'center' }]}>
+            <Text style={styles.avatarText}>{(profile?.full_name || "U").charAt(0)}</Text>
+          </View>
+        )}
         <Text style={styles.changeText}>Change Profile Picture</Text>
       </TouchableOpacity>
 
@@ -394,6 +410,11 @@ const styles = StyleSheet.create({
   },
   radioText: {
     fontSize: 16,
+  },
+  avatarText: {
+    color: 'white',
+    fontSize: 48,
+    fontWeight: 'bold',
   },
 });
 
