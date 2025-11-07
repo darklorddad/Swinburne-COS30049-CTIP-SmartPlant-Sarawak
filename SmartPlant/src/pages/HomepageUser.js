@@ -15,6 +15,7 @@ import { TOP_PAD, EXTRA_TOP_SPACE } from "../components/StatusBarManager";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import BottomNav from "../components/Navigation";
+import ImageSlideshow from "../components/ImageSlideShow";
 
 import { auth, db } from "../firebase/FirebaseConfig";
 import { collection, query, orderBy, limit, onSnapshot, getDocs } from "firebase/firestore";
@@ -47,6 +48,7 @@ export default function HomepageUser({ navigation }) {
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
