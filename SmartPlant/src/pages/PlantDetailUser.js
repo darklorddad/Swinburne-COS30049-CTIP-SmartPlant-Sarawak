@@ -14,7 +14,7 @@ import BottomNav from "../components/Navigation";
 
 // Firestore (live comments)
 import { db } from "../firebase/FirebaseConfig";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, doc, getDoc } from "firebase/firestore";
 import ImageSlideshow from "../components/ImageSlideShow";
 
 // --- match your raised BottomNav ---
@@ -23,6 +23,16 @@ const NAV_MARGIN_TOP = 150; // marginTop used in Navigation.js
 const TOP_PAD =
   Platform.OS === "ios" ? 56 : (StatusBar.currentHeight || 0) + 8; // below notch/status bar
 // -----------------------------------
+
+const colors = ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'];
+const getColorForId = (id) => {
+  if (!id) return colors[0];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
 
 const timeAgo = (ms) => {
   if (!ms) return "";
@@ -49,6 +59,7 @@ export default function PlantDetailUser({ navigation, route }) {
   const top1 = prediction?.[0];
 
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [userProfiles, setUserProfiles] = useState(new Map());
   // ---- Live comments pulled from the same place as PostDetail ----
   const [comments, setComments] = useState([]);
 
@@ -65,6 +76,7 @@ export default function PlantDetailUser({ navigation, route }) {
         return {
           id: d.id,
           text: v?.text ?? "",
+          user_id: v?.user_id ?? "anon",
           user_name: v?.user_name ?? "User",
           createdAtMs: ms,
         };
@@ -73,6 +85,28 @@ export default function PlantDetailUser({ navigation, route }) {
     });
     return () => unsub();
   }, [post?.id]);
+
+  useEffect(() => {
+    if (!comments.length) return;
+
+    const fetchProfiles = async () => {
+      const userIds = [...new Set(comments.map(c => c.user_id).filter(id => !userProfiles.has(id)))];
+      if (!userIds.length) return;
+
+      const newProfiles = new Map(userProfiles);
+      await Promise.all(userIds.map(async id => {
+        if (id === 'anon') return;
+        const userRef = doc(db, "account", id);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          newProfiles.set(id, userSnap.data());
+        }
+      }));
+      setUserProfiles(newProfiles);
+    };
+
+    fetchProfiles();
+  }, [comments]);
   // ----------------------------------------------------------------
 
   const lat = post?.coordinate?.latitude ?? null;
@@ -175,18 +209,27 @@ export default function PlantDetailUser({ navigation, route }) {
             <Text style={{ color: "#666", marginTop: 6 }}>No comments yet.</Text>
           ) : (
             <View style={styles.commentsBlock}>
-              {comments.map((c) => (
-                <View key={c.id} style={styles.commentRow}>
-                  <View style={styles.commentAvatar} />
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.commentHeader}>
-                      <Text style={styles.commentAuthor}>{c.user_name}</Text>
-                      <Text style={styles.commentTime}>{timeAgo(c.createdAtMs)}</Text>
+              {comments.map((c) => {
+                const userProfile = userProfiles.get(c.user_id) || {};
+                return (
+                  <View key={c.id} style={styles.commentRow}>
+                    {userProfile.profile_pic ? (
+                      <Image source={{ uri: userProfile.profile_pic }} style={styles.commentAvatar} />
+                    ) : (
+                      <View style={[styles.commentAvatar, { backgroundColor: getColorForId(c.user_id) }]}>
+                        <Text style={styles.avatarText}>{(userProfile.full_name || c.user_name || "U").charAt(0)}</Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.commentHeader}>
+                        <Text style={styles.commentAuthor}>{(userProfile && userProfile.full_name) || c.user_name || "User"}</Text>
+                        <Text style={styles.commentTime}>{timeAgo(c.createdAtMs)}</Text>
+                      </View>
+                      <Text style={styles.commentText}>{c.text}</Text>
                     </View>
-                    <Text style={styles.commentText}>{c.text}</Text>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
 
@@ -244,7 +287,8 @@ const styles = StyleSheet.create({
 
   commentsBlock: { marginTop: 10 },
   commentRow: { flexDirection: "row", gap: 10, marginTop: 10 },
-  commentAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#D7E3D8" },
+  commentAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#D7E3D8", alignItems: "center", justifyContent: "center" },
+  avatarText: { color: "white", fontSize: 14, fontWeight: "bold" },
   commentHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   commentAuthor: { fontWeight: "700", color: "#222" },
   commentTime: { fontSize: 12, color: "#666" },
