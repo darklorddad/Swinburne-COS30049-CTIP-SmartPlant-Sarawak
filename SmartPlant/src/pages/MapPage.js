@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRoute } from "@react-navigation/native"; // ← NEW
 import mapStyle from "../../assets/mapStyle.json";
-import { db, auth } from '../firebase/config.js';
+import { db, auth } from '../firebase/FirebaseConfig.js';
 import { collection, getDocs, onSnapshot, query, doc, runTransaction, arrayUnion, arrayRemove, increment } from 'firebase/firestore'; 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PermissionContext } from "../components/PermissionManager";
