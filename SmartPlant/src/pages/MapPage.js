@@ -517,7 +517,6 @@ const MapPage = ({navigation}) => {
             key={marker.id}
             coordinate={marker.coordinate}
             onPress={() => handleMarkerPress(marker)}
-            tracksViewChanges={false}
           >
             <View style={styles.mapMarkerContainer}>
               <Image source={{ uri: marker.image }} style={styles.mapMarkerImage} />
