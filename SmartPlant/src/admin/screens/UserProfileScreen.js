@@ -174,11 +174,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#f8fafc',
     },
     headerTitle: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 24,
+        textAlign: 'center',
         fontSize: 20,
         fontWeight: 'bold',
         color: '#3C3633',
-        flex: 1,
-        textAlign: 'center',
     },
     headerActions: {
         flexDirection: 'row',
