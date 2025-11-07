@@ -24,7 +24,6 @@ const NAV_HEIGHT = 60;      // height of your BottomNav
 const NAV_MARGIN_TOP = 150; // its marginTop from Navigation.js
 
 // top padding so the greeting isn't too high (handles notch/status bar)
-const TOP_PAD = Platform.OS === "ios" ? 56 : (StatusBar.currentHeight || 0) + 8;
 
 const timeAgo = (ms) => {
   const s = Math.max(1, Math.floor((Date.now() - ms) / 1000));
