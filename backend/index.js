@@ -4,10 +4,6 @@ const path = require("path");
 const predictRoutes = require("./routes/predict");
 const predictMultipleRoutes = require("./routes/predict_multiple");
 const heatmapRoutes = require("./routes/heatmap");
-const askRoutes = require("./controllers/AgentController");
-
-
-
 
 const app = express();
 app.use(express.json());
@@ -16,14 +12,9 @@ app.use(express.json());
 app.use("/heatmaps", express.static(path.join(__dirname, "heatmaps")));
 
 // Mount routes
-app.get("/", (req, res) => {
-  res.send("Server is running");
-});
-
 app.use("/predict", predictRoutes); 
 app.use("/predict_multiple", predictMultipleRoutes);      
 app.use("/heatmap", heatmapRoutes); 
-app.use("/ask", askRoutes);
 
 const HOST = '0.0.0.0'; // Listen on all available network interfaces
 
