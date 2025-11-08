@@ -12,7 +12,14 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@langchain/core": "^1.0.3",
+    "@langchain/groq": "^1.0.0",
+    "@langchain/openai": "^1.0.0",
+    "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "multer": "^2.0.2"
+    "firebase-admin": "^13.6.0",
+    "langchain": "^1.0.3",
+    "multer": "^2.0.2",
+    "openai": "^6.8.1"
   }
 }

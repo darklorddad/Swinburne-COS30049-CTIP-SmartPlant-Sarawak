@@ -35,6 +35,8 @@ import IoTDashboard from './src/pages/iot_dashboard';
 import { AdminProvider } from './src/admin/AdminContext';
 import { PermissionProvider } from "./src/components/PermissionManager";
 
+import AIChatScreen from "./src/pages/AIChatScreen"
+
 //testing the component
 import Tabs from './tabs/Tabs';
 
@@ -46,7 +48,7 @@ export default function App() {
     <AdminProvider>
     <PermissionProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="MapPage" screenOptions={{ headerShown: false }}>
+        <Stack.Navigator initialRouteName="AIChatScreen" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Root" component={Tabs}/>
           <Stack.Screen name="Profile" component={Profile} />
           {/* <Stack.Screen name="IoTDashboard" component={IoTDashboard} /> */}
@@ -77,6 +79,7 @@ export default function App() {
           <Stack.Screen name="ReportError" component={ReportError}/>
           <Stack.Screen name="TopSuggestions" component={TopSuggestions}/>
           <Stack.Screen name="AdminDashboard" component={AdminNavigator} />
+          <Stack.Screen name="AIChatScreen" component={AIChatScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </PermissionProvider>
