@@ -6,27 +6,32 @@ const predictMultipleRoutes = require("./routes/predict_multiple");
 const heatmapRoutes = require("./routes/heatmap");
 const askRoutes = require("./controllers/AgentController");
 
-
-
-
 const app = express();
 app.use(express.json());
 
-// Serve generated heatmaps
-app.use("/heatmaps", express.static(path.join(__dirname, "heatmaps")));
+try {
 
-// Mount routes
-app.get("/", (req, res) => {
-  res.send("Server is running");
-});
+  // Serve generated heatmaps
+  app.use("/heatmaps", express.static(path.join(__dirname, "heatmaps")));
 
-app.use("/predict", predictRoutes); 
-app.use("/predict_multiple", predictMultipleRoutes);      
-app.use("/heatmap", heatmapRoutes); 
-app.use("/ask", askRoutes);
+  // Mount routes
+  app.get("/", (req, res) => {
+    res.send("Server is running");
+  });
 
-const HOST = '0.0.0.0'; // Listen on all available network interfaces
+  app.use("/predict", predictRoutes);
+  app.use("/predict_multiple", predictMultipleRoutes);
+  app.use("/heatmap", heatmapRoutes);
+  app.use("/ask", askRoutes);
 
-app.listen(3000, HOST, () => {
-  console.log(`✅ Server running on http://${HOST}:3000`);
-});
+  const HOST = '0.0.0.0'; // Listen on all available network interfaces
+
+  app.listen(3000, HOST, () => {
+    console.log(`✅ Server running on http://${HOST}:3000`);
+  });
+} catch (error) {
+  console.error("Failed to start application:", error);
+  process.exit(1);
+}
+
+
