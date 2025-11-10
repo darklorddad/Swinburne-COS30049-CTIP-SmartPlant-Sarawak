@@ -242,6 +242,7 @@ export default function ResultScreen() {
         identify_status: "pending", // <— no auto-verify
         author_name: userName,
         locality,
+        visible: "true",
       };
 
       const docId = await addPlantIdentify(plantData);

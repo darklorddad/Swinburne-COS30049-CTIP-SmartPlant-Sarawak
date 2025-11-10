@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { StatusBar } from "react-native";
+
 import {
   View,
   Text,
@@ -11,6 +13,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { API_URL } from "../config";
+import Entypo from '@expo/vector-icons/Entypo';
 
 export default function ChatScreen() {
 
@@ -73,18 +76,27 @@ export default function ChatScreen() {
   );
 
   return (
+
+
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0} // adjust as needed
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
-
+    <StatusBar hidden={true} />
       {loading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#00ff3cff" />
           <Text style={{ color: "white", marginTop: 10 }}>Generating...</Text>
         </View>
       )}
+      <View style={styles.topBar}>
+        {/* The 'cross' icon acts as a back/close button */}
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Entypo name="cross" size={32} color="black" />
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>Plant Assistant Chat</Text>
+      </View>
       <FlatList
         data={messages}
         keyExtractor={(item) => item.id}
@@ -112,7 +124,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(87, 140, 91, 0.7)",
     // paddingHorizontal: 15,
-    paddingTop: 25,
+    //paddingTop: 25,
   },
   messagesContainer: {
     paddingVertical: 10,
@@ -150,7 +162,7 @@ const styles = StyleSheet.create({
     width: "100%",
     padding: 8,
     backgroundColor: "#578C5B",
-    paddingBottom:10
+    paddingBottom: 10
   },
   input: {
     flex: 1,
@@ -162,7 +174,7 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderRadius: 25,      
+    borderRadius: 25,
     paddingHorizontal: 18,
     paddingVertical: 11,
   },
@@ -180,6 +192,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.5)",
     zIndex: 1000,
+  },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    borderBottomRightRadius: 0,
+    borderBottomLeftRadius: 0,
+    borderColor: "#ddd",
+    width: "100%",
+    padding: 8,
+    backgroundColor: "#fdfdfdff",
+    paddingBottom: 10,
+    paddingTop:25,
+  },
+  topBarTitle: {
+    color: 'black',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginLeft: 15,
   },
 });
 

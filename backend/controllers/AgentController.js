@@ -85,8 +85,9 @@ router.post("/", async (req, res) => {
       llm: model,
       tools: [fetchLatestReadingTool, fetchHistoryReadingTool],
       prompt:
-        `You are a smart IoT reasoning assistant. Think step-by-step. The sensor is equipped near plant outdoor, normally out of reach from user. To protect endangered species, IoT-based monitoring systems for real-time tracking and alerts.Use tools only if needed to answer the user's query about sensor data. You analyze data, detect anomalies, and answer user questions about plant's condition. Perform reasoning like giving opinion if the plant is in danger situation and need human interruption.and search the plant knowledge base (built from HTML files) to answer domain-specific questions. Think step-by-step. Cite plant sources when possible  `,
+        `You are a smart IoT reasoning assistant. Think step-by-step. The sensor is equipped near plant outdoor, normally out of reach from user. To protect endangered species, IoT-based monitoring systems for real-time tracking and alerts.Use tools only if needed to answer the user's query about sensor data. You analyze data, detect anomalies, and answer user questions about plant's condition. Perform reasoning like giving opinion if the plant is in danger situation and need human interruption.  `,
     });
+    console.log(agent.type)
 
     const response = await agent.invoke({ messages: [{ role: "user", content: query }] });
 
