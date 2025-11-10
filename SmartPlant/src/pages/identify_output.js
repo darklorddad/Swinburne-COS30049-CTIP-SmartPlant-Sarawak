@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { addPlantIdentify } from "../firebase/plant_identify/addPlantIdentify.js";
 import { uploadImage } from "../firebase/plant_identify/uploadImage.js";
-import { auth, db } from "../firebase/FirebaseConfig";
+import { auth, db, storage } from "../firebase/FirebaseConfig";
 import {
   serverTimestamp,
   addDoc,
@@ -29,6 +29,7 @@ import { getDisplayName } from "../firebase/UserProfile/getDisplayName";
 // device/location
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
+
 
 export default function ResultScreen() {
   const route = useRoute();
@@ -140,15 +141,55 @@ export default function ResultScreen() {
       setUPLoading(true);
 
       // ----- upload all images -----
+      // const downloadURLs = [];
+      // for (let i = 0; i < images.length; i++) {
+      //   const uri = images[i];
+      //   if (uri.startsWith("http")) {
+      //     downloadURLs.push(uri);
+      //     continue;
+      //   }
+      //   try {
+      //     const uploadedURL = await uploadImage(uri, safePred?.[i]?.class || "Unknown");
+      //     downloadURLs.push(uploadedURL);
+      //   } catch (e) {
+      //     Alert.alert("Upload failed", `Image ${i + 1} failed. Please try again.`);
+      //     // keep going to upload others
+      //   }
+      // }
+
+
+      // Get class name and score for the current image
+
+      const className = safePred?.[0]?.class || "Unknown";
+      const score = safePred?.[0]?.confidence || 0; // Default score to 0 if missing
       const downloadURLs = [];
+      const HIGH_CONFIDENCE_THRESHOLD = 0.7; // Define the threshold
+
       for (let i = 0; i < images.length; i++) {
         const uri = images[i];
+
+        // 1. Skip if already hosted
         if (uri.startsWith("http")) {
           downloadURLs.push(uri);
           continue;
         }
+
+
+        // 2. Determine the storage path segment based on confidence
+        let storagePathSegment;
+        if (score > HIGH_CONFIDENCE_THRESHOLD) {
+          // ✅ HIGH CONFIDENCE: Use verified/SPECIES_NAME (e.g., 'verified/Rose')
+          storagePathSegment = `verified/${className}/`;
+        } else {
+          // ✅ LOW CONFIDENCE: Use general unverified folder (e.g., 'unverified')
+          storagePathSegment = `unverified`;
+        }
+
+        // 3. Perform the upload
         try {
-          const uploadedURL = await uploadImage(uri, safePred?.[i]?.class || "Unknown");
+          // Pass the constructed path segment to uploadImage
+          // The uploadImage function will combine this segment with the file name.
+          const uploadedURL = await uploadImage(uri, storagePathSegment);
           downloadURLs.push(uploadedURL);
         } catch (e) {
           Alert.alert("Upload failed", `Image ${i + 1} failed. Please try again.`);
@@ -218,8 +259,13 @@ export default function ResultScreen() {
         user?.displayName || (user?.email ? user.email.split("@")[0] : null) || "User"
       );
 
+      // ----identify_status ----
+      let identification_status="pending"
+      if (safePred?.[0].confidence >0.7 ){
+        identification_status="verified";
+      }
       // ----- firestore: plant_identify -----
-      // IMPORTANT CHANGE: always start as "pending"
+      // IMPORTANT CHANGE: always start as "pending"  // --- this is so feasible
       const plantData = {
         model_predictions: {
           top_1: {
@@ -239,7 +285,7 @@ export default function ResultScreen() {
         ImageURLs: downloadURLs,
         coordinate: { latitude: latitude ?? null, longitude: longitude ?? null },
         user_id: userID,
-        identify_status: "pending", // <— no auto-verify
+        identify_status: identification_status, 
         author_name: userName,
         locality,
         visible: "true",
@@ -379,7 +425,7 @@ export default function ResultScreen() {
               name={item.class || "Unknown Plant"}
               image={plantImages[index] || null}
               confidence={(item.confidence * 100).toFixed(2)}
-              onPress={() => {}}
+              onPress={() => { }}
             />
           ))}
         </View>
