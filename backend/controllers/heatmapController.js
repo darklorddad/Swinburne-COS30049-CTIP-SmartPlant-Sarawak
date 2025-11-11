@@ -22,7 +22,7 @@ const generateGradcam = async (req, res) => {
       // Wrap the Python call in a Promise for async handling
       await new Promise((resolve, reject) => {
         const pythonProcess = spawn("python", [
-          path.join(__dirname, "../gradcam.py"),
+          path.join(__dirname, "../training/grad_CAM.py"),
           imagePath,
           outputFilename,
         ]);

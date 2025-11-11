@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "smartplantsarawak",
+  "private_key_id": "7e45c7b1a9e762ee11611c81e746538f8cfc3ebc",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDZ5Ay8eqjOiIZh\n0JmBMpKtHJh3BrnJTWDDH/VOpSDHCKxP6K/90EJFBchKgchaCvEc1nh0ZMR5cLVQ\noQ77isl+iPFKXyQ1fcdLqOyNvfz+Z2RixmLIlqamZJjKAVabrLdX/du3hmm/E3w3\nJln+AkvBHQoiHFeTne7vFkr8HCukAIi1ZqJ1CaqTfOkdIA28TPyNUNp5CL9mSG0h\niXfZfNCLxDNoMU3nUao5c57BkyItNIvJwQKQA9qXdbUj8afP1BhZUkdPLK/30plm\nkf9cxEJYgZx8igzKynjmArEkU3aEda30oUC6MV/H0pN9Ov4AyY0KGpABtiWykY1l\n2iA4lMcLAgMBAAECggEAAeSvqk/eipI4l6R2Hc57F4fbrfaxIYTtrFEtksT4jfEg\nJrZnkASj6oIoFnQNLcKWC+Wz2seYCsrmMPcqo6DpO9eS6sWWd+RBXd+aj6vw9AnD\nSfGAKXD58f/s+dEuOgK8MWA1l+EwDYJ1b1KT/VdQkO6+dyFpyFUfHsgwzuDOL70m\naPVEr+SESbNIBBmfF3Mmr0aajrMLip8uprjMzKqE/GM3Z9d4yP5e3Sc6T7U9KYKQ\np/PfJqaLPs/3WXQzMSpTPn8ePki0+KwP708v+qWr0iJ4bgJS3VHNPnhnaRG1pGJ6\nQJUVMOUNk66pS6ayCR8Eu3GDLrILYR6n+wTmD8asUQKBgQDyDy+F3/ZIfv7R4sZr\nOklOv/0zCsX9Vuz+1q/0B6bi3cSzwGCFbI2LB19Ng6z04enKvFIcL0XUi8aWgrZf\nz1QjfUpTgdyVeurZGh50vLtiequaYocHWqrZyCoWLygyPFvzByRDREVrZkNKra0X\nRd8CALHJfSZFUrPhUtm89qp/3QKBgQDmcIjZKxoD4MdnZ6Wzh0y+g1J4ZF6kLiPk\n9Hv8PNVdmQxb0NbLgcyEd5FKlmRB4E2tKONI+5UScVXq3QN8u+ggXZOT3lP5gDd/\nP1wQyIfqNBPKn0cE4QyMHQubby5dDdiHn3Jc5NG6oPzz+e9xc6d6KoFtxj5EAmej\nDKwbYwfoBwKBgQDPX7clCFRkk3gXtCKtJog7UTvIiMhKXDg5sw+XDx8oaTnljUCj\nzfYNT8mUDOUV/p1etKvbvZwjlYQS2fUIbAT3SpVsqWqjHWUpjbjd5frbSaDOaO6p\nnEGWxmdYDhpvv0o/ELU+c7TNaBTqW5RYxeFiQ9oMdo1dApdcyLAFtYUoeQKBgG6H\nB3xyafX2OG5mjlm/yZWPU10fdy10XA8THOztGMHeCMl5L61Iwpm+59dIrynRtjAZ\n7noxAV1pMvaFr4iCcGIlwAUqnEiNsRC9iSEbreUtuVh0cRHsB6Kkw85301saqwLR\n/X6E2fuT///dn3VhLbEw9gd7EJ56MM9J4rr4EvC9AoGANBCyDl7Tix3pfs2tmsKy\nyBqVkGEvK/MBUoG8TYbR/+YHyl+/3CdSmrGd7Jq88eYOhPy8R79xZZLOn/jeXuJT\nVouUTN/yaVFnYHCl6weieY+/uztBaIwOkRDFPJOqknxHh1Lbn8yYWINI3T7apcqw\nv87Cw56ByAP5ywdk4fnWq9c=\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-fbsvc@smartplantsarawak.iam.gserviceaccount.com",
+  "client_id": "103366168407807938483",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40smartplantsarawak.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

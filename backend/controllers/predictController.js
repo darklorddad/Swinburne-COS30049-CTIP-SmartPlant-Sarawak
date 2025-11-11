@@ -49,7 +49,7 @@ const handlePrediction = (req, res) => {
 
   const imagePath = path.join(__dirname, "..", req.file.path);
 
-  const python = spawn("python", ["predict.py", imagePath]);
+  const python = spawn("python", ["training/predict.py", imagePath]);
 
   let output = "";
   let errorOutput = "";

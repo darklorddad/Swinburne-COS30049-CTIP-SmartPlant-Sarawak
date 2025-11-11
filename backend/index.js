@@ -5,9 +5,16 @@ const predictRoutes = require("./routes/predict");
 const predictMultipleRoutes = require("./routes/predict_multiple");
 const heatmapRoutes = require("./routes/heatmap");
 const askRoutes = require("./controllers/AgentController");
+///add for retraining
+const { startRetrainWatcher } = require("./controllers/retrainWatcher");
+///end add
+
 
 const app = express();
 app.use(express.json());
+
+
+
 
 try {
 
@@ -23,6 +30,8 @@ try {
   app.use("/predict_multiple", predictMultipleRoutes);
   app.use("/heatmap", heatmapRoutes);
   app.use("/ask", askRoutes);
+  // Start retrain watcher
+  startRetrainWatcher();
 
   const HOST = '0.0.0.0'; // Listen on all available network interfaces
 

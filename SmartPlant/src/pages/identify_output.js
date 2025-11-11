@@ -394,15 +394,12 @@ export default function ResultScreen() {
           </View>
         )}
 
-        <ImageSlideshow imageURIs={images} onSlideChange={(index) => setCurrentSlide(index)} />
+        {!showHeatmap&&(<ImageSlideshow imageURIs={images} onSlideChange={(index) => setCurrentSlide(index)} />)}
+        
 
         {showHeatmap && heatmapURIs[currentSlide] && (
-          <Image
-            source={{ uri: heatmapURIs[currentSlide] }}
-            style={styles.heatmapOverlay}
-            resizeMode="cover"
-            pointerEvents="none"
-          />
+
+          <ImageSlideshow imageURIs={heatmapURIs} onSlideChange={(index) => setCurrentSlide(index)} />
         )}
 
         <TouchableOpacity
