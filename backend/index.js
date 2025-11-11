@@ -5,6 +5,7 @@ const predictRoutes = require("./routes/predict");
 const predictMultipleRoutes = require("./routes/predict_multiple");
 const heatmapRoutes = require("./routes/heatmap");
 const askRoutes = require("./controllers/AgentController");
+require('dotenv').config({ path: '../.env' }); // path relative to backend folder
 ///add for retraining
 const { startRetrainWatcher } = require("./controllers/retrainWatcher");
 ///end add

@@ -3,14 +3,13 @@ const { ChatGroq } = require("@langchain/groq");
 const { DynamicTool } = require("@langchain/core/tools");
 const { createReactAgent } = require("@langchain/langgraph/prebuilt");
 const admin = require("firebase-admin");
-const serviceAccount = require("../smartplantsarawak.json");
+const serviceAccount = require("../smartplantsarawak-firebase-adminsdk-fbsvc-aee0d5a952.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 const db = admin.firestore();
 
 const router = express.Router();
-const APIKey = "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";
 
 
 
@@ -75,7 +74,7 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Missing 'query' in request body." });
 
     const model = new ChatGroq({
-      apiKey: APIKey,
+      apiKey: process.env.GROQ_API_KEY,
       model: "meta-llama/llama-4-maverick-17b-128e-instruct",
       temperature: 0.3,
     });

@@ -185,7 +185,13 @@ export default function IdentifyPage() {
 
         try {
             setLoading(true);
-            const response = await fetch("http://192.168.50.202:3000/predict", {
+            const endpoint =
+                images.length === 3
+                    ? `${API_URL}/predict_multiple`
+                    : `${API_URL}/predict`;
+
+            const response = await fetch(endpoint, {
+           
                 method: "POST",
                 headers: { "Content-Type": "multipart/form-data" },
                 body: formData,})
