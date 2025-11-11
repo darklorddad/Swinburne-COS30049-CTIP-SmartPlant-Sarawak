@@ -29,10 +29,13 @@ counts-cache.json
 
 *.tmp
 .vscode/
-smartplantsarawak-firebase-adminsdk-fbsvc-f3c2a1978c.json
+smartplantsarawak-firebase-adminsdk-fbsvc-aee0d5a952.json
 backend/uploads/
 backend/heatmaps/
 
+backend/base_Dataset/
+backend/firebase_downloaded_data/
+backend/merged_dataset/
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # dependencies

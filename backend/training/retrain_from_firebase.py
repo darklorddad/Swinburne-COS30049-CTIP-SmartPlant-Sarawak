@@ -23,7 +23,7 @@ from math import ceil
 # -----------------------------
 # 1️⃣ Firebase initialization
 # -----------------------------
-SERVICE_ACCOUNT_PATH = "smartplantsarawak.json"
+SERVICE_ACCOUNT_PATH = "smartplantsarawak-firebase-adminsdk-fbsvc-aee0d5a952.json"
 BUCKET_NAME = "smartplantsarawak.firebasestorage.app"
 
 if not firebase_admin._apps:
