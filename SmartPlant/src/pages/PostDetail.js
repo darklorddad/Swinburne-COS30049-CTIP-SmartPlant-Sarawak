@@ -199,94 +199,137 @@ export default function PostDetail({ navigation, route }) {
   }, [postId]);
 
   // ❤️ Toggle like (like/unlike) atomically with a transaction
-  const toggleLike = async () => {
-    if (likeInFlight || !postRef) return;
-    setLikeInFlight(true);
+  // ---------- like / save / comment handlers ----------
+// ---------- like / save / comment handlers ----------
+// ---------- like / save / comment handlers ----------
+const toggleLike = async () => {
+  if (likeInFlight || !postRef) return;
+  setLikeInFlight(true);
 
-    // optimistic UI
-    const optimisticNext = !liked;
-    setLiked(optimisticNext);
+  const optimisticNext = !liked;
+  setLiked(optimisticNext);
 
-    try {
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(postRef);
+  try {
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(postRef);
+      if (!snap.exists()) return;
+      const v = snap.data() || {};
+      const likedBy = Array.isArray(v.liked_by) ? v.liked_by : [];
+      const already = likedBy.includes(myId);
+      if (already === optimisticNext) return;
+      tx.update(postRef, {
+        liked_by: optimisticNext ? arrayUnion(myId) : arrayRemove(myId),
+        like_count: increment(optimisticNext ? 1 : -1),
+      });
+    });
+
+    // only notify when user actually liked (not when unliking)
+    if (optimisticNext) {
+      try {
+        const snap = await getDoc(postRef);
         if (!snap.exists()) return;
-        const v = snap.data() || {};
-        const likedBy = Array.isArray(v.liked_by) ? v.liked_by : [];
-        const already = likedBy.includes(myId);
-
-        if (already === optimisticNext) return;
-
-        tx.update(postRef, {
-          liked_by: optimisticNext ? arrayUnion(myId) : arrayRemove(myId),
-          like_count: increment(optimisticNext ? 1 : -1),
-        });
-      });
-      if (optimisticNext) {
-        notifyOwner("post_like", `${myName} liked your post`, {
-          likeCountAfter: likeCount + 1,
-        });
+        const ownerId = snap.data()?.user_id;
+        if (ownerId && ownerId !== myId) {
+          const canonical = await getDisplayName(myId, myName);
+          await addNotification({
+            userId: ownerId,
+            type: "post_like",
+            title: `${canonical} liked your post`,
+            message: `${canonical} liked your post`,
+            payload: { postId, actorId: myId, actorName: canonical },
+          });
+        }
+      } catch (e) {
+        console.log("create like notification failed:", e);
       }
-    } catch {
-      // revert on error
-      setLiked(!optimisticNext);
-      console.log("Failed to toggle like:", e);
-    } finally {
-      setLikeInFlight(false);
     }
-  };
+  } catch (e) {
+    // revert on error
+    setLiked(!optimisticNext);
+    console.log("toggleLike error:", e);
+  } finally {
+    setLikeInFlight(false);
+  }
+};
 
-  // 🔖 Save toggle
-  const toggleSave = async () => {
-    if (!postRef) return;
-    const nextSaved = !saved;
+const toggleSave = async () => {
+  if (!postRef) return;
+  const nextSaved = !saved;
+  setSaved(nextSaved);
 
-    // optimistic UI
-    setSaved(nextSaved);
+  try {
+    await updateDoc(postRef, {
+      saved_by: nextSaved ? arrayUnion(myId) : arrayRemove(myId),
+      saved_count: increment(nextSaved ? 1 : -1),
+    });
+
+    if (nextSaved) {
+      try {
+        const canonical = await getDisplayName(myId, myName);
+        const snap = await getDoc(postRef);
+        const ownerId = snap.exists() ? snap.data()?.user_id : null;
+        if (ownerId && ownerId !== myId) {
+          await addNotification({
+            userId: ownerId,
+            type: "post_save",
+            title: `${canonical} saved your post`,
+            message: `${canonical} saved your post`,
+            payload: { postId, actorId: myId, actorName: canonical, savedCountAfter: savedCount + 1 },
+          });
+        }
+      } catch (e) {
+        console.log("create save notification failed:", e);
+      }
+    }
+  } catch (e) {
+    // revert on failure
+    setSaved(!nextSaved);
+    console.log("toggleSave error:", e);
+  }
+};
+
+const sendComment = async () => {
+  const text = comment.trim();
+  if (!text || !postId) return;
+  setSending(true);
+
+  try {
+    const commentsCol = collection(db, "plant_identify", postId, "comments");
+    const ref = await addDoc(commentsCol, {
+      text,
+      user_id: myId,
+      user_name: myName,
+      createdAt: serverTimestamp(),
+    });
+
+    await updateDoc(postRef, { comment_count: increment(1) }).catch(() => {});
 
     try {
-      await updateDoc(postRef, {
-        saved_by: nextSaved ? arrayUnion(myId) : arrayRemove(myId),
-        saved_count: increment(nextSaved ? 1 : -1),
-      });
-      if (nextSaved) {
-        notifyOwner("post_save", `${myName} saved your post`, {
-          savedCountAfter: savedCount + 1,
+      const canonical = await getDisplayName(myId, myName);
+      const snap = await getDoc(postRef);
+      const ownerId = snap.exists() ? snap.data()?.user_id : null;
+      if (ownerId && ownerId !== myId) {
+        await addNotification({
+          userId: ownerId,
+          type: "post_comment",
+          title: `${canonical} commented on your post`,
+          message: `${canonical} commented: ${text}`,
+          payload: { postId, commentId: ref.id, commentText: text, actorId: myId, actorName: canonical },
         });
       }
-    } catch {
-      // revert
-      setSaved(!nextSaved);
-      console.log("Failed to update save:", e);
+    } catch (e) {
+      console.log("create comment notification failed:", e);
     }
-  };
-
-  const onPressCommentIcon = () => setShowComposer((s) => !s);
-
-  const sendComment = async () => {
-    const text = comment.trim();
-    if (!text || !postId) return;
-    setSending(true);
-    try {
-      const commentsCol = collection(db, "plant_identify", postId, "comments");
-      await addDoc(commentsCol, {
-        text,
-        user_id: myId,
-        user_name: myName,
-        createdAt: serverTimestamp(),
-      });
-      await updateDoc(postRef, { comment_count: increment(1) }).catch(() => {});
-      notifyOwner("post_comment", `${myName} commented: ${text}`, {
-        commentId: ref.id,
-        commentText: text,
-      });
-    } catch {
-      // silent
-    }
+  } catch (e) {
+    console.log("sendComment error:", e);
+  } finally {
     setComment("");
     setShowComposer(false);
     setSending(false);
-  };
+  }
+};
+
+const onPressCommentIcon = () => setShowComposer((s) => !s);
 
     if (loading) {
     return (
