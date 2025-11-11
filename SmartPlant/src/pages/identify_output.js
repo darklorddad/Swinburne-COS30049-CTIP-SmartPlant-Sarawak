@@ -93,7 +93,8 @@ export default function ResultScreen() {
 
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/heatmap`, {
+
+      const response = await fetch("http://192.168.50.202:3000/heatmap", {
         method: "POST",
         body: formData,
       });
