@@ -48,7 +48,7 @@ export default function App() {
     <AdminProvider>
     <PermissionProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="AIChatScreen" screenOptions={{ headerShown: false }}>
+        <Stack.Navigator initialRouteName="MapPage" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Root" component={Tabs}/>
           <Stack.Screen name="Profile" component={Profile} />
           {/* <Stack.Screen name="IoTDashboard" component={IoTDashboard} /> */}
