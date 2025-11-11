@@ -80,7 +80,7 @@ export default function EditProfile({ navigation, route }) {
     if (!result.canceled && result.assets?.length > 0) {
       const newImageUri = result.assets[0].uri;
       setImageUri(newImageUri);
-      setProfile(prevProfile => ({ ...prevProfile, profile_pic: newImageUri }));
+    //setProfile(prevProfile => ({ ...prevProfile, profile_pic: newImageUri }));
     }
   };
 

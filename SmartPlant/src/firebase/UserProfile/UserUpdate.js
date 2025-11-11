@@ -1,38 +1,41 @@
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../FirebaseConfig";
-import { query, collection, where, getDocs, doc, getDoc } from "firebase/firestore";
 
-async function getFullProfile(identifier) {
-    if (!identifier) {
-        console.error("No identifier provided to getFullProfile");
-        return null;
+export const getFullProfile = async (email) => {
+  try {
+    // Query user by email field
+    const q = query(collection(db, "user"), where("email", "==", email));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      console.log("User document not found for email:", email);
+      return null;
     }
 
-    try {
-        // First, try to fetch by document ID, assuming identifier is a user_id.
-        const docRef = doc(db, "account", identifier);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-            return docSnap.data();
-        }
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data();
+    console.log("User data:", userData);
 
-        // If not found, assume it's an email and query the collection.
-        const userRef = collection(db, "account");
-        const q = query(userRef, where("email", "==", identifier));
-        const querySnapshot = await getDocs(q);
+    // Query account using user_id
+    const accountQuery = query(
+      collection(db, "account"),
+      where("user_id", "==", userData.user_id)
+    );
 
-        if (!querySnapshot.empty) {
-            return querySnapshot.docs[0].data();
-        }
+    const accountSnap = await getDocs(accountQuery);
 
-        // If still not found, then it doesn't exist.
-        console.log(`No user profile found for identifier: ${identifier}`);
-        return null;
+    let accountData = {};
+    accountSnap.forEach((doc) => {
+      accountData = doc.data(); // assuming one account per user
+    });
 
-    } catch (error) {
-        console.error("Error fetching full profile:", error);
-        return null; 
-    }
-}
+    console.log("Account data:", accountData);
 
-export { getFullProfile };
+    // Merge and return
+    return { user_id: userData.user_id, ...userData, ...accountData };
+
+  } catch (error) {
+    console.error("Error fetching full profile:", error);
+    return null;
+  }
+};
