@@ -101,28 +101,36 @@ const MapPage = ({navigation}) => {
       }));
   }
 
-  const getLatestInArea = (markersList, count = 3, radius = 50) => { // radius in km
+  const getLatestInArea = (markersList, radius = 50) => {
     if (!userLocation) {
-      // If no location, fall back to just latest markers globally.
-      const sorted = markersList.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-      return sorted.slice(0, count).map(m => ({...m, distance: null}));
+      // If no location, just show all markers
+      const sorted = markersList.sort(
+        (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+      );
+      return sorted.map((m) => ({ ...m, distance: null }));
     }
 
-    const markersInArea = markersList.map(marker => ({
-      ...marker,
-      distance: calculateDistance(
-        userLocation.latitude,
-        userLocation.longitude,
-        marker.coordinate.latitude,
-        marker.coordinate.longitude
-      )
-    })).filter(marker => marker.distance <= radius);
+    // 🗺 Filter markers within `radius` km of user
+    const markersInArea = markersList
+      .map((marker) => ({
+        ...marker,
+        distance: calculateDistance(
+          userLocation.latitude,
+          userLocation.longitude,
+          marker.coordinate.latitude,
+          marker.coordinate.longitude
+        ),
+      }))
+      .filter((marker) => marker.distance <= radius);
 
-    // sort by time
-    const sorted = markersInArea.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    // Sort by time (newest first)
+    const sorted = markersInArea.sort(
+      (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+    );
 
-    return sorted.slice(0, count);
+    return sorted; 
   };
+
 
   const handleTabPress = useCallback((tab) => {
     setSelectedFilters(prev => {
@@ -173,16 +181,30 @@ const MapPage = ({navigation}) => {
   const fixMarkerData = (doc, source) => {
     const data = doc.data();
 
-    if (!data.coordinate || data.coordinate.latitude == null || data.coordinate.longitude == null) {
+    // 🧭 Only verified & visible plants should appear
+    if (source === "plant_identify") {
+      if (data.identify_status !== "verified" || data.visible === false) {
+        return null; // 🚫 skip hidden or unverified
+      }
+    }
+
+    // 🚫 Skip missing coordinates
+    if (
+      !data.coordinate ||
+      data.coordinate.latitude == null ||
+      data.coordinate.longitude == null
+    ) {
       return null;
     }
 
-    const latitude = typeof data.coordinate.latitude === 'string'
-      ? parseFloat(data.coordinate.latitude)
-      : data.coordinate.latitude;
-    const longitude = typeof data.coordinate.longitude === 'string'
-      ? parseFloat(data.coordinate.longitude)
-      : data.coordinate.longitude;
+    const latitude =
+      typeof data.coordinate.latitude === "string"
+        ? parseFloat(data.coordinate.latitude)
+        : data.coordinate.latitude;
+    const longitude =
+      typeof data.coordinate.longitude === "string"
+        ? parseFloat(data.coordinate.longitude)
+        : data.coordinate.longitude;
 
     if (isNaN(latitude) || isNaN(longitude)) {
       return null;
@@ -190,41 +212,31 @@ const MapPage = ({navigation}) => {
 
     let fixedMarker;
 
-    if (source === 'plant_identify') {
+    if (source === "plant_identify") {
       const topPrediction = data.model_predictions?.top_1;
       fixedMarker = {
         id: `${source}-${doc.id}`,
-        title: topPrediction?.plant_species || 'Unknown Plant',
-        type: 'Plant', // `plant_identify` items are always of type Plant
-        identify_status: data.identify_status || 'pending',
+        title: topPrediction?.plant_species || "Unknown Plant",
+        type: "Plant",
+        identify_status: data.identify_status || "pending",
         coordinate: { latitude, longitude },
-        identifiedBy: data.author_name || 'Unknown',
+        identifiedBy: data.author_name || "Unknown",
         time: formatTime(data.createdAt),
-        image: (data.ImageURLs && data.ImageURLs[0]) || 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400',
+        image:
+          (data.ImageURLs && data.ImageURLs[0]) ||
+          "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400",
         description: topPrediction
-          ? `Top prediction: ${topPrediction.plant_species} with ${Math.round((topPrediction.ai_score || 0) * 100)}% confidence.`
-          : (data.description || 'No description available'),
+          ? `Top prediction: ${topPrediction.plant_species} (${Math.round(
+              (topPrediction.ai_score || 0) * 100
+            )}% confidence)`
+          : data.description || "No description available",
         createdAt: data.createdAt,
-        source: source,
+        source,
         like_count: data.like_count || 0,
         liked_by: data.liked_by || [],
       };
-    } else if (source === 'markers') {
-        fixedMarker = {
-            id: `${source}-${doc.id}`,
-            title: data.title || 'Unknown Location',
-            type: data.type || 'Plant', // Use the type from 'markers' collection, default to 'Plant'
-            identify_status: 'verified', // Assume markers from 'markers' collection are verified
-            coordinate: { latitude, longitude },
-            identifiedBy: data.identifiedBy || 'Unknown',
-            time: formatTime(data.time),
-            image: data.image || 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400',
-            description: data.description || 'No description available',
-            createdAt: data.time, // for sorting by time
-            source: source,
-        };
     } else {
-        return null;
+      return null; // ignore "markers" collection entirely
     }
 
     return fixedMarker;
@@ -246,7 +258,7 @@ const MapPage = ({navigation}) => {
   };
 
   const setupRealtimeListener = () => {
-    const collectionsToFetch = ['plant_identify', 'markers'];
+    const collectionsToFetch = ['plant_identify'];
     const unsubscribes = collectionsToFetch.map(collectionName => {
       const q = query(collection(db, collectionName));
       return onSnapshot(q, (snapshot) => {
@@ -311,9 +323,6 @@ const MapPage = ({navigation}) => {
         if (lowerCaseFilter === 'verified') {
           return marker.identify_status === 'verified';
         }
-        if (lowerCaseFilter === 'unverified') {
-          return marker.identify_status && marker.identify_status !== 'verified';
-        }
         if (marker.type) {
           return marker.type.toLowerCase() === lowerCaseFilter;
         }
@@ -323,8 +332,9 @@ const MapPage = ({navigation}) => {
   }, [markers, selectedFilters, searchText]);
 
   const markersForBottomSheet = useMemo(() => {
-    return getLatestInArea(filteredMarkersForMap, 3);
+    return getLatestInArea(filteredMarkersForMap);
   }, [filteredMarkersForMap, getLatestInArea]);
+
 
   const panResponder = useMemo(() => {
     return PanResponder.create({
@@ -338,51 +348,61 @@ const MapPage = ({navigation}) => {
         const newHeight = Math.max(minHeight, Math.min(maxHeight, currentHeightRef.current - gestureState.dy));
         bottomSheetHeight.setValue(newHeight);
       },
-      onPanResponderRelease: (evt, gestureState) => {
+        onPanResponderRelease: (evt, gestureState) => {
         const currentHeightValue = bottomSheetHeight._value;
         const openHeight = selectedMarkerRef.current ? height * 0.45 : 320;
         const closedHeight = 100;
 
         let targetHeight;
 
-        // Check gesture velocity to decide direction
-        if (gestureState.vy > 0.5) { // Flick down
-            targetHeight = closedHeight;
-        } else if (gestureState.vy < -0.5) { // Flick up
-            targetHeight = openHeight;
-        } else { // No strong flick (includes tap), decide based on position
-            const halfway = (openHeight + closedHeight) / 2;
-            if (currentHeightValue < halfway) {
-                targetHeight = closedHeight;
-            } else {
-                targetHeight = openHeight;
-            }
-        }
-        
-        if (targetHeight === closedHeight && selectedMarkerRef.current) {
-            // If we are closing and a marker was selected, clear it.
-            setSelectedMarker(null);
+        // decide direction
+        if (gestureState.vy > 0.5) { 
+          targetHeight = closedHeight; // flick down
+        } else if (gestureState.vy < -0.5) {
+          targetHeight = openHeight;   // flick up
+        } else {
+          const halfway = (openHeight + closedHeight) / 2;
+          targetHeight = currentHeightValue < halfway ? closedHeight : openHeight;
         }
 
-        Animated.spring(bottomSheetHeight, { toValue: targetHeight, useNativeDriver: false }).start(() => {
-            currentHeightRef.current = targetHeight;
+        if (targetHeight === closedHeight && selectedMarkerRef.current) {
+          setSelectedMarker(null);
+        }
+
+        Animated.spring(bottomSheetHeight, {
+          toValue: targetHeight,
+          useNativeDriver: false,
+        }).start(() => {
+          currentHeightRef.current = targetHeight;
         });
-      }
+      },
+
     });
   }, [closeMarkerDetail]);
 
   const handleMarkerPress = useCallback((marker) => {
     setSelectedMarker(marker);
-    Animated.spring(bottomSheetHeight, { toValue: height * 0.45, useNativeDriver: false }).start(() => {
+    
+    // Expand bottom sheet
+    Animated.spring(bottomSheetHeight, {
+      toValue: height * 0.45,
+      useNativeDriver: false,
+    }).start(() => {
       currentHeightRef.current = height * 0.45;
     });
-    mapRef.current.animateToRegion({
-      latitude: marker.coordinate.latitude,
-      longitude: marker.coordinate.longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    }, 1000);
-  }, [bottomSheetHeight]);
+
+    // Move map to the marker
+    mapRef.current?.animateToRegion(
+      {
+        latitude: marker.coordinate.latitude,
+        longitude: marker.coordinate.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      },
+      800
+    );
+  }, []);
+
 
   const focusOnUserLocation = useCallback(() => {
     if (userLocation) {
@@ -615,7 +635,11 @@ const MapPage = ({navigation}) => {
         showsMyLocationButton={false}
         showsCompass={true}
         customMapStyle={mapStyle}
-        onPress={closeMarkerDetail}
+        onPress={(e) => {
+          if (!e?.nativeEvent?.action) {
+            closeMarkerDetail();
+          }
+        }}
         scrollEnabled={!selectedMarker}
       >
         {/* Use plant images for markers */}
@@ -659,7 +683,7 @@ const MapPage = ({navigation}) => {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabContainer}>
-          {['All', 'Verified', 'Unverified', 'Plant', 'Flower'].map(tab => (
+          {['All', 'Verified', 'Plant', 'Common', 'Rare', 'Endangered'].map(tab => (
             <TouchableOpacity
               key={tab}
               style={[styles.tab, selectedFilters.includes(tab) && styles.selectedTab]}

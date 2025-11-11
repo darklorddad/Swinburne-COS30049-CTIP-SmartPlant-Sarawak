@@ -144,7 +144,7 @@ const DashboardScreen = ({ navigation }) => {
 
           <TouchableOpacity
             style={styles.iotButton}
-            onPress={() => navigate('Root')}
+            onPress={() => navigate('Back')}
             activeOpacity={0.9}
           >
             <Text style={styles.iotButtonText}>Open IoT Dashboard</Text>

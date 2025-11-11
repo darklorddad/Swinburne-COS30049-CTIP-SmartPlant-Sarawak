@@ -30,12 +30,12 @@ import PostDetail from "./src/pages/PostDetail";
 import ReportError from "./src/pages/ReportError";
 import TopSuggestions from "./src/pages/TopSuggestions";
 import AdminNavigator from './src/admin/AdminNavigator';
-import IoTDashboard from './src/pages/iot_dashboard';
 
 import { AdminProvider } from './src/admin/AdminContext';
 import { PermissionProvider } from "./src/components/PermissionManager";
 
 import AIChatScreen from "./src/pages/AIChatScreen"
+import PlantDetailScreen from "./src/screens/PlantDetailScreen";
 
 //testing the component
 import Tabs from './tabs/Tabs';
@@ -49,7 +49,7 @@ export default function App() {
     <PermissionProvider>
       <NavigationContainer>
         <Stack.Navigator initialRouteName="MapPage" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Root" component={Tabs}/>
+          <Stack.Screen name="Back" component={Tabs}/>
           <Stack.Screen name="Profile" component={Profile} />
           {/* <Stack.Screen name="IoTDashboard" component={IoTDashboard} /> */}
           {/* <Stack.Screen name="DashboardScreen" component={DashboardScreen} /> */}
@@ -80,6 +80,8 @@ export default function App() {
           <Stack.Screen name="TopSuggestions" component={TopSuggestions}/>
           <Stack.Screen name="AdminDashboard" component={AdminNavigator} />
           <Stack.Screen name="AIChatScreen" component={AIChatScreen} />
+          <Stack.Screen name="PlantDetailScreen" component={PlantDetailScreen} options={{ headerShown: true, headerTitle: "Plant", headerBackTitleVisible: false, }} />
+
         </Stack.Navigator>
       </NavigationContainer>
     </PermissionProvider>

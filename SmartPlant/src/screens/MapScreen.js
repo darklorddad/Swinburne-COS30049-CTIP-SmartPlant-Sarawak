@@ -7,16 +7,18 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
-import MapView, { Marker, Callout } from "react-native-maps";
+import MapView, { Marker, Callout, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase/FirebaseConfig";
 import useLiveReading from "../hooks/useLiveReading";
 import { Ionicons } from "@expo/vector-icons";
+import mapStyle from "../../assets/mapStyle.json";
 
-export default function MapScreen() {
-  const live = useLiveReading(); // IoT data
+export default function MapScreen({ navigation }) {
+  const live = useLiveReading();
   const mapRef = useRef(null);
 
   const [plants, setPlants] = useState([]);
@@ -24,8 +26,9 @@ export default function MapScreen() {
   const [search, setSearch] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [userLocation, setUserLocation] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // 🌿 Fetch plants
+  // 🌿 Fetch all verified plants (visible + hidden)
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "plant_identify"), (snap) => {
       const arr = snap.docs
@@ -33,11 +36,12 @@ export default function MapScreen() {
         .filter((p) => p.identify_status === "verified" && p.coordinate);
       setPlants(arr);
       setFiltered(arr);
+      setLoading(false);
     });
     return () => unsub();
   }, []);
 
-  // 📍 Request user location
+  // 📍 Get user location
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -47,33 +51,36 @@ export default function MapScreen() {
     })();
   }, []);
 
-  // 🎨 Marker color based on status
-  const getPinColor = (status, isIoT = false) => {
-    if (isIoT) return "#000000"; // IoT black
+  // 🎨 Marker color logic
+  const getPinColor = (status, isIoT = false, isHidden = false) => {
+    if (isIoT) return "#000000";
+    if (isHidden) return "#95a5a6";
     switch ((status || "").toLowerCase()) {
       case "rare":
-        return "#f1c40f"; // yellow
+        return "#f1c40f";
       case "endangered":
-        return "#e74c3c"; // red
+        return "#e74c3c";
       case "common":
-        return "#2ecc71"; // green
+        return "#2ecc71";
       default:
-        return "#2ecc71"; // fallback
+        return "#2ecc71";
     }
   };
 
-  // 🔍 Filter & search logic
+  // 🔍 Filter + search logic
   useEffect(() => {
     let list = [...plants];
-    if (selectedFilter !== "all") {
-      if (selectedFilter === "iot") {
-        list = []; // IoT handled separately
-      } else {
-        list = list.filter(
-          (p) => (p.status || "").toLowerCase() === selectedFilter
-        );
-      }
+
+    if (selectedFilter === "Hidden Plant") {
+      // Show only hidden plants
+      list = list.filter((p) => p.visible === false);
+    } else if (selectedFilter !== "all") {
+      if (selectedFilter === "iot") list = [];
+      else list = list.filter(
+        (p) => (p.status || "").toLowerCase() === selectedFilter.toLowerCase()
+      );
     }
+
     if (search.trim()) {
       const term = search.toLowerCase();
       list = list.filter(
@@ -82,10 +89,12 @@ export default function MapScreen() {
           p.locality?.toLowerCase().includes(term)
       );
     }
+
     setFiltered(list);
   }, [search, selectedFilter, plants]);
 
-  // 🗺 Default region
+
+  // 🌏 Map region
   const initialRegion = {
     latitude: live?.latitude ?? 1.5533,
     longitude: live?.longitude ?? 110.3592,
@@ -93,7 +102,7 @@ export default function MapScreen() {
     longitudeDelta: 0.05,
   };
 
-  // 📍 Center on user
+  // 🧭 Go to user
   const goToUserLocation = () => {
     if (userLocation && mapRef.current) {
       mapRef.current.animateToRegion(
@@ -107,6 +116,14 @@ export default function MapScreen() {
       );
     }
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color="#2ecc71" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -122,25 +139,15 @@ export default function MapScreen() {
       </View>
 
       {/* 🟩 Filter Buttons */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterRow}
-      >
-        {["all", "iot", "common", "rare", "endangered"].map((key) => (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+        {["all", "iot", "common", "rare", "endangered", "Hidden Plant"].map((key) => (
           <TouchableOpacity
             key={key}
-            style={[
-              styles.filterBtn,
-              selectedFilter === key && styles.filterBtnActive,
-            ]}
+            style={[styles.filterBtn, selectedFilter === key && styles.filterBtnActive]}
             onPress={() => setSelectedFilter(key)}
           >
             <Text
-              style={[
-                styles.filterText,
-                selectedFilter === key && styles.filterTextActive,
-              ]}
+              style={[styles.filterText, selectedFilter === key && styles.filterTextActive]}
             >
               {key.toUpperCase()}
             </Text>
@@ -151,36 +158,33 @@ export default function MapScreen() {
       {/* 🗺 Map */}
       <MapView
         ref={mapRef}
+        provider={PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={initialRegion}
-        showsUserLocation={true}
-        followsUserLocation={false}
+        customMapStyle={mapStyle}
+        showsUserLocation
       >
-        {/* 🛰 IoT Device */}
-        {(!selectedFilter || selectedFilter === "all" || selectedFilter === "iot") &&
-          live && (
-            <Marker
-              coordinate={{
-                latitude: live.latitude ?? 1.5533,
-                longitude: live.longitude ?? 110.3592,
-              }}
-              title="IoT Device"
-              pinColor={getPinColor(null, true)}
-            >
-              <Callout tooltip>
-                <View style={styles.callout}>
-                  <Text style={styles.calloutTitle}>IoT Device</Text>
-                  <Text>🌡 {live.temperature?.toFixed(1)}°C</Text>
-                  <Text>💧 {live.humidity?.toFixed(1)}%</Text>
-                  <Text>
-                    📍 {live.latitude?.toFixed(4)}, {live.longitude?.toFixed(4)}
-                  </Text>
-                </View>
-              </Callout>
-            </Marker>
-          )}
+        {/* 🛰 IoT Marker */}
+        {(!selectedFilter || selectedFilter === "all" || selectedFilter === "iot") && live && (
+          <Marker
+            coordinate={{
+              latitude: live.latitude ?? 1.5533,
+              longitude: live.longitude ?? 110.3592,
+            }}
+            title="IoT Device"
+            pinColor={getPinColor(null, true)}
+          >
+            <Callout tooltip>
+              <View style={styles.callout}>
+                <Text style={styles.calloutTitle}>IoT Device</Text>
+                <Text>🌡 {live.temperature?.toFixed(1)}°C</Text>
+                <Text>💧 {live.humidity?.toFixed(1)}%</Text>
+              </View>
+            </Callout>
+          </Marker>
+        )}
 
-        {/* 🌿 Plant Markers */}
+        {/* 🌿 Plant Markers (All visible + hidden) */}
         {filtered.map((p) => (
           <Marker
             key={p.id}
@@ -189,9 +193,20 @@ export default function MapScreen() {
               longitude: p.coordinate?.longitude ?? 0,
             }}
             title={p.model_predictions?.top_1?.label ?? "Plant"}
-            pinColor={getPinColor(p.status)}
+            pinColor={getPinColor(p.status, false, p.visible === false)}
+            opacity={p.visible === false ? 0.6 : 1.0}
           >
-            <Callout tooltip>
+            {/* 🏷️ Hidden Tag Above Marker */}
+            {p.visible === false && (
+              <View style={styles.hiddenTagContainer}>
+                <Text style={styles.hiddenTagText}>Hidden</Text>
+              </View>
+            )}
+
+            <Callout
+              tooltip
+              onPress={() => navigation.navigate("PlantDetailScreen", { plant: p })}
+            >
               <View style={styles.calloutCard}>
                 {p.ImageURLs && p.ImageURLs[0] && (
                   <Image
@@ -202,24 +217,19 @@ export default function MapScreen() {
                 )}
                 <View style={styles.calloutContent}>
                   <Text style={styles.calloutTitle}>
-                    {p.model_predictions?.top_1?.label ?? "Plant"}
+                    {p.model_predictions?.top_1?.plant_species ?? "Unknown Plant"}
+                    {p.visible === false && (
+                      <Text style={{ color: "#95a5a6" }}> (Hidden)</Text>
+                    )}
                   </Text>
-                  <Text style={styles.calloutSubtitle}>
-                    Confidence:{" "}
-                    {(p.model_predictions?.top_1?.ai_score * 100).toFixed(1)}%
-                  </Text>
-                  <Text>🧑 {p.author_name ?? "Anonymous"}</Text>
                   <Text>📍 {p.locality ?? "Unknown"}</Text>
-                  <Text>
-                    🌿 Status:{" "}
-                    <Text
-                      style={{
-                        fontWeight: "700",
-                        color: getPinColor(p.status),
-                      }}
-                    >
-                      {p.status ?? "common"}
-                    </Text>
+                  <Text
+                    style={{
+                      fontWeight: "700",
+                      color: getPinColor(p.status, false, p.visible === false),
+                    }}
+                  >
+                    {p.status?.toUpperCase() ?? "COMMON"}
                   </Text>
                 </View>
               </View>
@@ -228,7 +238,7 @@ export default function MapScreen() {
         ))}
       </MapView>
 
-      {/* 📍 My Location Button */}
+      {/* 📍 Locate Button */}
       <TouchableOpacity style={styles.locateBtn} onPress={goToUserLocation}>
         <Ionicons name="locate" size={26} color="#fff" />
       </TouchableOpacity>
@@ -254,10 +264,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     elevation: 5,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-  },
+  searchInput: { flex: 1, fontSize: 15 },
   filterRow: {
     position: "absolute",
     top: 90,
@@ -273,17 +280,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginRight: 8,
   },
-  filterBtnActive: {
-    backgroundColor: "#2ecc71",
-  },
-  filterText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#555",
-  },
-  filterTextActive: {
-    color: "#fff",
-  },
+  filterBtnActive: { backgroundColor: "#2ecc71" },
+  filterText: { fontSize: 14, fontWeight: "600", color: "#555" },
+  filterTextActive: { color: "#fff" },
   callout: {
     backgroundColor: "#fff",
     borderRadius: 8,
@@ -297,23 +296,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     elevation: 5,
   },
-  plantImage: {
-    width: "100%",
-    height: 120,
-  },
-  calloutContent: {
-    padding: 8,
-  },
-  calloutTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 2,
-  },
-  calloutSubtitle: {
-    fontSize: 12,
-    marginBottom: 4,
-    color: "#555",
-  },
+  plantImage: { width: "100%", height: 120 },
+  calloutContent: { padding: 8 },
+  calloutTitle: { fontSize: 16, fontWeight: "700", marginBottom: 2 },
   locateBtn: {
     position: "absolute",
     bottom: 30,
@@ -325,5 +310,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     elevation: 6,
+  },
+  hiddenTagContainer: {
+    backgroundColor: "#555",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+    marginBottom: 40, 
+  },
+  hiddenTagText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "bold",
+    textAlign: "center",
   },
 });
