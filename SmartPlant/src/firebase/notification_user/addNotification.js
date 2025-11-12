@@ -1,4 +1,4 @@
-import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
+import { doc, runTransaction, serverTimestamp } from "firebase/firestore"; 
 import { db } from "../FirebaseConfig";
 
 /**
@@ -6,14 +6,14 @@ import { db } from "../FirebaseConfig";
  * Generates IDs like N001, N002, ...
  */
 export async function addNotification({ userId, type, title, message, payload = {} }) {
+  console.log("[addNotification] called with", { userId, type, title, message, payload });
   if (!userId) throw new Error("userId is required");
 
-  const counterRef = doc(db, "counters", "notifications"); // store seq counter
+  const counterRef = doc(db, "counters", "notifications");
   const pad = (num, size = 3) => String(num).padStart(size, "0");
 
   try {
     const newId = await runTransaction(db, async (tx) => {
-      // read or create counter
       const snap = await tx.get(counterRef);
       let seq = 1;
       if (snap.exists()) {
@@ -38,10 +38,10 @@ export async function addNotification({ userId, type, title, message, payload = 
       return id;
     });
 
-    return newId; // e.g. "N005"
+    console.log("[addNotification] created notification id:", newId);
+    return newId;
   } catch (e) {
-    console.error("Failed to add sequential notification:", e);
+    console.error("[addNotification] Failed:", e);
     throw e;
   }
 }
-

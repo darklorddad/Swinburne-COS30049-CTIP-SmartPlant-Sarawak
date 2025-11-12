@@ -36,6 +36,7 @@ import { PermissionProvider } from "./src/components/PermissionManager";
 
 import AIChatScreen from "./src/pages/AIChatScreen"
 import PlantDetailScreen from "./src/screens/PlantDetailScreen";
+import UserFeedbackDetail from "./src/pages/UserFeedbackDetail";
 
 //testing the component
 import Tabs from './tabs/Tabs';
@@ -81,6 +82,7 @@ export default function App() {
           <Stack.Screen name="AdminDashboard" component={AdminNavigator} />
           <Stack.Screen name="AIChatScreen" component={AIChatScreen} />
           <Stack.Screen name="PlantDetailScreen" component={PlantDetailScreen} options={{ headerShown: true, headerTitle: "Plant", headerBackTitleVisible: false, }} />
+          <Stack.Screen name="UserFeedbackDetail" component={UserFeedbackDetail} />
 
         </Stack.Navigator>
       </NavigationContainer>

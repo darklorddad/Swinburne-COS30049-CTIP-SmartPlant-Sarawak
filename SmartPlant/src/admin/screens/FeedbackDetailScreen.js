@@ -1,82 +1,212 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
+// admin/screens/FeedbackDetailScreen.js
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
+  Alert,
+} from 'react-native';
 import { BackIcon, TrashIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
+import AdminBottomNavBar from '../components/AdminBottomNavBar';
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
+import { db, auth } from "../../firebase/FirebaseConfig";
+import { addNotification } from "../../firebase/notification_user/addNotification";
+import { getDisplayName } from "../../firebase/UserProfile/getDisplayName";
+import { getDocs, where } from "firebase/firestore";
 
-const getSubject = (f) => f.title ?? f.subject ?? f.report_type ?? 'Feedback';
-const getBody = (f) => f.details ?? f.body ?? f.description ?? '';
-const getWhen = (f) => {
-  const ts = f?.createdAt || f?.created_at;
-  if (ts?.seconds) return new Date(ts.seconds * 1000).toLocaleString();
-  if (typeof ts === 'string' || ts instanceof Date) return new Date(ts).toLocaleString();
-  return '—';
-};
+const NAV_BOTTOM = 60; // match your bottom nav height if different adjust
 
 const FeedbackDetailScreen = ({ route, navigation }) => {
   const { feedback: initialFeedback } = route.params;
-  const { feedbacks, users, handleDeleteFeedback, handleReplyFeedback } = useAdminContext();
-
-  // live feedback from context if updated, else initial
+  const { feedbacks, users, handleDeleteFeedback } = useAdminContext();
   const feedback = feedbacks.find(f => f.id === initialFeedback.id) || initialFeedback;
 
-  const [replyText, setReplyText] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [replyText, setReplyText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const scrollRef = useRef(null);
 
-  // find the user for avatar + name
-  const account = users.find(u => u.id === feedback?.user_id);
-  const photoURL = account?.details?.profile_pic;
-  const displayName = account?.details?.full_name || 'User';
+  const me = auth.currentUser;
+  const myId = me?.uid;
+  const myName = me?.displayName || (me?.email ? me.email.split("@")[0] : "Admin");
+
+  // listen live conversation
+  useEffect(() => {
+    if (!feedback?.id) { setLoading(false); return; }
+    let unsub = null;
+    setLoading(true);
+
+    const listen = async () => {
+      try {
+        const col = collection(db, "error_reports", feedback.id, "messages");
+        const q = query(col, orderBy("createdAt", "asc"));
+        unsub = onSnapshot(q, (snap) => {
+          const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          setMessages(rows);
+          // small delay to allow render then scroll
+          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+        }, (e) => {
+          console.error("messages onSnapshot error", e);
+        });
+      } catch (e) {
+        console.error("listen messages failed", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    listen();
+    return () => { if (unsub) unsub(); };
+  }, [feedback?.id]);
 
   const onDelete = (id) => {
     handleDeleteFeedback(id);
     navigation.goBack();
   };
 
-  const onReply = (id, text) => {
-    handleReplyFeedback(id, text);
-    setReplyText('');
+  const robustOwnerId = (f) => {
+    // try common fields. adjust if your schema differs.
+    return f?.user_id || f?.userUid || f?.uid || f?.ownerUid || f?.user?.uid || f?.userId || null;
   };
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollToEnd({ animated: true });
-    }
-  }, [feedback?.admin_notes]);
+  // replace sendReply function in admin/screens/FeedbackDetailScreen.js
+const sendReply = async () => {
+  const t = String(replyText || "").trim();
+  if (!t || !feedback?.id || sending) return;
+  setSending(true);
+  setReplyText("");
 
-  const handleReplyClick = () => {
-    if (replyText.trim()) {
-      onReply(feedback.id, replyText);
-      setReplyText('');
-    }
-  };
+  try {
+    // optimistic UI
+    const localMsg = {
+      id: `local-${Date.now()}`,
+      from: "admin",
+      senderId: myId,
+      senderName: myName,
+      text: t,
+      createdAt: { seconds: Math.floor(Date.now() / 1000) },
+      _optimistic: true,
+    };
+    setMessages(prev => [...prev, localMsg]);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
 
-  if (!feedback) {
-    return (
-      <View style={styles.container}>
-        <Text>Feedback not found.</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text>Go Back</Text>
-        </TouchableOpacity>
-      </View>
-    );
+    // write message to subcollection
+    const colRef = collection(db, "error_reports", feedback.id, "messages");
+    await addDoc(colRef, {
+      from: "admin",
+      senderId: myId,
+      senderName: myName,
+      text: t,
+      createdAt: serverTimestamp(),
+    });
+
+    // update parent doc (summary, unread flag)
+    const parentRef = doc(db, "error_reports", feedback.id);
+    await updateDoc(parentRef, {
+      admin_notes: t,
+      lastReplyAt: serverTimestamp(),
+      user_unread: true,
+    }).catch(()=>{});
+
+    // === NEW: re-fetch parent doc from Firestore to get authoritative user_id/email ===
+    let ownerId = null;
+    try {
+      const parentSnap = await getDoc(parentRef);
+      if (parentSnap.exists()) {
+        const pd = parentSnap.data();
+        console.log("[sendReply] freshly fetched parent doc:", pd);
+        // try multiple candidate fields
+        ownerId =
+          pd.user_id || pd.userUid || pd.uid || pd.ownerUid || pd.user?.uid || pd.userId || null;
+        // also check email fields if needed
+        if (!ownerId) {
+          const email = pd.user_email || pd.userEmail || pd.email || null;
+          if (email) {
+            // lookup account by email
+            try {
+              const accountsCol = collection(db, "account");
+              const q = query(accountsCol, where("email", "==", email));
+              const snaps = await getDocs(q);
+              if (!snaps.empty) {
+                ownerId = snaps.docs[0].id;
+                console.log("[sendReply] found ownerId by email lookup:", ownerId);
+                // optional: write canonical user_id back to parent so next time it's present
+                await updateDoc(parentRef, { user_id: ownerId }).catch(()=>{});
+              } else {
+                console.warn("[sendReply] no account doc found for email:", email);
+              }
+            } catch (e) {
+              console.error("[sendReply] account lookup by email failed:", e);
+            }
+          }
+        }
+      } else {
+        console.warn("[sendReply] parent doc missing unexpectedly:", feedback.id);
+      }
+    } catch (e) {
+      console.error("[sendReply] failed to read parent doc:", e);
+    }
+
+    console.log("[sendReply] resolved ownerId:", ownerId, "adminId:", myId, "feedbackId:", feedback.id);
+
+    // call addNotification only if ownerId exists and is not admin
+    if (ownerId && ownerId !== myId) {
+      try {
+        const canonical = await getDisplayName(myId, myName);
+        console.log("[sendReply] calling addNotification with userId:", ownerId);
+        const notiId = await addNotification({
+          userId: ownerId,
+          type: "admin_reply",
+          title: `${canonical} replied to your report`,
+          message: t.length > 120 ? `${t.slice(0,117)}...` : t,
+          payload: { reportId: feedback.id, actorId: myId, actorName: canonical, replyText: t },
+        });
+        console.log("[sendReply] addNotification returned id:", notiId);
+      } catch (e) {
+        console.error("[sendReply] addNotification threw:", e);
+      }
+    } else {
+      console.warn("[sendReply] ownerId missing or same as admin. notification skipped.");
+    }
+
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+  } catch (e) {
+    console.error("send reply failed", e);
+    Alert.alert("Failed to send reply");
+    setMessages(prev => prev.filter(m => !m._optimistic));
+  } finally {
+    setSending(false);
   }
-
-  const subject = getSubject(feedback);
-  const body = getBody(feedback);
-  const when = getWhen(feedback);
-
+};
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
-      <View style={styles.outerContainer}>
+      <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <BackIcon color="#3C3633" />
           </TouchableOpacity>
-          <View style={{ flex: 1 }} />
+          <Text style={styles.headerTitle}>Feedback Detail</Text>
           <TouchableOpacity onPress={() => onDelete(feedback.id)} style={styles.actionButton}>
             <TrashIcon color="#ef4444" />
           </TouchableOpacity>
@@ -84,113 +214,99 @@ const FeedbackDetailScreen = ({ route, navigation }) => {
 
         <ScrollView
           ref={scrollRef}
-          style={styles.scrollContainer}
-          contentContainerStyle={styles.scrollContentContainer}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: NAV_BOTTOM + 140 }]}
         >
-          <Text style={styles.subject}>{subject}</Text>
-
           <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              {photoURL ? (
-                <Image source={{ uri: photoURL }} style={styles.avatarImg} />
-              ) : (
-                <View style={styles.avatar} />
-              )}
-              <View style={styles.cardHeaderText}>
-                <Text style={styles.cardTitle}>{displayName}</Text>
-                <Text style={styles.cardTime}>{when}</Text>
-              </View>
-            </View>
-
-            <Text style={styles.cardBody}>{body}</Text>
-
-            {/* Optional: show attached image if you save it as image_url */}
-            {!!feedback.image_url && (
-              <Image
-                source={{ uri: feedback.image_url }}
-                style={{ height: 180, borderRadius: 8, marginTop: 12 }}
-                resizeMode="cover"
-              />
-            )}
+            <Text style={styles.subject}>{feedback.title ?? feedback.report_type ?? 'Feedback'}</Text>
+            <Text style={styles.body}>{feedback.details ?? feedback.description ?? ''}</Text>
           </View>
 
-          {feedback.admin_notes && (
-            <View style={[styles.card, styles.replyCard]}>
-              <View style={styles.cardHeader}>
-                <View style={styles.replyAvatar}>
-                  <Text style={styles.replyAvatarText}>YOU</Text>
-                </View>
-                <View style={styles.cardHeaderText}>
-                  <Text style={styles.cardTitle}>Your Reply</Text>
-                </View>
-              </View>
-              <Text style={styles.cardBody}>{feedback.admin_notes}</Text>
-            </View>
-          )}
+          <View style={styles.chatContainer}>
+            {messages.length === 0 ? (
+              <Text style={styles.noMsgText}>No conversation yet.</Text>
+            ) : (
+              messages.map(m => {
+                const isAdmin = m.from === "admin";
+                const timeText = m.createdAt?.seconds
+                  ? new Date(m.createdAt.seconds * 1000).toLocaleTimeString()
+                  : m.createdAt? (new Date(m.createdAt).toLocaleTimeString?.() || "") : "";
+                return (
+                  <View key={m.id} style={[styles.msgRow, isAdmin ? styles.msgRowRight : styles.msgRowLeft]}>
+                    {!isAdmin && (
+                      <View style={styles.msgAvatar}>
+                        <Text style={styles.msgAvatarText}>{(m.senderName || "U").charAt(0)}</Text>
+                      </View>
+                    )}
+                    <View style={[styles.bubble, isAdmin ? styles.bubbleRight : styles.bubbleLeft]}>
+                      <Text style={styles.bubbleText}>{m.text}</Text>
+                      <Text style={styles.bubbleTime}>{timeText}</Text>
+                    </View>
+                    {isAdmin && (
+                      <View style={styles.adminAvatar}>
+                        <Text style={{ color: "#fff", fontWeight: "700" }}>YOU</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </View>
         </ScrollView>
 
-        <View style={styles.replyContainer}>
+        <View style={[styles.inputBar, { bottom: NAV_BOTTOM }]}>
           <TextInput
-            style={styles.replyInput}
-            numberOfLines={3}
-            placeholder="Type your reply here..."
+            placeholder="Type your reply..."
             value={replyText}
             onChangeText={setReplyText}
+            style={styles.input}
             multiline
+            editable={!sending}
           />
-          <TouchableOpacity
-            onPress={handleReplyClick}
-            style={[styles.sendButton, !replyText.trim() && styles.disabledButton]}
-            disabled={!replyText.trim()}
-          >
-            <Text style={styles.sendButtonText}>Send Reply</Text>
+          <TouchableOpacity onPress={sendReply} style={[styles.sendBtn, sending && { opacity: 0.6 }]} disabled={sending}>
+            <Text style={styles.sendText}>{sending ? "Sending..." : "Send"}</Text>
           </TouchableOpacity>
         </View>
+
+        <AdminBottomNavBar navigation={navigation} activeScreen="FeedbackManagement" />
       </View>
     </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  outerContainer: { flex: 1, backgroundColor: '#FFFBF5' },
-  container: { flex: 1, padding: 16, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  container: { flex: 1, backgroundColor: '#FFFBF5' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  headerTitle: { fontSize: 18, fontWeight: '700' },
   actionButton: { padding: 8 },
 
-  scrollContainer: { flex: 1 },
-  scrollContentContainer: { padding: 16 },
-  subject: { fontSize: 24, fontWeight: 'bold', color: '#3C3633', marginBottom: 16 },
+  scrollContent: { padding: 12 },
+  card: { backgroundColor: 'white', padding: 12, borderRadius: 8, marginBottom: 12 },
+  subject: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  body: { color: '#333' },
 
-  card: {
-    backgroundColor: 'white', padding: 16, borderRadius: 8,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.20, shadowRadius: 1.41, elevation: 2,
-  },
-  replyCard: { backgroundColor: '#f0fdf4', marginTop: 16, marginLeft: 32 },
+  chatContainer: { marginTop: 8 },
+  noMsgText: { textAlign: "center", color: "#666", paddingVertical: 12 },
 
-  cardHeader: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#e5e7eb', marginRight: 16 },
-  avatarImg: { width: 40, height: 40, borderRadius: 20, marginRight: 16 },
+  msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 10 },
+  msgRowLeft: { justifyContent: 'flex-start' },
+  msgRowRight: { justifyContent: 'flex-end' },
 
-  cardHeaderText: { flex: 1 },
-  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#3C3633' },
-  cardTime: { color: '#75685a', fontSize: 14 },
-  cardBody: { marginTop: 16, color: '#3C3633', fontSize: 16, lineHeight: 24 },
+  msgAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#D7E3D8', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  msgAvatarText: { color: '#fff', fontWeight: '700' },
 
-  replyContainer: { padding: 16, borderTopWidth: 1, borderTopColor: '#e5e7eb', backgroundColor: '#FFFBF5' },
-  replyInput: {
-    width: '100%', padding: 12, borderWidth: 1, borderColor: '#d1d5db',
-    borderRadius: 8, backgroundColor: 'white', minHeight: 70, textAlignVertical: 'top',
-  },
-  sendButton: { width: '100%', marginTop: 8, backgroundColor: '#A59480', padding: 16, borderRadius: 12, alignItems: 'center' },
-  disabledButton: { backgroundColor: '#d1d5db' },
-  sendButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  adminAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#1f2937', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
 
-  replyAvatar: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#1f2937',
-    marginRight: 16, alignItems: 'center', justifyContent: 'center',
-  },
-  replyAvatarText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
+  bubble: { maxWidth: '75%', padding: 10, borderRadius: 12 },
+  bubbleLeft: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
+  bubbleRight: { backgroundColor: '#F0FDF4', alignItems: 'flex-end' },
+
+  bubbleText: { color: '#111' },
+  bubbleTime: { fontSize: 10, color: '#666', marginTop: 6 },
+
+  inputBar: { position: 'absolute', left: 0, right: 0, padding: 10, borderTopWidth: 1, borderTopColor: '#eee', backgroundColor: '#FFFBF5', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  input: { flex: 1, minHeight: 40, maxHeight: 120, backgroundColor: 'white', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb' },
+  sendBtn: { backgroundColor: '#A59480', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8 },
+  sendText: { color: '#fff', fontWeight: '700' },
 });
 
 export default FeedbackDetailScreen;

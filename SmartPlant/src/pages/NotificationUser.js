@@ -14,6 +14,9 @@ const NAV_MARGIN_TOP = 150; // the bar's marginTop in your Navigation.js
 
 export default function NotificationsScreen({ navigation }) {
   const userId = auth.currentUser ? auth.currentUser.uid : null;
+  console.log("[NotificationUser] auth.currentUser:", auth.currentUser ? { uid: auth.currentUser.uid, email: auth.currentUser.email } : null);
+  console.log("[NotificationUser] passed userId to useNotifications:", userId);
+
   const items = useNotifications(userId);
   // ⚠️ ADD — filter & menu state
   const [filter, setFilter] = React.useState("all"); // 'all' | 'plant' | 'post' | 'admin'
@@ -66,6 +69,11 @@ export default function NotificationsScreen({ navigation }) {
   const filtered  = applyFilter(items);
   const newItems  = filtered.filter(n => !n.read);
   const pastItems = filtered.filter(n =>  n.read);
+    // debug print of items coming from hook
+  React.useEffect(() => {
+    console.log("[NotificationUser] useNotifications items count:", items.length, "sample:", items.slice(0,5).map(i => ({ id: i.id, type: i.type, userId: i.userId, read: i.read })));
+  }, [items]);
+
 
   // ---------- helpers ----------
   const formatTime = (ts) => {
@@ -217,7 +225,19 @@ const rowMsg =
     return;
   }
 
-  // add other types here…
+  // NotificationUser.js 的 onPressRow 中
+if (n.type === "admin_reply") {
+  const reportId = n?.payload?.reportId;
+  if (!reportId) {
+    Alert.alert("Missing report", "This notification has no reportId.");
+    return;
+  }
+  navigation.navigate("UserFeedbackDetail", { reportId } );
+  return;
+}
+
+// add other types here…
+
 };
 
     return (
