@@ -1,214 +1,297 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { db } from '../firebase/FirebaseConfig';
 import { Alert } from 'react-native';
-import { getFirestore, collection, onSnapshot, doc, deleteDoc, updateDoc, setDoc, query, orderBy } from 'firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  onSnapshot,
+  doc,
+  deleteDoc,
+  updateDoc,
+  setDoc,
+  query,
+  orderBy,
+} from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-
 
 const AdminContext = createContext();
 
 export const useAdminContext = () => useContext(AdminContext);
 
 export const AdminProvider = ({ children }) => {
-    const [users, setUsers] = useState([]);
-    const [mails, setMails] = useState([]);
-    const [feedbacks, setFeedbacks] = useState([]);
-    const [plantIdentities, setPlantIdentities] = useState([]);
-    const [toastMessage, setToastMessage] = useState('');
+  const [users, setUsers] = useState([]);
+  const [mails, setMails] = useState([]);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [plantIdentities, setPlantIdentities] = useState([]);
+  const [toastMessage, setToastMessage] = useState('');
 
-    const getTimeGroup = (timestamp) => {
-        if (!timestamp || !timestamp.seconds) return 'Older';
-        const date = new Date(timestamp.seconds * 1000);
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        const mailDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const getTimeGroup = (timestamp) => {
+    if (!timestamp || !timestamp.seconds) return 'Older';
+    const date = new Date(timestamp.seconds * 1000);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-        if (mailDate.getTime() === today.getTime()) return 'Today';
-        if (mailDate.getTime() === yesterday.getTime()) return 'Yesterday';
-        
-        const oneWeekAgo = new Date(today);
-        oneWeekAgo.setDate(today.getDate() - 7);
-        if (mailDate > oneWeekAgo) return 'This Week';
+    const mailDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-        return 'Older';
-    };
+    if (mailDate.getTime() === today.getTime()) return 'Today';
+    if (mailDate.getTime() === yesterday.getTime()) return 'Yesterday';
 
-    useEffect(() => {
-        const db = getFirestore();
-        const unsubscribeUsers = onSnapshot(collection(db, "account"), (snapshot) => {
-            const usersData = snapshot.docs.map((doc, index) => {
-                const data = doc.data();
-                return {
-                    id: doc.id,
-                    name: data.full_name || "Unnamed User",
-                    status: data.is_active ? 'active' : 'inactive',
-                    favourite: false, // Default value
-                    color: ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'][index % 7],
-                    details: {
-                        ...data, 
-                        role: data.role,
-                        email: data.email,
-                        contact: data.phone_number || 'N/A',
-                        address: data.address || 'N/A',
-                        gender: data.gender || 'N/A',
-                        age: data.date_of_birth ? new Date().getFullYear() - new Date(data.date_of_birth).getFullYear() : 'N/A',
-                        plantId: data.plantId || 0
-                    }
-                };
-            });
-            setUsers(usersData);
-        });
+    const oneWeekAgo = new Date(today);
+    oneWeekAgo.setDate(today.getDate() - 7);
+    if (mailDate > oneWeekAgo) return 'This Week';
 
-        const mailQuery = query(collection(db, "notifications"), orderBy("createdAt", "desc"));
-        const unsubscribeMails = onSnapshot(mailQuery, (snapshot) => {
-            setMails(snapshot.docs.map(doc => {
-                const data = doc.data();
-                return { 
-                    id: doc.id, 
-                    ...data,
-                    timeGroup: getTimeGroup(data.createdAt),
-                };
-            }));
-        });
+    return 'Older';
+  };
 
-        const unsubscribeFeedbacks = onSnapshot(collection(db, "report"), (snapshot) => {
-            setFeedbacks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        });
+  useEffect(() => {
+    const fs = getFirestore();
 
-        const unsubscribePlantIdentities = onSnapshot(collection(db, "plant_identify"), (snapshot) => {
-            setPlantIdentities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        });
-
-        return () => {
-            unsubscribeUsers();
-            unsubscribeMails();
-            unsubscribeFeedbacks();
-            unsubscribePlantIdentities();
+    // Accounts
+    const unsubscribeUsers = onSnapshot(collection(fs, 'account'), (snapshot) => {
+      const usersData = snapshot.docs.map((docSnap, index) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          name: data.full_name || 'Unnamed User',
+          status: data.is_active ? 'active' : 'inactive',
+          favourite: false, // Default value
+          color: ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'][index % 7],
+          details: {
+            ...data,
+            role: data.role,
+            email: data.email,
+            contact: data.phone_number || 'N/A',
+            address: data.address || 'N/A',
+            gender: data.gender || 'N/A',
+            age: data.date_of_birth
+              ? new Date().getFullYear() - new Date(data.date_of_birth).getFullYear()
+              : 'N/A',
+            plantId: data.plantId || 0,
+          },
         };
-    }, []);
+      });
+      setUsers(usersData);
+    });
 
-    const showToast = (message) => {
-        Alert.alert("System Message", message);
+    // Notifications / mails
+    const mailQuery = query(collection(fs, 'notifications'), orderBy('createdAt', 'desc'));
+    const unsubscribeMails = onSnapshot(mailQuery, (snapshot) => {
+      setMails(
+        snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            ...data,
+            timeGroup: getTimeGroup(data.createdAt),
+          };
+        }),
+      );
+    });
+
+    // --- FEEDBACKS: merge legacy `report` + new `error_reports` into one list ---
+
+    // Helper to normalize feedback shapes for UI
+    const normalizeFeedback = (docSnap, v, source) => {
+      return {
+        id: docSnap.id,
+        // Screens expect these keys:
+        report_type: v.report_type || v.title || 'Feedback',
+        description: v.description || v.details || v.body || '',
+        created_at: v.created_at || v.createdAt || v.time || null, // Firestore Timestamp
+        admin_notes: v.admin_notes || v.reply || '',
+        // Optional extras (safe to have):
+        image_url: v.image_url || null,
+        user_email: v.user_email || v.email || '',
+        status: v.status || 'open',
+        // Hidden source so actions know which collection to update
+        __source: source,
+      };
     };
 
-    const handleDeleteUser = async (userId) => {
-        try {
-            await deleteDoc(doc(db, "account", userId));
-            showToast("User deleted successfully!");
-        } catch (error) {
-            showToast(`Error deleting user: ${error.message}`);
-        }
+    // Listen to legacy "report"
+    const unsubscribeReport = onSnapshot(
+      query(collection(fs, 'report'), orderBy('createdAt', 'desc')),
+      (snapshot) => {
+        const legacy = snapshot.docs.map((d) => normalizeFeedback(d, d.data() || {}, 'report'));
+
+        // Combine with current error_reports already in state (avoid race by merging after both listeners fire)
+        setFeedbacks((prev) => {
+          const prevErrorReports = prev.filter((x) => x.__source === 'error_reports');
+          // Merge & sort by created_at desc (nulls last)
+          const combined = [...legacy, ...prevErrorReports].sort((a, b) => {
+            const aMs = a.created_at?.seconds ? a.created_at.seconds * 1000 : -Infinity;
+            const bMs = b.created_at?.seconds ? b.created_at.seconds * 1000 : -Infinity;
+            return bMs - aMs;
+          });
+          return combined;
+        });
+      },
+    );
+
+    // Listen to new "error_reports"
+    const unsubscribeErrorReports = onSnapshot(
+      query(collection(fs, 'error_reports'), orderBy('createdAt', 'desc')),
+      (snapshot) => {
+        const current = snapshot.docs.map((d) => normalizeFeedback(d, d.data() || {}, 'error_reports'));
+
+        setFeedbacks((prev) => {
+          const prevReport = prev.filter((x) => x.__source === 'report');
+          const combined = [...prevReport, ...current].sort((a, b) => {
+            const aMs = a.created_at?.seconds ? a.created_at.seconds * 1000 : -Infinity;
+            const bMs = b.created_at?.seconds ? b.created_at.seconds * 1000 : -Infinity;
+            return bMs - aMs;
+          });
+          return combined;
+        });
+      },
+    );
+
+    // Plant identify
+    const unsubscribePlantIdentities = onSnapshot(collection(fs, 'plant_identify'), (snapshot) => {
+      setPlantIdentities(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })));
+    });
+
+    return () => {
+      unsubscribeUsers();
+      unsubscribeMails();
+      unsubscribeReport();
+      unsubscribeErrorReports();
+      unsubscribePlantIdentities();
     };
+  }, []);
 
-    const handleAddNewUser = async (newUser, password) => {
-        const auth = getAuth();
-        try {
-            // Create user in Firebase Auth
-            const userCredential = await createUserWithEmailAndPassword(auth, newUser.details.email, password);
-            const user = userCredential.user;
+  const showToast = (message) => {
+    Alert.alert('System Message', message);
+  };
 
-            // Save user details in Firestore
-            await setDoc(doc(db, "account", user.uid), {
-                ...newUser.details,
-                full_name: newUser.name, 
-                is_active: newUser.status === 'active',
-                user_id: user.uid,
-            });
+  // ==== USERS ====
+  const handleDeleteUser = async (userId) => {
+    const fs = getFirestore();
+    try {
+      await deleteDoc(doc(fs, 'account', userId));
+      showToast('User deleted successfully!');
+    } catch (error) {
+      showToast(`Error deleting user: ${error.message}`);
+    }
+  };
 
-            showToast("User added successfully!");
-        } catch (error) {
-            // Use a more specific error message if possible
-            if (error.code === 'auth/email-already-in-use') {
-                showToast('Error: This email address is already in use.');
-            } else {
-                showToast(`Error adding user: ${error.message}`);
-            }
-            throw error; // Re-throw the error to be caught in the component
-        }
-    };
+  const handleAddNewUser = async (newUser, password) => {
+    const auth = getAuth();
+    const fs = getFirestore();
+    try {
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, newUser.details.email, password);
+      const user = userCredential.user;
 
-    const handleUpdateUser = async (userId, updatedData) => {
-        const userDocRef = doc(db, "account", userId);
-        try {
-            // The 'status' field comes in as 'active'/'inactive'
-            // We convert it to a boolean for Firestore
-            const dataToUpdate = {
-                ...updatedData,
-                is_active: updatedData.status === 'active',
-            };
-            
-            // We don't want to save the 'status' string in Firestore, just the boolean
-            delete dataToUpdate.status;
-            
-            await updateDoc(userDocRef, dataToUpdate);
-            showToast("User updated successfully!");
-        } catch (error) {
-            showToast(`Error updating user: ${error.message}`);
-        }
-    };
+      // Save user details in Firestore
+      await setDoc(doc(fs, 'account', user.uid), {
+        ...newUser.details,
+        full_name: newUser.name,
+        is_active: newUser.status === 'active',
+        user_id: user.uid,
+      });
 
-    const handleDeleteMail = async (mailId) => {
-        await deleteDoc(doc(db, "notifications", mailId));
-        showToast("Mail deleted successfully!");
-    };
+      showToast('User added successfully!');
+    } catch (error) {
+      if (error.code === 'auth/email-already-in-use') {
+        showToast('Error: This email address is already in use.');
+      } else {
+        showToast(`Error adding user: ${error.message}`);
+      }
+      throw error; // rethrow for component handling
+    }
+  };
 
-    const handleReplyMail = async (mailId, replyText) => {
-        const mailDocRef = doc(db, "notifications", mailId);
-        await updateDoc(mailDocRef, { reply: replyText });
-        showToast("Reply sent successfully!");
-    };
+  const handleUpdateUser = async (userId, updatedData) => {
+    const fs = getFirestore();
+    const userDocRef = doc(fs, 'account', userId);
+    try {
+      const dataToUpdate = {
+        ...updatedData,
+        is_active: updatedData.status === 'active',
+      };
+      delete dataToUpdate.status;
+      await updateDoc(userDocRef, dataToUpdate);
+      showToast('User updated successfully!');
+    } catch (error) {
+      showToast(`Error updating user: ${error.message}`);
+    }
+  };
 
-    const handleToggleMailRead = async (mailId, currentStatus) => {
-        const mailDocRef = doc(db, "notifications", mailId);
-        try {
-            await updateDoc(mailDocRef, { read: !currentStatus });
-            showToast(`Mail marked as ${!currentStatus ? 'read' : 'unread'}.`);
-        } catch (error) {
-            showToast(`Error updating mail status: ${error.message}`);
-        }
-    };
+  // ==== MAILS ====
+  const handleDeleteMail = async (mailId) => {
+    const fs = getFirestore();
+    await deleteDoc(doc(fs, 'notifications', mailId));
+    showToast('Mail deleted successfully!');
+  };
 
-    const handleDeleteFeedback = async (feedbackId) => {
-        await deleteDoc(doc(db, "report", feedbackId));
-        showToast("Feedback deleted successfully!");
-    };
+  const handleReplyMail = async (mailId, replyText) => {
+    const fs = getFirestore();
+    const mailDocRef = doc(fs, 'notifications', mailId);
+    await updateDoc(mailDocRef, { reply: replyText });
+    showToast('Reply sent successfully!');
+  };
 
-    const handleReplyFeedback = async (feedbackId, replyText) => {
-        const feedbackDocRef = doc(db, "report", feedbackId);
-        await updateDoc(feedbackDocRef, { admin_notes: replyText });
-        showToast("Reply sent successfully!");
-    };
+  const handleToggleMailRead = async (mailId, currentStatus) => {
+    const fs = getFirestore();
+    const mailDocRef = doc(fs, 'notifications', mailId);
+    try {
+      await updateDoc(mailDocRef, { read: !currentStatus });
+      showToast(`Mail marked as ${!currentStatus ? 'read' : 'unread'}.`);
+    } catch (error) {
+      showToast(`Error updating mail status: ${error.message}`);
+    }
+  };
 
-    const handleLogout = async (navigation) => {
-        const auth = getAuth();
-        try {
-            await signOut(auth);
-            showToast("You have been logged out.");
-            navigation.navigate("UserLogin");
-        } catch (error) {
-            showToast(`Error logging out: ${error.message}`);
-        }
-    };
+  // ==== FEEDBACKS (supports both `report` & `error_reports`) ====
+  const handleDeleteFeedback = async (feedbackId) => {
+    const fs = getFirestore();
+    // find the item to know which collection to delete from
+    const item = feedbacks.find((f) => f.id === feedbackId);
+    const coll = item?.__source === 'report' ? 'report' : 'error_reports';
+    await deleteDoc(doc(fs, coll, feedbackId));
+    showToast('Feedback deleted successfully!');
+  };
 
-    const value = {
-        users,
-        mails,
-        feedbacks,
-        plantIdentities,
-        toastMessage,
-        handleDeleteUser,
-        handleAddNewUser,
-        handleUpdateUser,
-        handleDeleteMail,
-        handleReplyMail,
-        handleToggleMailRead,
-        handleDeleteFeedback,
-        handleReplyFeedback,
-        handleLogout,
-    };
+  const handleReplyFeedback = async (feedbackId, replyText) => {
+    const fs = getFirestore();
+    const item = feedbacks.find((f) => f.id === feedbackId);
+    const coll = item?.__source === 'report' ? 'report' : 'error_reports';
+    const feedbackDocRef = doc(fs, coll, feedbackId);
+    await updateDoc(feedbackDocRef, { admin_notes: replyText });
+    showToast('Reply sent successfully!');
+  };
 
-    return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;
+  // ==== AUTH ====
+  const handleLogout = async (navigation) => {
+    const auth = getAuth();
+    try {
+      await signOut(auth);
+      showToast('You have been logged out.');
+      navigation.navigate('UserLogin');
+    } catch (error) {
+      showToast(`Error logging out: ${error.message}`);
+    }
+  };
+
+  const value = {
+    users,
+    mails,
+    feedbacks,
+    plantIdentities,
+    toastMessage,
+    handleDeleteUser,
+    handleAddNewUser,
+    handleUpdateUser,
+    handleDeleteMail,
+    handleReplyMail,
+    handleToggleMailRead,
+    handleDeleteFeedback,
+    handleReplyFeedback,
+    handleLogout,
+  };
+
+  return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;
 };

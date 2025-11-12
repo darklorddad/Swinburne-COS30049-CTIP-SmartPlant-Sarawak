@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
-  Platform,          // ← added
-  StatusBar,         // ← added
+  Platform,
+  StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BottomNav from "../components/NavigationExpert";
@@ -115,7 +115,7 @@ export default function HomepageExpert({ navigation }) {
 
   const openDetail = (post) => navigation.navigate("PostDetail", { post });
 
-  // Bigger, high-contrast icon-only badge
+  // Round icon-only badge (same look, we'll position it absolute in styles)
   const StatusIcon = ({ status }) => {
     let style = styles.iconWrapPending;
     let icon = "time";
@@ -128,7 +128,7 @@ export default function HomepageExpert({ navigation }) {
     }
     return (
       <View style={[styles.iconWrapBase, style]}>
-        <Ionicons name={icon} size={20} color="#fff" />
+        <Ionicons name={icon} size={16} color="#fff" />
       </View>
     );
   };
@@ -140,7 +140,7 @@ export default function HomepageExpert({ navigation }) {
         contentContainerStyle={[
           styles.container,
           {
-            paddingTop: TOP_PAD,                              // ← added
+            paddingTop: TOP_PAD,
             paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16,
           },
         ]}
@@ -169,6 +169,7 @@ export default function HomepageExpert({ navigation }) {
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Text style={styles.recentTitle}>Plant</Text>
+                {/* keep small inline badge for the recent row */}
                 <StatusIcon status={latest.identify_status} />
               </View>
               <Text style={styles.recentMeta}>{formattedDate}</Text>
@@ -199,10 +200,15 @@ export default function HomepageExpert({ navigation }) {
         {/* Feed — same structure as HomepageUser */}
         {posts.map((p) => {
           const savedCount =
-            typeof p.saved_count === "number" ? p.saved_count : (p.saved_by?.length || 0);
+            typeof p.saved_count === "number" ? p.saved_count : p.saved_by?.length || 0;
 
           return (
             <View key={p.id} style={styles.feedCard}>
+              {/* Absolute verified badge top-right */}
+              <View style={styles.statusAbsolute}>
+                <StatusIcon status={p.identify_status} />
+              </View>
+
               <TouchableOpacity onPress={() => openDetail(p)} activeOpacity={0.85}>
                 <View style={styles.feedHeader}>
                   <View style={styles.feedAvatar} />
@@ -214,11 +220,6 @@ export default function HomepageExpert({ navigation }) {
                       {timeAgo(p.time)} — {p.locality ?? "—"}
                     </Text>
                   </View>
-
-                  {/* Larger, visible icon-only badge */}
-                  <StatusIcon status={p.identify_status} />
-
-                  <Text style={[styles.detailsPill, { marginLeft: 8 }]}>Details</Text>
                 </View>
 
                 {Array.isArray(p.imageURIs) && p.imageURIs.length > 0 ? (
@@ -234,19 +235,30 @@ export default function HomepageExpert({ navigation }) {
                 {p.caption ? <Text style={{ marginTop: 8 }}>{p.caption}</Text> : null}
               </TouchableOpacity>
 
+              {/* Bottom row with Details on the right */}
               <View style={styles.feedActions}>
-                <View style={styles.countGroup}>
-                  <Ionicons name="heart-outline" size={20} />
-                  <Text style={styles.countText}>{p.like_count || 0}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View style={styles.countGroup}>
+                    <Ionicons name="heart-outline" size={20} />
+                    <Text style={styles.countText}>{p.like_count || 0}</Text>
+                  </View>
+                  <View style={[styles.countGroup, { marginLeft: 16 }]}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={20} />
+                    <Text style={styles.countText}>{p.comment_count || 0}</Text>
+                  </View>
+                  <View style={[styles.countGroup, { marginLeft: 16 }]}>
+                    <Ionicons name="bookmark-outline" size={22} />
+                    <Text style={[styles.countText, { marginLeft: 6 }]}>{savedCount}</Text>
+                  </View>
                 </View>
-                <View style={[styles.countGroup, { marginLeft: 16 }]}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={20} />
-                  <Text style={styles.countText}>{p.comment_count || 0}</Text>
-                </View>
-                <View style={[styles.countGroup, { marginLeft: 16 }]}>
-                  <Ionicons name="bookmark-outline" size={22} />
-                  <Text style={[styles.countText, { marginLeft: 6 }]}>{savedCount}</Text>
-                </View>
+
+                <TouchableOpacity
+                  onPress={() => openDetail(p)}
+                  activeOpacity={0.85}
+                  style={styles.detailsBtn}
+                >
+                  <Text style={styles.detailsBtnText}>Details</Text>
+                </TouchableOpacity>
               </View>
             </View>
           );
@@ -316,29 +328,34 @@ const styles = StyleSheet.create({
   pmTitle: { color: "#2b2b2b", fontWeight: "700" },
   pmCount: { marginTop: 6, fontSize: 28, fontWeight: "800", color: "#2b2b2b" },
 
-  // Feed (matches HomepageUser)
-  feedCard: { marginTop: 16, backgroundColor: "#FFF", borderRadius: 12, padding: 12 },
+  // Feed
+  feedCard: {
+    marginTop: 16,
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 12,
+    position: "relative", // needed for absolute status badge
+  },
   feedHeader: { flexDirection: "row", alignItems: "center" },
   feedAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#D7E3D8" },
   feedName: { fontWeight: "700", color: "#2b2b2b", maxWidth: "80%" },
   feedMeta: { color: "#2b2b2b", opacity: 0.7, fontSize: 12, marginBottom: 10 },
-  detailsPill: {
-    backgroundColor: "#E7F0E5",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    marginLeft: "auto",
-  },
 
   feedImage: { height: 140, backgroundColor: "#5A7B60", borderRadius: 10, marginTop: 12 },
 
-  feedActions: { flexDirection: "row", alignItems: "center", marginTop: 10 },
+  // bottom row now has details on the right
+  feedActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    justifyContent: "space-between",
+  },
   countGroup: { flexDirection: "row", alignItems: "center" },
   countText: { marginLeft: 6 },
 
   banner: { marginTop: 12, height: 160, borderRadius: 12, backgroundColor: "#5A7B60" },
 
-  // ===== Visible icon-only status badge =====
+  // ===== Visible icon-only status badge (same look) =====
   iconWrapBase: {
     width: 28,
     height: 28,
@@ -354,4 +371,16 @@ const styles = StyleSheet.create({
   iconWrapVerified: { backgroundColor: "#27AE60" },
   iconWrapRejected: { backgroundColor: "#D36363" },
   iconWrapPending: { backgroundColor: "#9CA3AF" },
+
+  // absolute placement like the screenshot
+  statusAbsolute: { position: "absolute", top: 8, right: 10, zIndex: 2 },
+
+  // Details pill bottom-right
+  detailsBtn: {
+    backgroundColor: "#10B981",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  detailsBtnText: { color: "#fff", fontWeight: "700" },
 });

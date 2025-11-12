@@ -8,23 +8,19 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
-  Platform,   // ← added
-  StatusBar,  // ← added
 } from "react-native";
-import { TOP_PAD, EXTRA_TOP_SPACE } from "../components/StatusBarManager";
+import { TOP_PAD } from "../components/StatusBarManager";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import BottomNav from "../components/Navigation";
 import ImageSlideshow from "../components/ImageSlideShow";
 
 import { auth, db } from "../firebase/FirebaseConfig";
-import { collection, query, orderBy, limit, onSnapshot, getDocs } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { getFullProfile } from "../firebase/UserProfile/UserUpdate";
 
-const NAV_HEIGHT = 60;      // height of your BottomNav
-const NAV_MARGIN_TOP = 150; // its marginTop from Navigation.js
-
-// top padding so the greeting isn't too high (handles notch/status bar)
+const NAV_HEIGHT = 60;
+const NAV_MARGIN_TOP = 150;
 
 const timeAgo = (ms) => {
   const s = Math.max(1, Math.floor((Date.now() - ms) / 1000));
@@ -37,7 +33,7 @@ const timeAgo = (ms) => {
   return `${d}d`;
 };
 
-const colors = ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'];
+const colors = ["#fca5a5", "#16a34a", "#a3e635", "#fef08a", "#c084fc", "#60a5fa", "#f9a8d4"];
 const getColorForId = (id) => {
   if (!id) return colors[0];
   let hash = 0;
@@ -68,77 +64,86 @@ export default function HomepageUser({ navigation }) {
           setUserProfile(profileData);
         }
       };
-      
       fetchCurrentUserProfile();
     }, [])
   );
 
-    useEffect(() => {
+  useEffect(() => {
     let unsubPosts = () => {};
     let unsubAccounts = () => {};
 
     const accountsCollection = collection(db, "account");
     unsubAccounts = onSnapshot(accountsCollection, (accountsSnapshot) => {
       const profilesMap = new Map();
-      accountsSnapshot.forEach(doc => {
-          profilesMap.set(doc.id, doc.data());
+      accountsSnapshot.forEach((doc) => {
+        profilesMap.set(doc.id, doc.data());
       });
 
       const q = query(collection(db, "plant_identify"), orderBy("createdAt", "desc"), limit(20));
-      if (unsubPosts) unsubPosts(); 
+      if (unsubPosts) unsubPosts();
 
       unsubPosts = onSnapshot(q, (snap) => {
-          const items = snap.docs.map((d) => {
-              const v = d.data();
-              const userProfile = profilesMap.get(v.user_id) || {};
-              
-              const top1 = v?.model_predictions?.top_1;
-              const ms =
-                (v?.createdAt?.toMillis?.() ||
-                  (v?.createdAt?.seconds ? v.createdAt.seconds * 1000 : Date.now())) ||
-                Date.now();
-              const author =
-                userProfile?.full_name || v?.author_name || (v?.user_id ? `@${String(v.user_id).slice(0, 6)}` : "User");
+        const items = snap.docs.map((d) => {
+          const v = d.data();
+          const prof = profilesMap.get(v.user_id) || {};
 
-              const imageURIs = Array.isArray(v.ImageURLs) && v.ImageURLs.length > 0
-                ? v.ImageURLs
-                : (v.ImageURL ? [v.ImageURL] : []);
+          const top1 = v?.model_predictions?.top_1;
+          const ms =
+            (v?.createdAt?.toMillis?.() ||
+              (v?.createdAt?.seconds ? v.createdAt.seconds * 1000 : Date.now())) ||
+            Date.now();
 
-              return {
-                id: d.id,
-                user_id: v.user_id,
-                identify_status: (v.identify_status || "pending").toLowerCase(),
-                image: imageURIs[0] || null,
-                imageURIs: imageURIs,
-                userImage: userProfile?.profile_pic || null,
-                caption: top1
-                  ? `Top: ${top1.plant_species} (${Math.round((top1.ai_score || 0) * 100)}%)`
-                  : "New identification",
-                author,
-                time: ms,
-                locality: "Kuching",
-                prediction: [v?.model_predictions?.top_1, v?.model_predictions?.top_2, v?.model_predictions?.top_3].filter(Boolean),
-                coordinate: v?.coordinate ?? null,
-                like_count: typeof v?.like_count === "number" ? v.like_count : 0,
-                comment_count: typeof v?.comment_count === "number" ? v.comment_count : 0,
-                saved_by: Array.isArray(v?.saved_by) ? v.saved_by : [],
-                saved_count: typeof v?.saved_count === "number" ? v.saved_count : undefined,
-              };
-          });
-          
-          setPosts((prev) => {
-              const map = new Map(prev.map((p) => [p.id, p]));
-              items.forEach((it) => map.set(it.id, it));
-              return Array.from(map.values()).sort((a, b) => b.time - a.time).slice(0, 20);
-          });
+          const author =
+            prof?.full_name ||
+            v?.author_name ||
+            (v?.user_id ? `@${String(v.user_id).slice(0, 6)}` : "User");
+
+          const imageURIs =
+            Array.isArray(v.ImageURLs) && v.ImageURLs.length > 0
+              ? v.ImageURLs
+              : v.ImageURL
+              ? [v.ImageURL]
+              : [];
+
+          return {
+            id: d.id,
+            user_id: v.user_id,
+            identify_status: (v.identify_status || "pending").toLowerCase(),
+            image: imageURIs[0] || null,
+            imageURIs,
+            userImage: prof?.profile_pic || null,
+            caption: top1
+              ? `Top: ${top1.plant_species} (${Math.round((top1.ai_score || 0) * 100)}%)`
+              : "New identification",
+            author,
+            time: ms,
+            locality: "Kuching",
+            prediction: [
+              v?.model_predictions?.top_1,
+              v?.model_predictions?.top_2,
+              v?.model_predictions?.top_3,
+            ].filter(Boolean),
+            coordinate: v?.coordinate ?? null,
+            like_count: typeof v?.like_count === "number" ? v.like_count : 0,
+            comment_count: typeof v?.comment_count === "number" ? v.comment_count : 0,
+            saved_by: Array.isArray(v?.saved_by) ? v.saved_by : [],
+            saved_count: typeof v?.saved_count === "number" ? v.saved_count : undefined,
+          };
+        });
+
+        setPosts((prev) => {
+          const map = new Map(prev.map((p) => [p.id, p]));
+          items.forEach((it) => map.set(it.id, it));
+          return Array.from(map.values()).sort((a, b) => b.time - a.time).slice(0, 20);
+        });
       });
     });
 
     return () => {
-      if(unsubPosts) unsubPosts();
-      if(unsubAccounts) unsubAccounts();
+      if (unsubPosts) unsubPosts();
+      if (unsubAccounts) unsubAccounts();
     };
-}, []);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -181,7 +186,7 @@ export default function HomepageUser({ navigation }) {
     }
   }, [latest?.time]);
 
-  // ===== Icon-only status (pending / verified / rejected) — same look as expert =====
+  // Keep your original small round badge design; just position it top-right
   const StatusIcon = ({ status }) => {
     let wrapStyle = styles.iconWrapPending;
     let icon = "time";
@@ -194,7 +199,7 @@ export default function HomepageUser({ navigation }) {
     }
     return (
       <View style={[styles.iconWrapBase, wrapStyle]}>
-        <Ionicons name={icon} size={20} color="#fff" />
+        <Ionicons name={icon} size={16} color="#fff" />
       </View>
     );
   };
@@ -206,8 +211,8 @@ export default function HomepageUser({ navigation }) {
         contentContainerStyle={[
           styles.container,
           {
-            paddingTop: TOP_PAD,                                  // ← added
-            paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16,      // keep bottom room
+            paddingTop: TOP_PAD,
+            paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16,
           },
         ]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -218,7 +223,9 @@ export default function HomepageUser({ navigation }) {
             <Image source={{ uri: userProfile.profile_pic }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, { backgroundColor: getColorForId(userProfile?.user_id) }]}>
-              <Text style={styles.avatarText}>{(userProfile?.full_name || currentUserName || "U").charAt(0)}</Text>
+              <Text style={styles.avatarText}>
+                {(userProfile?.full_name || currentUserName || "U").charAt(0)}
+              </Text>
             </View>
           )}
           <View style={{ flex: 1 }}>
@@ -238,14 +245,11 @@ export default function HomepageUser({ navigation }) {
               <View style={styles.recentThumb} />
             )}
             <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Text style={styles.recentTitle}>Plant</Text>
-                <StatusIcon status={latest.identify_status} />
-              </View>
+              <Text style={styles.recentTitle}>Plant</Text>
               <Text style={styles.recentMeta}>{formattedDate}</Text>
               <Text style={styles.recentMeta}>{latest.locality ?? "—"}</Text>
             </View>
-            <Text style={styles.linkText}>See More →</Text>
+            {/* No details here; it lives bottom-right in the feed cards */}
           </TouchableOpacity>
         ) : (
           <View style={[styles.recentCard, { opacity: 0.6 }]}>
@@ -261,10 +265,15 @@ export default function HomepageUser({ navigation }) {
         {/* Feed list */}
         {posts.map((p) => {
           const savedCount =
-            typeof p.saved_count === "number" ? p.saved_count : (p.saved_by?.length || 0);
+            typeof p.saved_count === "number" ? p.saved_count : p.saved_by?.length || 0;
 
           return (
             <View key={p.id} style={styles.feedCard}>
+              {/* Verified badge absolutely in top-right */}
+              <View style={styles.statusAbsolute}>
+                <StatusIcon status={p.identify_status} />
+              </View>
+
               <TouchableOpacity onPress={() => openDetail(p)} activeOpacity={0.85}>
                 <View style={styles.feedHeader}>
                   {p.userImage ? (
@@ -280,10 +289,6 @@ export default function HomepageUser({ navigation }) {
                       {timeAgo(p.time)} — {p.locality ?? "—"}
                     </Text>
                   </View>
-
-                  <StatusIcon status={p.identify_status} />
-
-                  <Text style={styles.detailsPill}>Details</Text>
                 </View>
 
                 {Array.isArray(p.imageURIs) && p.imageURIs.length > 0 ? (
@@ -299,21 +304,30 @@ export default function HomepageUser({ navigation }) {
                 {p.caption ? <Text style={{ marginTop: 8 }}>{p.caption}</Text> : null}
               </TouchableOpacity>
 
+              {/* Bottom action row with Details pill on the right */}
               <View style={styles.feedActions}>
-                <View style={styles.countGroup}>
-                  <Ionicons name="heart-outline" size={20} />
-                  <Text style={styles.countText}>{p.like_count || 0}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View style={styles.countGroup}>
+                    <Ionicons name="heart-outline" size={20} />
+                    <Text style={styles.countText}>{p.like_count || 0}</Text>
+                  </View>
+                  <View style={[styles.countGroup, { marginLeft: 16 }]}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={20} />
+                    <Text style={styles.countText}>{p.comment_count || 0}</Text>
+                  </View>
+                  <View style={[styles.countGroup, { marginLeft: 16 }]}>
+                    <Ionicons name="bookmark-outline" size={22} />
+                    <Text style={[styles.countText, { marginLeft: 6 }]}>{savedCount}</Text>
+                  </View>
                 </View>
 
-                <View style={[styles.countGroup, { marginLeft: 16 }]}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={20} />
-                  <Text style={styles.countText}>{p.comment_count || 0}</Text>
-                </View>
-
-                <View style={[styles.countGroup, { marginLeft: 16 }]}>
-                  <Ionicons name="bookmark-outline" size={22} />
-                  <Text style={[styles.countText, { marginLeft: 6 }]}>{savedCount}</Text>
-                </View>
+                <TouchableOpacity
+                  onPress={() => openDetail(p)}
+                  activeOpacity={0.85}
+                  style={styles.detailsBtn}
+                >
+                  <Text style={styles.detailsBtnText}>Details</Text>
+                </TouchableOpacity>
               </View>
             </View>
           );
@@ -327,10 +341,7 @@ export default function HomepageUser({ navigation }) {
 
 const styles = StyleSheet.create({
   background: { flex: 1, backgroundColor: "#F6F1E9" },
-
-  // subtract the nav's marginTop from the ScrollView so you can reach the bottom
   scroller: { marginBottom: -NAV_MARGIN_TOP },
-
   container: { flexGrow: 1, padding: 16, paddingTop: TOP_PAD },
 
   greetingCard: {
@@ -341,7 +352,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#D7E3D8", alignItems: "center", justifyContent: "center" },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#D7E3D8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   avatarText: { color: "white", fontSize: 22, fontWeight: "bold" },
   greetingTitle: { fontSize: 16, fontWeight: "600", color: "#2b2b2b" },
   greetingSub: { fontSize: 14, color: "#2b2b2b", marginTop: 2 },
@@ -356,25 +374,50 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  recentThumb: { width: 72, height: 72, borderRadius: 12, backgroundColor: "#FFF", borderWidth: 1, borderColor: "#d8e3d8" },
+  recentThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#d8e3d8",
+  },
   recentTitle: { fontWeight: "700", color: "#2b2b2b", marginBottom: 4 },
   recentMeta: { color: "#2b2b2b", opacity: 0.7, fontSize: 12 },
-  linkText: { color: "#2b2b2b", opacity: 0.8, fontWeight: "600" },
 
-  feedCard: { marginTop: 16, backgroundColor: "#FFF", borderRadius: 12, padding: 12 },
+  feedCard: {
+    marginTop: 16,
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 12,
+    position: "relative", // for absolute badge
+  },
   feedHeader: { flexDirection: "row", alignItems: "center" },
-  feedAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#D7E3D8", alignItems: "center", justifyContent: "center" },
+  feedAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#D7E3D8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   feedAvatarText: { color: "white", fontSize: 12, fontWeight: "bold" },
   feedName: { fontWeight: "700", color: "#2b2b2b" },
   feedMeta: { color: "#2b2b2b", opacity: 0.7, fontSize: 12, marginBottom: 10 },
-  detailsPill: { marginLeft: "auto", backgroundColor: "#E7F0E5", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+
   feedImage: { height: 140, backgroundColor: "#5A7B60", borderRadius: 10, marginTop: 12 },
 
-  feedActions: { flexDirection: "row", alignItems: "center", marginTop: 10 },
+  // action row now places details at bottom-right
+  feedActions: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   countGroup: { flexDirection: "row", alignItems: "center" },
   countText: { marginLeft: 6 },
 
-  // Icon-only status badge (pending / verified / rejected)
+  // ORIGINAL round status badge look, placed top-right
   iconWrapBase: {
     width: 28,
     height: 28,
@@ -386,9 +429,18 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
-    marginHorizontal: 8,
   },
   iconWrapVerified: { backgroundColor: "#27AE60" },
   iconWrapRejected: { backgroundColor: "#D36363" },
   iconWrapPending: { backgroundColor: "#9CA3AF" },
+  statusAbsolute: { position: "absolute", top: 8, right: 10, zIndex: 2 },
+
+  // Details pill bottom-right (matches your screenshot)
+  detailsBtn: {
+    backgroundColor: "#10B981",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  detailsBtnText: { color: "#fff", fontWeight: "700" },
 });
