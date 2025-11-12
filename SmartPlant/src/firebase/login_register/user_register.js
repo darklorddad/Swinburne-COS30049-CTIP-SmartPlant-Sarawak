@@ -1,16 +1,37 @@
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../FirebaseConfig";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, runTransaction, serverTimestamp } from "firebase/firestore";
 
 export async function user_register(fullName, email, password) {
   try {
-    // 1. Firebase Authentication - Create User
+    // Firebase Authentication: Create User
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const userId = userCredential.user.uid;
+    const firebaseuid = userCredential.user.uid;
 
-    // 2. Firestore - Store in "user" table
+    // Generate sequential user_id
+    const counterRef = doc(db, "counters", "userCounter");
+
+    const userId = await runTransaction(db, async (transaction) => {
+      const counterDoc = await transaction.get(counterRef);
+      let newCount = 1;
+
+      if (!counterDoc.exists()) {
+        // Initialize counter if not found
+        transaction.set(counterRef, { count: 1 });
+      } else {
+        const currentCount = counterDoc.data().count;
+        newCount = currentCount + 1;
+        transaction.update(counterRef, { count: newCount });
+      }
+
+      // Return ID: U001, U002
+      return "U" + newCount.toString().padStart(3, "0");
+    });
+
+    // Add user info to user table
     await setDoc(doc(db, "user", userId), {
       user_id: userId,
+      firebase_uid: firebaseuid,
       full_name: fullName,
       email: email,
       password: password, // If you want security, better not store this openly
@@ -21,7 +42,7 @@ export async function user_register(fullName, email, password) {
       created_at: serverTimestamp(),
     });
 
-    // 3. Firestore - Create empty profile in "account" table
+    // Create empty profile in account table
     await setDoc(doc(db, "account", userId), {
       account_id: userId,
       user_id: userId,
@@ -38,8 +59,8 @@ export async function user_register(fullName, email, password) {
       created_at: serverTimestamp(),
     });
 
-    return true; // ✅ Return to confirm success
+    return true; 
   } catch (error) {
-    throw error; // ❌ Send error back to UI
+    throw error; 
   }
 }

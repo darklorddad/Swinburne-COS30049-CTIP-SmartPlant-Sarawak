@@ -8,6 +8,9 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  Platform,   // ← added
+  StatusBar,  // ← added
+  Modal
 } from "react-native";
 import { TOP_PAD } from "../components/StatusBarManager";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,6 +33,7 @@ import {
   increment,
 } from "firebase/firestore";
 import { getFullProfile } from "../firebase/UserProfile/UserUpdate";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const NAV_HEIGHT = 60;
 const NAV_MARGIN_TOP = 150;
@@ -169,6 +173,25 @@ export default function HomepageUser({ navigation }) {
     };
   }, []);
 
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+
+  useEffect(() => {
+    async function checkFirstLogin() {
+      try {
+        const userKey = `hasSeenSafetyGuidelines_${route.params?.userEmail}`;
+        const hasSeen = await AsyncStorage.getItem(userKey);
+        if (!hasSeen) {
+          setShowSafetyModal(true);
+          await AsyncStorage.setItem(userKey, "true");
+        }
+      } catch (err) {
+        console.error("Error checking safety guidelines flag:", err);
+      }
+    }
+    checkFirstLogin();
+}, []);
+
+  // When we navigate back from CreatePost with { newPost }, prepend it once.
   useFocusEffect(
     useCallback(() => {
       const newPost = route.params?.newPost;
@@ -493,6 +516,24 @@ export default function HomepageUser({ navigation }) {
       </ScrollView>
 
       <BottomNav navigation={navigation} />
+
+      {/* Safety Guideline Modal */}
+      <Modal visible={showSafetyModal} animationType="fade" transparent={true}onRequestClose={() => setShowSafetyModal(false)}>
+        <View style={styles.modalBackground}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>🔒 Safety & Security Guidelines</Text>
+            <Text style={styles.modalText}>• Do not share your password or OTP with anyone.</Text>
+            <Text style={styles.modalText}>• Avoid clicking unknown or suspicious links.</Text>
+            <Text style={styles.modalText}>• Keep your personal data and phone number private.</Text>
+            <Text style={styles.modalText}>• Report any suspicious activity immediately.</Text>
+            <Text style={styles.modalText}>• Use strong and unique passwords for your account.</Text>
+
+            <TouchableOpacity style={styles.modalButton} onPress={() => setShowSafetyModal(false)}>
+              <Text style={styles.modalButtonText}>I Understand</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -598,4 +639,40 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   detailsBtnText: { color: "#fff", fontWeight: "700" },
+
+  // Safety guideline modal styles
+  modalBackground: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalBox: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    width: "85%",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 12,
+    color: "#2b2b2b",
+  },
+  modalText: {
+    fontSize: 14,
+    color: "#333",
+    marginBottom: 6,
+  },
+  modalButton: {
+    backgroundColor: "#6EA564",
+    borderRadius: 8,
+    marginTop: 16,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
 });

@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
-  Platform,
-  StatusBar,
+  Platform,          // ← added
+  StatusBar,         // ← added
+  Modal
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BottomNav from "../components/NavigationExpert";
@@ -239,6 +240,7 @@ export default function HomepageExpert({ navigation }) {
       </View>
     );
   };
+  const [showSafetyModal, setShowSafetyModal] = useState(true); // added to pop out safetly guideline for plant expert
 
   return (
     <View style={styles.background}>
@@ -397,6 +399,24 @@ export default function HomepageExpert({ navigation }) {
       </ScrollView>
 
       <BottomNav navigation={navigation} />
+
+      {/* Safety Guideline Modal */}
+      <Modal visible={showSafetyModal} animationType="fade" transparent={true} onRequestClose={() => setShowSafetyModal(false)}>
+        <View style={styles.modalBackground}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>🛡️ Expert Safety Guidelines</Text>
+            <Text style={styles.modalText}>• Never share your login credentials or expert access codes.</Text>
+            <Text style={styles.modalText}>• Verify plant-related requests before responding to users.</Text>
+            <Text style={styles.modalText}>• Avoid downloading or opening unverified links or attachments.</Text>
+            <Text style={styles.modalText}>• Protect user data and avoid exposing private user information.</Text>
+            <Text style={styles.modalText}>• Contact the admin immediately if you suspect fraudulent activity.</Text>
+
+            <TouchableOpacity style={styles.modalButton} onPress={() => setShowSafetyModal(false)}>
+              <Text style={styles.modalButtonText}>I Understand</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -501,4 +521,39 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   detailsBtnText: { color: "#fff", fontWeight: "700" },
+  // Safety guideline modal styles
+  modalBackground: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalBox: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    width: "85%",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 12,
+    color: "#2b2b2b",
+  },
+  modalText: {
+    fontSize: 14,
+    color: "#333",
+    marginBottom: 6,
+  },
+  modalButton: {
+    backgroundColor: "#6EA564",
+    borderRadius: 8,
+    marginTop: 16,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
 });

@@ -1,9 +1,7 @@
 import { auth, db } from "../FirebaseConfig";
 import { getFullProfile } from "../UserProfile/UserUpdate";
 import { signInWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth";
-import { doc, setDoc, serverTimestamp, getDoc, query, collection, where, getDocs } from "firebase/firestore";
-
-
+import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, getDoc } from "firebase/firestore";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 async function loginWithEmail(email, password) {
@@ -13,7 +11,55 @@ async function loginWithEmail(email, password) {
 
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return { success: true, user: userCredential.user };
+    const user = userCredential.user;
+
+    // Get from user collection
+    const q = query(collection(db, "user"), where("email", "==", email));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return { success: false, error: "User record not found in Firestore." };
+    }
+
+    let userData;
+    querySnapshot.forEach((docSnap) => {
+      userData = docSnap.data();
+    });
+
+    const role = userData.role || "user";
+    const userId = userData.account_id || userData.user_id || "";
+    const fullName = userData.full_name || "";
+
+    // Check if account exists — if not, create one
+    const accountRef = doc(db, "account", userId);
+    const accountSnap = await getDoc(accountRef);
+
+    if (!accountSnap.exists()) {
+      await setDoc(accountRef, {
+        account_id: userId,
+        full_name: fullName || "Unknown",
+        email: email,
+        role: role,
+        address: "",
+        gender: "",
+        division: "",
+        occupation: role === "admin" ? "administrator" : role,
+        date_of_birth: "",
+        created_at: serverTimestamp(),
+        is_active: true,
+        login_method: "manual"
+      });
+      console.log(`Created missing account record for ${role}: ${userId}`);
+    }
+
+    return {
+      success: true,
+      user,
+      role,
+      userId,
+      email
+    };
+
   } catch (error) {
     let message;
     switch (error.code) {
@@ -53,13 +99,14 @@ async function saveCredentials(email, password) {
       return { success: false, error: "Missing email or password." };
     }
 
+    // Clear old stored credentials before saving new ones
+    await AsyncStorage.multiRemove(["savedEmail", "savedPassword", "biometricEnabled"]);
+
     await AsyncStorage.setItem("savedEmail", email);
     await AsyncStorage.setItem("savedPassword", password);
     await AsyncStorage.setItem("biometricEnabled", "true");
 
-    const check = await AsyncStorage.getItem("biometricEnabled");
-    console.log("Biometric flag saved:", check);
-
+    console.log("Credentials saved for:", email);
     return { success: true };
   } catch (e) {
     console.log("Error saving credentials:", e);
@@ -67,18 +114,17 @@ async function saveCredentials(email, password) {
   }
 }
 
-async function clearSavedCredentials() {
-  try {
-    await AsyncStorage.removeItem("savedEmail");
-    await AsyncStorage.removeItem("savedPassword");
-    await AsyncStorage.removeItem("biometricEnabled");
-    console.log("✅ All credentials and biometric flags cleared.");
-    return { success: true };
-  } catch (e) {
-    console.error("Error clearing credentials:", e);
-    return { success: false, error: e.message };
-  }
+async function getUserDataByEmail(email) {
+  const q = query(collection(db, "user"), where("email", "==", email));
+  const querySnapshot = await getDocs(q);
+  if (querySnapshot.empty) return null;
+  let userData;
+  querySnapshot.forEach(docSnap => {
+    userData = docSnap.data();
+  });
+  return userData;
 }
+
 
 async function loginWithGoogle(id_token) {
   try {
@@ -126,20 +172,20 @@ async function loginWithFacebook(access_token) {
   }
 }
 
-async function checkUserRole(uid) {
-  const docRef = doc(db, "account", uid);
-  const docSnap = await getDoc(docRef);
+// async function checkUserRole(uid) {
+//   const docRef = doc(db, "account", uid);
+//   const docSnap = await getDoc(docRef);
 
-  if (docSnap.exists()) {
-    const data = docSnap.data();
-    if (data.role) {
-      return data.role.toLowerCase();
-    }
-    return null;
-  } else {
-    return null;
-  }
-}
+//   if (docSnap.exists()) {
+//     const data = docSnap.data();
+//     if (data.role) {
+//       return data.role.toLowerCase();
+//     }
+//     return null;
+//   } else {
+//     return null;
+//   }
+// }
 
 async function getSavedCredentials() {
   try {
@@ -162,10 +208,10 @@ export {
   loginWithEmail, 
   saveBiometric, 
   saveCredentials, 
-  clearSavedCredentials, 
   loginWithGoogle, 
   loginWithFacebook, 
-  checkUserRole, 
+  // checkUserRole, 
   getSavedCredentials,
-  getFullProfile
+  getFullProfile,
+  getUserDataByEmail
 };

@@ -141,8 +141,7 @@ export default function ProfileScreen({ navigation }) {
           onPress={async () => {
               try {
                 await auth.signOut();
-                navigation.replace("UserLogin");
-              } catch (error) {
+                navigation.replace("LoginSelection");              } catch (error) {
                 console.error("Error logging out:", error);
               }
             }}>
