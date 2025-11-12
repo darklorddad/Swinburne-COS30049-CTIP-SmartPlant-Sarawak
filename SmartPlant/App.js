@@ -7,6 +7,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import IdentifyPage from './src/pages/identify';
 import IdentifyTips from './src/pages/identify_tips';
 import IdentifyOutput from './src/pages/identify_output';
+import Identify from './src/pages/identify';
 import Profile from "./src/pages/Profile";
 import MyProfile from "./src/pages/Myprofile";
 import EditProfile from "./src/pages/EditProfile";
@@ -48,7 +49,7 @@ export default function App() {
     <AdminProvider>
     <PermissionProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="Introduction" screenOptions={{ headerShown: false }}>
+        <Stack.Navigator initialRouteName="HomepageExpert" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Back" component={Tabs}/>
           <Stack.Screen name="Profile" component={Profile} />
           {/* <Stack.Screen name="IoTDashboard" component={IoTDashboard} /> */}
@@ -65,6 +66,7 @@ export default function App() {
           <Stack.Screen name="IdentifyPage" component={IdentifyPage} />
           <Stack.Screen name="IdentifyTips" component={IdentifyTips} />
           <Stack.Screen name="IdentifyOutput" component={IdentifyOutput}/>
+          <Stack.Screen name="Identify" component={Identify}/>
 
           <Stack.Screen name="Introduction" component={Introduction} />
           <Stack.Screen name="UserLogin" component={UserLogin} />

@@ -9,17 +9,14 @@ import {
   TextInput,
   Image,
   RefreshControl,
-  Platform,   // ← added
-  StatusBar,  // ← added
+  Platform,
+  StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { db } from "../firebase/FirebaseConfig";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 
-// Now includes "All"
 const CATEGORIES = ["All", "Common", "Rare", "Endangered"];
-
-// small top padding so the header sits a bit lower (safe under notch/status bar)
 const TOP_PAD = Platform.OS === "ios" ? 56 : (StatusBar.currentHeight || 0) + 8;
 
 export default function PlantManagementList({ navigation }) {
@@ -38,13 +35,20 @@ export default function PlantManagementList({ navigation }) {
           : v?.ImageURL
           ? [v.ImageURL]
           : [];
+
+        // unified label priority:
+        const label =
+          v?.resolved_scientific_name ||
+          v?.model_predictions?.top_1?.plant_species ||
+          v?.model_predictions?.top_1?.class ||
+          "Plant";
+
         return {
           id: d.id,
-          label: v?.model_predictions?.top_1?.plant_species || "Plant",
+          label,
           image: imgs[0] || null,
           status: (v?.identify_status || "pending").toLowerCase(),
-          // read the saved category from detail approve flow
-          category: (v?.conservation_status || "").toLowerCase(), // "common" | "rare" | "endangered" | ""
+          category: (v?.conservation_status || "").toLowerCase(), // common|rare|endangered|""
         };
       });
       setItems(rows);
@@ -58,13 +62,11 @@ export default function PlantManagementList({ navigation }) {
   }, []);
 
   const filtered = useMemo(() => {
-    // search first
     const s = search.trim().toLowerCase();
     let base = !s ? items : items.filter((t) => (t.label || "").toLowerCase().includes(s));
 
-    // then category filter (skip if All)
     if (selectedCat === "All") return base;
-    const key = selectedCat.toLowerCase(); // "common" | "rare" | "endangered"
+    const key = selectedCat.toLowerCase();
     return base.filter((t) => t.category === key);
   }, [items, search, selectedCat]);
 
@@ -109,7 +111,7 @@ export default function PlantManagementList({ navigation }) {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ paddingTop: TOP_PAD, paddingBottom: 120 }}  // ← added top pad
+      contentContainerStyle={{ paddingTop: TOP_PAD, paddingBottom: 120 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       showsVerticalScrollIndicator={false}
     >
@@ -125,7 +127,7 @@ export default function PlantManagementList({ navigation }) {
         />
       </View>
 
-      {/* Category chips with selection (now includes All) */}
+      {/* Category chips */}
       <View style={styles.chipsRow}>
         {CATEGORIES.map((c) => {
           const isOn = selectedCat === c;
@@ -160,7 +162,7 @@ export default function PlantManagementList({ navigation }) {
               <CategoryPill category={t.category} />
             </View>
 
-            {/* species name bottom (kept) */}
+            {/* species name bottom */}
             <View style={styles.tileFooter}>
               <Text numberOfLines={1} style={styles.tileLabel}>
                 {t.label}
@@ -214,7 +216,6 @@ const styles = StyleSheet.create({
   },
   tileImage: { width: "100%", height: "100%" },
 
-  // bottom species label
   tileFooter: {
     position: "absolute",
     left: 0,
@@ -226,7 +227,6 @@ const styles = StyleSheet.create({
   },
   tileLabel: { color: "#fff", fontWeight: "700", fontSize: 12 },
 
-  // top-right status
   statusWrap: { position: "absolute", top: 6, right: 6 },
   statusDot: {
     width: 22,
@@ -236,7 +236,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  // top-left category pill
   catWrapTopLeft: { position: "absolute", top: 6, left: 6 },
   catPillBase: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   catPillText: { fontSize: 10, fontWeight: "700", color: "#fff" },

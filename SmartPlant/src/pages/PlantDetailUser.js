@@ -63,6 +63,49 @@ export default function PlantDetailUser({ navigation, route }) {
   // ---- Live comments pulled from the same place as PostDetail ----
   const [comments, setComments] = useState([]);
 
+  // NEW: display-only category (common/rare/endangered)
+  const [displayCategory, setDisplayCategory] = useState(null); // ← NEW
+
+  // Resolve category to display
+  useEffect(() => {
+    // prefer category persisted on the post (what your experts pick)
+    const persisted = (post?.conservation_status || "").toLowerCase();
+    if (persisted === "common" || persisted === "rare" || persisted === "endangered") {
+      setDisplayCategory(persisted);
+      return;
+    }
+
+    // otherwise, if verified + has a known scientific name, read from plant catalog
+    const status = (post?.identify_status || "pending").toLowerCase();
+    const sciName =
+      post?.model_predictions?.top_1?.plant_species ||
+      post?.model_predictions?.top_1?.class ||
+      null;
+
+    if (status === "verified" && sciName) {
+      (async () => {
+        try {
+          const snap = await getDoc(doc(db, "plant", sciName));
+          if (snap.exists()) {
+            const cat = (snap.data()?.conservation_status || "").toLowerCase();
+            if (cat === "common" || cat === "rare" || cat === "endangered") {
+              setDisplayCategory(cat);
+            } else {
+              setDisplayCategory(null);
+            }
+          } else {
+            setDisplayCategory(null);
+          }
+        } catch {
+          setDisplayCategory(null);
+        }
+      })();
+    } else {
+      setDisplayCategory(null);
+    }
+  }, [post]); // ← NEW
+  // ---------------------------------------------------------------
+
   useEffect(() => {
     if (!post?.id) return;
     const col = collection(db, "plant_identify", post.id, "comments");
@@ -124,6 +167,21 @@ export default function PlantDetailUser({ navigation, route }) {
     return [];
   }, [post]);
 
+  // NEW: read-only category pill UI
+  const CategoryPill = ({ category }) => {
+    if (!category) return null;
+    let wrap = styles.catCommon;
+    let label = "Common";
+    if (category === "rare") { wrap = styles.catRare; label = "Rare"; }
+    if (category === "endangered") { wrap = styles.catEndangered; label = "Endangered"; }
+    return (
+      <View style={[styles.catPillBase, wrap]}>
+        <Text style={styles.catPillText}>{label}</Text>
+      </View>
+    );
+  };
+  // -----
+
   return (
     <View style={styles.background}>
       <ScrollView
@@ -156,6 +214,12 @@ export default function PlantDetailUser({ navigation, route }) {
           <Text style={styles.value}>{top1?.plant_species || top1?.class || "—"}</Text>
 
           <Text style={styles.label}>Conservation Status:</Text>
+
+          {/* NEW: show category pill if we have one */}
+          <View style={{ marginTop: 6, marginBottom: 6 }}>
+            <CategoryPill category={displayCategory} />
+          </View>
+
           <View style={styles.hr} />
 
           <Text style={[styles.section, { marginTop: 8 }]}>Sighting Details</Text>
@@ -296,4 +360,11 @@ const styles = StyleSheet.create({
 
   report: { marginTop: 10, paddingVertical: 10, alignItems: "flex-start" },
   reportText: { color: "#b05555", fontWeight: "700" },
+
+  // NEW: pill styles
+  catPillBase: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, alignSelf: "flex-start" },
+  catPillText: { fontSize: 11, fontWeight: "700", color: "#fff" },
+  catCommon: { backgroundColor: "#2FA66A" },
+  catRare: { backgroundColor: "#E6A23C" },
+  catEndangered: { backgroundColor: "#D36363" },
 });

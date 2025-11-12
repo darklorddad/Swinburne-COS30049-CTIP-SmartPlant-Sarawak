@@ -16,7 +16,19 @@ import BottomNav from "../components/Navigation";
 import ImageSlideshow from "../components/ImageSlideShow";
 
 import { auth, db } from "../firebase/FirebaseConfig";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  doc,
+  updateDoc,
+  runTransaction,
+  arrayUnion,
+  arrayRemove,
+  increment,
+} from "firebase/firestore";
 import { getFullProfile } from "../firebase/UserProfile/UserUpdate";
 
 const NAV_HEIGHT = 60;
@@ -50,6 +62,8 @@ export default function HomepageUser({ navigation }) {
     auth.currentUser?.displayName ||
     (auth.currentUser?.email ? auth.currentUser.email.split("@")[0] : null) ||
     "User";
+
+  const myId = auth.currentUser?.uid || "anon"; // ← used for like/save
 
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -124,10 +138,12 @@ export default function HomepageUser({ navigation }) {
               v?.model_predictions?.top_3,
             ].filter(Boolean),
             coordinate: v?.coordinate ?? null,
-            like_count: typeof v?.like_count === "number" ? v.like_count : 0,
+            // counts + membership arrays (kept if present)
+            like_count: typeof v?.like_count === "number" ? v.like_count : (Array.isArray(v?.liked_by) ? v.liked_by.length : 0),
             comment_count: typeof v?.comment_count === "number" ? v.comment_count : 0,
             saved_by: Array.isArray(v?.saved_by) ? v.saved_by : [],
             saved_count: typeof v?.saved_count === "number" ? v.saved_count : undefined,
+            liked_by: Array.isArray(v?.liked_by) ? v.liked_by : [], // ← to know if I liked
           };
         });
 
@@ -158,6 +174,7 @@ export default function HomepageUser({ navigation }) {
               like_count: 0,
               comment_count: 0,
               saved_by: [],
+              liked_by: [],
               saved_count: 0,
               identify_status: (newPost.identify_status || "pending").toLowerCase(),
             },
@@ -176,6 +193,99 @@ export default function HomepageUser({ navigation }) {
 
   const openDetail = (post) => navigation.navigate("PostDetail", { postId: post.id });
 
+  // ---- Feed actions (minimal + optimistic) ----
+  const toggleLike = async (p) => {
+    if (!p?.id) return;
+    const ref = doc(db, "plant_identify", p.id);
+    const already = Array.isArray(p.liked_by) && p.liked_by.includes(myId);
+    // optimistic UI
+    setPosts((cur) =>
+      cur.map((x) =>
+        x.id === p.id
+          ? {
+              ...x,
+              liked_by: already ? x.liked_by.filter((u) => u !== myId) : [...x.liked_by, myId],
+              like_count: (x.like_count || 0) + (already ? -1 : 1),
+            }
+          : x
+      )
+    );
+    try {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists()) return;
+        const v = snap.data() || {};
+        const likedBy = Array.isArray(v.liked_by) ? v.liked_by : [];
+        const amIn = likedBy.includes(myId);
+        if (amIn === !already) return; // someone else already applied same change
+        tx.update(ref, {
+          liked_by: already ? arrayRemove(myId) : arrayUnion(myId),
+          like_count: increment(already ? -1 : 1),
+        });
+      });
+    } catch (e) {
+      // revert on failure
+      setPosts((cur) =>
+        cur.map((x) =>
+          x.id === p.id
+            ? {
+                ...x,
+                liked_by: already ? [...x.liked_by, myId] : x.liked_by.filter((u) => u !== myId),
+                like_count: (x.like_count || 0) + (already ? 1 : -1),
+            }
+            : x
+        )
+      );
+    }
+  };
+
+  const toggleSave = async (p) => {
+    if (!p?.id) return;
+    const ref = doc(db, "plant_identify", p.id);
+    const already = Array.isArray(p.saved_by) && p.saved_by.includes(myId);
+    // optimistic UI
+    setPosts((cur) =>
+      cur.map((x) =>
+        x.id === p.id
+          ? {
+              ...x,
+              saved_by: already ? x.saved_by.filter((u) => u !== myId) : [...x.saved_by, myId],
+              saved_count:
+                typeof x.saved_count === "number"
+                  ? x.saved_count + (already ? -1 : 1)
+                  : (x.saved_by?.length || 0) + (already ? -1 : 1),
+            }
+          : x
+      )
+    );
+    try {
+      await updateDoc(ref, {
+        saved_by: already ? arrayRemove(myId) : arrayUnion(myId),
+        saved_count: increment(already ? -1 : 1),
+      });
+    } catch (e) {
+      // revert on failure
+      setPosts((cur) =>
+        cur.map((x) =>
+          x.id === p.id
+            ? {
+                ...x,
+                saved_by: already ? [...x.saved_by, myId] : x.saved_by.filter((u) => u !== myId),
+                saved_count:
+                  typeof x.saved_count === "number"
+                    ? x.saved_count + (already ? 1 : -1)
+                    : (x.saved_by?.length || 0) + (already ? 1 : -1),
+            }
+            : x
+        )
+      );
+    }
+  };
+
+  const openCommentsComposer = (p) =>
+    navigation.navigate("PostDetail", { postId: p.id, openComposer: true });
+  // ------------------------------------------------
+
   const latest = posts[0];
   const formattedDate = useMemo(() => {
     if (!latest?.time) return "—";
@@ -186,7 +296,6 @@ export default function HomepageUser({ navigation }) {
     }
   }, [latest?.time]);
 
-  // Keep your original small round badge design; just position it top-right
   const StatusIcon = ({ status }) => {
     let wrapStyle = styles.iconWrapPending;
     let icon = "time";
@@ -249,7 +358,6 @@ export default function HomepageUser({ navigation }) {
               <Text style={styles.recentMeta}>{formattedDate}</Text>
               <Text style={styles.recentMeta}>{latest.locality ?? "—"}</Text>
             </View>
-            {/* No details here; it lives bottom-right in the feed cards */}
           </TouchableOpacity>
         ) : (
           <View style={[styles.recentCard, { opacity: 0.6 }]}>
@@ -266,6 +374,8 @@ export default function HomepageUser({ navigation }) {
         {posts.map((p) => {
           const savedCount =
             typeof p.saved_count === "number" ? p.saved_count : p.saved_by?.length || 0;
+          const isLiked = Array.isArray(p.liked_by) && p.liked_by.includes(myId);
+          const isSaved = Array.isArray(p.saved_by) && p.saved_by.includes(myId);
 
           return (
             <View key={p.id} style={styles.feedCard}>
@@ -307,18 +417,32 @@ export default function HomepageUser({ navigation }) {
               {/* Bottom action row with Details pill on the right */}
               <View style={styles.feedActions}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <View style={styles.countGroup}>
-                    <Ionicons name="heart-outline" size={20} />
+                  <TouchableOpacity
+                    onPress={() => toggleLike(p)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={styles.countGroup}
+                  >
+                    <Ionicons name={isLiked ? "heart" : "heart-outline"} size={20} />
                     <Text style={styles.countText}>{p.like_count || 0}</Text>
-                  </View>
-                  <View style={[styles.countGroup, { marginLeft: 16 }]}>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => openCommentsComposer(p)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={[styles.countGroup, { marginLeft: 16 }]}
+                  >
                     <Ionicons name="chatbubble-ellipses-outline" size={20} />
                     <Text style={styles.countText}>{p.comment_count || 0}</Text>
-                  </View>
-                  <View style={[styles.countGroup, { marginLeft: 16 }]}>
-                    <Ionicons name="bookmark-outline" size={22} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => toggleSave(p)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={[styles.countGroup, { marginLeft: 16 }]}
+                  >
+                    <Ionicons name={isSaved ? "bookmark" : "bookmark-outline"} size={22} />
                     <Text style={[styles.countText, { marginLeft: 6 }]}>{savedCount}</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
 
                 <TouchableOpacity
@@ -390,7 +514,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
     borderRadius: 12,
     padding: 12,
-    position: "relative", // for absolute badge
+    position: "relative",
   },
   feedHeader: { flexDirection: "row", alignItems: "center" },
   feedAvatar: {
@@ -407,7 +531,6 @@ const styles = StyleSheet.create({
 
   feedImage: { height: 140, backgroundColor: "#5A7B60", borderRadius: 10, marginTop: 12 },
 
-  // action row now places details at bottom-right
   feedActions: {
     marginTop: 10,
     flexDirection: "row",
@@ -417,7 +540,6 @@ const styles = StyleSheet.create({
   countGroup: { flexDirection: "row", alignItems: "center" },
   countText: { marginLeft: 6 },
 
-  // ORIGINAL round status badge look, placed top-right
   iconWrapBase: {
     width: 28,
     height: 28,
@@ -435,7 +557,6 @@ const styles = StyleSheet.create({
   iconWrapPending: { backgroundColor: "#9CA3AF" },
   statusAbsolute: { position: "absolute", top: 8, right: 10, zIndex: 2 },
 
-  // Details pill bottom-right (matches your screenshot)
   detailsBtn: {
     backgroundColor: "#10B981",
     paddingHorizontal: 12,

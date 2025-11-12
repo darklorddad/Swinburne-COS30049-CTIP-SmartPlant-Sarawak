@@ -16,7 +16,19 @@ import BottomNav from "../components/NavigationExpert";
 import ImageSlideshow from "../components/ImageSlideShow";
 
 import { auth, db } from "../firebase/FirebaseConfig";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  doc,
+  runTransaction,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  increment,
+} from "firebase/firestore";
 
 // Match NavigationExpert.js overlay
 const NAV_HEIGHT = 60;
@@ -41,9 +53,13 @@ export default function HomepageExpert({ navigation }) {
     auth.currentUser?.displayName ||
     (auth.currentUser?.email ? auth.currentUser.email.split("@")[0] : "Expert");
 
+  const myId = auth.currentUser?.uid || "anon";
+
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [likeBusy, setLikeBusy] = useState(new Set());   // prevent spam taps
+  const [saveBusy, setSaveBusy] = useState(new Set());
 
   // Live feed
   useEffect(() => {
@@ -70,6 +86,11 @@ export default function HomepageExpert({ navigation }) {
           ? [v.ImageURL]
           : [];
 
+        const liked_by = Array.isArray(v?.liked_by) ? v.liked_by : [];
+        const saved_by = Array.isArray(v?.saved_by) ? v.saved_by : [];
+        const like_count = typeof v?.like_count === "number" ? v.like_count : liked_by.length;
+        const saved_count = typeof v?.saved_count === "number" ? v.saved_count : saved_by.length;
+
         return {
           id: d.id,
           imageURIs,
@@ -85,10 +106,11 @@ export default function HomepageExpert({ navigation }) {
             v?.model_predictions?.top_3,
           ].filter(Boolean),
           coordinate: v?.coordinate ?? null,
-          like_count: typeof v?.like_count === "number" ? v.like_count : 0,
+          like_count,
           comment_count: typeof v?.comment_count === "number" ? v.comment_count : 0,
-          saved_by: Array.isArray(v?.saved_by) ? v.saved_by : [],
-          saved_count: typeof v?.saved_count === "number" ? v.saved_count : undefined,
+          saved_by,
+          saved_count,
+          liked_by,
           identify_status: (v?.identify_status || "pending").toLowerCase(),
         };
       });
@@ -113,7 +135,89 @@ export default function HomepageExpert({ navigation }) {
     }
   }, [latest?.time]);
 
-  const openDetail = (post) => navigation.navigate("PostDetail", { post });
+  const openDetail = (post) => navigation.navigate("PostDetail", { postId: post.id });
+
+  // ===== interactions =====
+  const setPostPartial = (id, patch) =>
+    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+
+  const toggleLike = async (p) => {
+    if (!p?.id) return;
+    if (likeBusy.has(p.id)) return;
+    const busyNext = new Set(likeBusy);
+    busyNext.add(p.id);
+    setLikeBusy(busyNext);
+
+    const already = Array.isArray(p.liked_by) && p.liked_by.includes(myId);
+    const optimisticLikedBy = already
+      ? p.liked_by.filter((x) => x !== myId)
+      : [...(p.liked_by || []), myId];
+    const optimisticLikeCount = (p.like_count || 0) + (already ? -1 : 1);
+
+    // optimistic UI
+    setPostPartial(p.id, { liked_by: optimisticLikedBy, like_count: optimisticLikeCount });
+
+    const postRef = doc(db, "plant_identify", p.id);
+    try {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(postRef);
+        if (!snap.exists()) return;
+        const v = snap.data() || {};
+        const likedBy = Array.isArray(v.liked_by) ? v.liked_by : [];
+        const has = likedBy.includes(myId);
+        if (has && !already) {
+          // server says already liked, but client thought not; just ensure counts ok
+          tx.update(postRef, {});
+          return;
+        }
+        tx.update(postRef, {
+          liked_by: already ? arrayRemove(myId) : arrayUnion(myId),
+          like_count: increment(already ? -1 : 1),
+        });
+      });
+    } catch (e) {
+      // revert on fail
+      setPostPartial(p.id, { liked_by: p.liked_by, like_count: p.like_count });
+      console.log("toggleLike failed:", e);
+    } finally {
+      const done = new Set(likeBusy);
+      done.delete(p.id);
+      setLikeBusy(done);
+    }
+  };
+
+  const toggleSave = async (p) => {
+    if (!p?.id) return;
+    if (saveBusy.has(p.id)) return;
+    const busyNext = new Set(saveBusy);
+    busyNext.add(p.id);
+    setSaveBusy(busyNext);
+
+    const already = Array.isArray(p.saved_by) && p.saved_by.includes(myId);
+    const optimisticSavedBy = already
+      ? p.saved_by.filter((x) => x !== myId)
+      : [...(p.saved_by || []), myId];
+    const optimisticSavedCount = (p.saved_count || 0) + (already ? -1 : 1);
+
+    // optimistic UI
+    setPostPartial(p.id, { saved_by: optimisticSavedBy, saved_count: optimisticSavedCount });
+
+    const postRef = doc(db, "plant_identify", p.id);
+    try {
+      await updateDoc(postRef, {
+        saved_by: already ? arrayRemove(myId) : arrayUnion(myId),
+        saved_count: increment(already ? -1 : 1),
+      });
+    } catch (e) {
+      // revert on fail
+      setPostPartial(p.id, { saved_by: p.saved_by, saved_count: p.saved_count });
+      console.log("toggleSave failed:", e);
+    } finally {
+      const done = new Set(saveBusy);
+      done.delete(p.id);
+      setSaveBusy(done);
+    }
+  };
 
   // Round icon-only badge (same look, we'll position it absolute in styles)
   const StatusIcon = ({ status }) => {
@@ -197,10 +301,12 @@ export default function HomepageExpert({ navigation }) {
           <Text style={styles.pmCount}>{posts.length || 0}</Text>
         </TouchableOpacity>
 
-        {/* Feed — same structure as HomepageUser */}
+        {/* Feed — same structure as HomepageUser, but interactive */}
         {posts.map((p) => {
           const savedCount =
             typeof p.saved_count === "number" ? p.saved_count : p.saved_by?.length || 0;
+          const liked = Array.isArray(p.liked_by) && p.liked_by.includes(myId);
+          const saved = Array.isArray(p.saved_by) && p.saved_by.includes(myId);
 
           return (
             <View key={p.id} style={styles.feedCard}>
@@ -235,21 +341,40 @@ export default function HomepageExpert({ navigation }) {
                 {p.caption ? <Text style={{ marginTop: 8 }}>{p.caption}</Text> : null}
               </TouchableOpacity>
 
-              {/* Bottom row with Details on the right */}
+              {/* Bottom row with interactive icons + Details on the right */}
               <View style={styles.feedActions}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <View style={styles.countGroup}>
-                    <Ionicons name="heart-outline" size={20} />
+                  {/* like */}
+                  <TouchableOpacity
+                    onPress={() => toggleLike(p)}
+                    disabled={likeBusy.has(p.id)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={styles.countGroup}
+                  >
+                    <Ionicons name={liked ? "heart" : "heart-outline"} size={20} />
                     <Text style={styles.countText}>{p.like_count || 0}</Text>
-                  </View>
-                  <View style={[styles.countGroup, { marginLeft: 16 }]}>
+                  </TouchableOpacity>
+
+                  {/* comment -> go to details (composer is in PostDetail) */}
+                  <TouchableOpacity
+                    onPress={() => openDetail(p)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={[styles.countGroup, { marginLeft: 16 }]}
+                  >
                     <Ionicons name="chatbubble-ellipses-outline" size={20} />
                     <Text style={styles.countText}>{p.comment_count || 0}</Text>
-                  </View>
-                  <View style={[styles.countGroup, { marginLeft: 16 }]}>
-                    <Ionicons name="bookmark-outline" size={22} />
+                  </TouchableOpacity>
+
+                  {/* save */}
+                  <TouchableOpacity
+                    onPress={() => toggleSave(p)}
+                    disabled={saveBusy.has(p.id)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={[styles.countGroup, { marginLeft: 16 }]}
+                  >
+                    <Ionicons name={saved ? "bookmark" : "bookmark-outline"} size={22} />
                     <Text style={[styles.countText, { marginLeft: 6 }]}>{savedCount}</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
 
                 <TouchableOpacity
