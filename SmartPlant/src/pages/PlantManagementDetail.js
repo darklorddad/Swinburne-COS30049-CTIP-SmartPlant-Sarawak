@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { submitVerification } from "../firebase/verification/submitVerification";
 import { db, auth } from "../firebase/FirebaseConfig";
 import {
   doc,
@@ -466,28 +467,86 @@ export default function PlantManagementDetail({ route, navigation }) {
         </View>
       </View>
 
-      {/* Actions (only while pending) */}
-      {identifyStatus === "pending" && (
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.btn, styles.approve, loadingAction && { opacity: 0.6 }]}
-            onPress={approve}
-            disabled={loadingAction}
-          >
-            <Text style={styles.btnText}>
-              {mode === "prediction" ? "Approve Prediction" : "Approve New Species"}
-            </Text>
-          </TouchableOpacity>
+      {/* === Combined actions: expert vote OR admin approve/reject === */}
+{identifyStatus === "pending" && (
+  <View style={[styles.actions, { backgroundColor: "#FFF5EB" }]}>
+    {Array.isArray(post?.verification?.assignedExperts) &&
+    post.verification.assignedExperts.includes(auth.currentUser?.uid) ? (
+      // Current user is one of the assigned experts -> show vote (submitVerification)
+      <>
+        <TouchableOpacity
+          style={[styles.btn, styles.approve, loadingAction && { opacity: 0.6 }]}
+          onPress={async () => {
+            setLoadingAction(true);
+            try {
+              await submitVerification({
+                plantIdentifyId: id,
+                expertId: auth.currentUser?.uid,
+                vote: "approve",
+              });
+              Alert.alert("Submitted", "You have approved this identification.");
+              navigation.navigate("PlantManagementList");
+            } catch (e) {
+              console.error("submitVerification failed", e);
+              Alert.alert("Error", e?.message || "Failed to submit verification.");
+            } finally {
+              setLoadingAction(false);
+            }
+          }}
+          disabled={loadingAction}
+        >
+          <Text style={styles.btnText}>Approve</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.btn, styles.reject, loadingAction && { opacity: 0.6 }]}
-            onPress={reject}
-            disabled={loadingAction}
-          >
-            <Text style={styles.btnText}>Reject</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        <TouchableOpacity
+          style={[styles.btn, styles.reject, loadingAction && { opacity: 0.6 }]}
+          onPress={async () => {
+            setLoadingAction(true);
+            try {
+              await submitVerification({
+                plantIdentifyId: id,
+                expertId: auth.currentUser?.uid,
+                vote: "reject",
+              });
+              Alert.alert("Submitted", "You have rejected this identification.");
+              navigation.navigate("PlantManagementList");
+            } catch (e) {
+              console.error("submitVerification failed", e);
+              Alert.alert("Error", e?.message || "Failed to submit verification.");
+            } finally {
+              setLoadingAction(false);
+            }
+          }}
+          disabled={loadingAction}
+        >
+          <Text style={styles.btnText}>Reject</Text>
+        </TouchableOpacity>
+      </>
+    ) : (
+      // Not an assigned expert -> show admin-style approve/reject that modifies catalog
+      <>
+        <TouchableOpacity
+          style={[styles.btn, styles.approve, loadingAction && { opacity: 0.6 }]}
+          onPress={approve}
+          disabled={loadingAction}
+        >
+          <Text style={styles.btnText}>
+            {mode === "prediction" ? "Approve Prediction" : "Approve New Species"}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.btn, styles.reject, loadingAction && { opacity: 0.6 }]}
+          onPress={reject}
+          disabled={loadingAction}
+        >
+          <Text style={styles.btnText}>Reject</Text>
+        </TouchableOpacity>
+      </>
+    )}
+  </View>
+)}
+
     </ScrollView>
   );
 }

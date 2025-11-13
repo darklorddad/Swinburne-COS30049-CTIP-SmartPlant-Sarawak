@@ -19,6 +19,7 @@ import {
   collection,
   doc,
   getDoc,
+  updateDoc
 } from "firebase/firestore";
 import PlantSuggestionCard from "../components/PlantSuggestionCard.js";
 import ImageSlideshow from "../components/ImageSlideShow.js";
@@ -26,6 +27,7 @@ import { useRoute, useNavigation } from "@react-navigation/native";
 // noti
 import { updateNotificationPayload } from "../firebase/notification_user/updateNotificationPayload";
 import { getDisplayName } from "../firebase/UserProfile/getDisplayName";
+import { assignExpertsAndNotify } from "../firebase/verification/assignExpertsAndNotify"; 
 // device/location
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -261,12 +263,15 @@ export default function ResultScreen() {
       );
 
       // ----identify_status ----
-      let identification_status="pending"
-      if (safePred?.[0].confidence >0.7 ){
-        identification_status="verified";
+      let identification_status = "pending";
+      if (safePred?.[0].confidence >= HIGH_CONFIDENCE_THRESHOLD) {
+        identification_status = "verified";
+      } else {
+        identification_status = "pending"; // low-confidence always pending for expert verification
       }
-      // ----- firestore: plant_identify -----
-      // IMPORTANT CHANGE: always start as "pending"  // --- this is so feasible
+
+      // ----- firestore: plant_identify ----
+      // add verification metadata so other parts can rely on it
       const plantData = {
         model_predictions: {
           top_1: {
@@ -286,13 +291,85 @@ export default function ResultScreen() {
         ImageURLs: downloadURLs,
         coordinate: { latitude: latitude ?? null, longitude: longitude ?? null },
         user_id: userID,
-        identify_status: identification_status, 
+        identify_status: identification_status,
         author_name: userName,
         locality,
         visible: "true",
+
+        // verification metadata (used by expert flow)
+        verification: {
+          status: identification_status === "pending" ? "pending" : "auto_verified",
+          required: 3,             // require 3 expert votes
+          assignedExperts: [],     // filled after assignExpertsAndNotify
+          responses: {},           // map expertId -> { vote: "approve"|"reject", at: TS }
+          result: null,            // "approved" | "rejected" | null
+          decidedAt: null,
+        },
       };
 
+      // write plant_identify doc
       const docId = await addPlantIdentify(plantData);
+
+            // noti start verification process (only when low confidence)
+      if (safePred?.[0]?.confidence < HIGH_CONFIDENCE_THRESHOLD) {
+        try {
+          // make sure docId exists
+          if (!docId) {
+            console.error("assignExpertsAndNotify skipped: docId missing");
+          } else {
+            const uploaderUid = userID || null;
+
+            // debug log
+            console.log("[identify_output] calling assignExpertsAndNotify for plantId:", docId, "uploader:", uploaderUid);
+
+            // call assignExpertsAndNotify with expected keys: plantId + uploaderUid + plantData
+            const assigned = await assignExpertsAndNotify({
+              plantId: docId,
+              uploaderUid,
+              plantData: {
+                top1: safePred?.[0]?.class || "Unknown",
+                score: safePred?.[0]?.confidence || 0,
+                imageURLs: downloadURLs,
+                userId: userID,
+                userName,
+              },
+            });
+
+            console.log("[identify_output] assignExpertsAndNotify returned:", assigned);
+
+            // persist assignedExperts if returned
+            if (Array.isArray(assigned) && assigned.length > 0) {
+              try {
+                const plantRef = doc(db, "plant_identify", docId);
+                await updateDoc(plantRef, {
+                  "verification.assignedExperts": assigned,
+                  "verification.status": "pending",
+                });
+                console.log("[identify_output] persisted assignedExperts for", docId);
+              } catch (updErr) {
+                console.warn("Failed to update plant_identify with assignedExperts:", updErr);
+              }
+            } else {
+              console.warn("assignExpertsAndNotify returned no assigned experts for", docId);
+            }
+          }
+        } catch (e) {
+          console.error("assignExpertsAndNotify failed:", e);
+        }
+      } else {
+        // high-confidence path: auto-verified, you may still want to auto-create a post etc.
+        // leave verification.result as "approved"
+        try {
+          const plantRef = doc(db, "plant_identify", docId);
+          await updateDoc(plantRef, {
+            "verification.status": "auto_verified",
+            "verification.result": "approved",
+            "verification.decidedAt": serverTimestamp()
+          });
+        } catch (e) {
+          console.warn("Failed to mark auto_verified:", e);
+        }
+      }
 
       // mirror into markers (best-effort)
       try {
