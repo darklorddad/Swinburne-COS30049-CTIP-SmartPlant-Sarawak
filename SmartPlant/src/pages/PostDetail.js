@@ -200,8 +200,6 @@ export default function PostDetail({ navigation, route }) {
 
   // ❤️ Toggle like (like/unlike) atomically with a transaction
   // ---------- like / save / comment handlers ----------
-// ---------- like / save / comment handlers ----------
-// ---------- like / save / comment handlers ----------
 const toggleLike = async () => {
   if (likeInFlight || !postRef) return;
   setLikeInFlight(true);

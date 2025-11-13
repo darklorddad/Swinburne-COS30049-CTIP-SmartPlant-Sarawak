@@ -93,7 +93,7 @@ export default function NotificationExpert({ navigation }) {
     }
 
     if (n.type === "verification_result") {
-      navigation.navigate("PlantManagementList", { fromNotification: true, notiId: n.id });
+      navigation.navigate("PlantManagementDetail", { id: plantId, fromNotification: true, notiId: n.id });
       return;
     }
 

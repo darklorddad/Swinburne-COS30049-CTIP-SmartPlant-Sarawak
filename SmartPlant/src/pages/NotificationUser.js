@@ -1,25 +1,31 @@
-// pages/NotificationUser.js
+// src/pages/NotificationUser.js
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from "react-native";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase/FirebaseConfig";
+import { db, auth } from "../firebase/FirebaseConfig";
 import BottomNav from "../components/Navigation";
 import { useNotifications } from "../firebase/notification_user/useNotification";
 import { markNotificationRead } from "../firebase/notification_user/markRead";
 import { deleteNotification } from "../firebase/notification_user/deleteNotification";
-import { auth } from "../firebase/FirebaseConfig";
 
 const NAV_HEIGHT = 60;      // bottom bar height
 const NAV_MARGIN_TOP = 150; // the bar's marginTop in your Navigation.js
+const GREEN = "#6EA564";
+const BG = "#fefae0";
 
 export default function NotificationsScreen({ navigation }) {
   const userId = auth.currentUser ? auth.currentUser.uid : null;
-  console.log("[NotificationUser] auth.currentUser:", auth.currentUser ? { uid: auth.currentUser.uid, email: auth.currentUser.email } : null);
-  console.log("[NotificationUser] passed userId to useNotifications:", userId);
-
   const items = useNotifications(userId);
-  // ⚠️ ADD — filter & menu state
-  const [filter, setFilter] = React.useState("all"); // 'all' | 'plant' | 'post' | 'admin'
+
+  // filter state (all | plant | post | admin)
+  const [filter, setFilter] = React.useState("all");
   const [menuOpen, setMenuOpen] = React.useState(false);
 
   React.useLayoutEffect(() => {
@@ -35,7 +41,7 @@ export default function NotificationsScreen({ navigation }) {
         </Text>
       ),
       headerTitleAlign: "center",
-      headerStyle: { backgroundColor: "#fefae0" },
+      headerStyle: { backgroundColor: BG },
       headerTintColor: "#333",
       headerRight: () => (
         <TouchableOpacity
@@ -53,27 +59,10 @@ export default function NotificationsScreen({ navigation }) {
     });
   }, [navigation, filter]);
 
-  
-  const applyFilter = (rows) => {
-    switch (filter) {
-      case "plant":
-        return rows.filter((n) => n.type === "plant_identified");
-      case "post":
-        return rows.filter((n) => n.type === "post_like" || n.type === "post_comment");
-      case "admin":
-        return rows.filter((n) => n.type === "admin_reply");
-      default:
-        return rows;
-    }
-  };
-  const filtered  = applyFilter(items);
-  const newItems  = filtered.filter(n => !n.read);
-  const pastItems = filtered.filter(n =>  n.read);
-    // debug print of items coming from hook
   React.useEffect(() => {
-    console.log("[NotificationUser] useNotifications items count:", items.length, "sample:", items.slice(0,5).map(i => ({ id: i.id, type: i.type, userId: i.userId, read: i.read })));
+    console.log("[NotificationUser] auth.currentUser:", auth.currentUser ? { uid: auth.currentUser.uid, email: auth.currentUser.email } : null);
+    console.log("[NotificationUser] useNotifications items count:", items.length);
   }, [items]);
-
 
   // ---------- helpers ----------
   const formatTime = (ts) => {
@@ -102,150 +91,162 @@ export default function NotificationsScreen({ navigation }) {
           style: "destructive",
           onPress: async () => {
             try { await deleteNotification(n.id); }
-            catch (e) { console.log("delete failed:", e); }
+            catch (e) { console.log("delete failed:", e); Alert.alert("Delete failed"); }
           },
         },
       ]
     );
   };
 
-  const renderRow = (n) => {
-    // Build a prediction array for identify_output regardless of payload shape
-    const buildPrediction = (p = {}) => {
-      // payload has top_1/2/3 directly
-      if (p.top_1 && p.top_2 && p.top_3) {
-        return [
-          { class: p.top_1?.plant_species ?? "Unknown", confidence: p.top_1?.ai_score ?? 0 },
-          { class: p.top_2?.plant_species ?? "Unknown", confidence: p.top_2?.ai_score ?? 0 },
-          { class: p.top_3?.plant_species ?? "Unknown", confidence: p.top_3?.ai_score ?? 0 },
-        ];
-      }
-      // payload.model_predictions.{top_1,top_2,top_3}
-      if (p.model_predictions?.top_1) {
-        const mp = p.model_predictions;
-        return [
-          { class: mp.top_1?.plant_species ?? "Unknown", confidence: mp.top_1?.ai_score ?? 0 },
-          { class: mp.top_2?.plant_species ?? "Unknown", confidence: mp.top_2?.ai_score ?? 0 },
-          { class: mp.top_3?.plant_species ?? "Unknown", confidence: mp.top_3?.ai_score ?? 0 },
-        ];
-      }
-      // legacy: label + confidence only
-      return [{ class: p.label ?? "Unknown", confidence: p.confidence ?? 0 }];
-    };
+  // filter application
+  const applyFilter = (rows) => {
+    switch (filter) {
+      case "plant":
+        return rows.filter((n) => n.type === "plant_identified" || n.type === "verification_result" || n.type === "verification_request");
+      case "post":
+        return rows.filter((n) => n.type === "post_like" || n.type === "post_comment" || n.type === "post_save");
+      case "admin":
+        return rows.filter((n) => n.type === "admin_reply");
+      default:
+        return rows;
+    }
+  };
+  const filtered  = applyFilter(items);
+  const newItems  = filtered.filter(n => !n.read);
+  const pastItems = filtered.filter(n =>  n.read);
 
-    // Better list text: prefer payload top-1 when message/title is missing
+  // Build prediction array helper (copied/kept from your previous logic)
+  const buildPrediction = (p = {}) => {
+    if (p.top_1 && p.top_2 && p.top_3) {
+      return [
+        { class: p.top_1?.plant_species ?? "Unknown", confidence: p.top_1?.ai_score ?? 0 },
+        { class: p.top_2?.plant_species ?? "Unknown", confidence: p.top_2?.ai_score ?? 0 },
+        { class: p.top_3?.plant_species ?? "Unknown", confidence: p.top_3?.ai_score ?? 0 },
+      ];
+    }
+    if (p.model_predictions?.top_1) {
+      const mp = p.model_predictions;
+      return [
+        { class: mp.top_1?.plant_species ?? "Unknown", confidence: mp.top_1?.ai_score ?? 0 },
+        { class: mp.top_2?.plant_species ?? "Unknown", confidence: mp.top_2?.ai_score ?? 0 },
+        { class: mp.top_3?.plant_species ?? "Unknown", confidence: mp.top_3?.ai_score ?? 0 },
+      ];
+    }
+    return [{ class: p.label ?? "Unknown", confidence: p.confidence ?? 0 }];
+  };
+
+  // row press handler
+  const onPressRow = async (n) => {
+    try {
+      await markNotificationRead(n.id);
+    } catch (e) {
+      console.log("mark read failed:", e);
+    }
+
+    // 1) plant_identified -> IdentifyOutput (keep existing behavior)
+    if (n.type === "plant_identified") {
+      const p = n.payload || {};
+      const prediction = buildPrediction(p);
+
+      const imageURLs =
+        Array.isArray(p.imageURLs) ? p.imageURLs :
+        Array.isArray(p.ImageURLs) ? p.ImageURLs :
+        p.imageURL  ? [p.imageURL]  :
+        p.ImageURL  ? [p.ImageURL]  :
+        p.downloadURL ? [p.downloadURL] : [];
+
+      navigation.navigate("IdentifyOutput", {
+        prediction,
+        imageURI: imageURLs,
+        hasImage: imageURLs.length > 0,
+        fromNotification: true,
+        notiId: n.id,
+      });
+      return;
+    }
+
+    // 2) verification_result -> try to go to PostDetail if postId present; otherwise PlantManagementDetail
+    if (n.type === "verification_result") {
+      const payload = n.payload || {};
+      const postId = payload.postId || payload.post_id || null;
+      const plantIdentifyId = payload.plantIdentifyId || payload.plantIdentifyID || payload.plantIdentifyId || payload.plantIdentify || null;
+
+      if (postId) {
+        navigation.navigate("PostDetail", { postId });
+        return;
+      }
+
+      if (plantIdentifyId) {
+        navigation.navigate("PlantManagementDetail", { id: plantIdentifyId, fromNotification: true, notiId: n.id });
+        return;
+      }
+
+      // fallback: just show message
+      Alert.alert(n.title || "Notification", n.message || JSON.stringify(payload || {}));
+      return;
+    }
+
+    // 3) verification_request -> open PlantManagementDetail to verify (expert only)
+    if (n.type === "verification_request") {
+      const plantId =
+        n?.payload?.plantIdentifyId ||
+        n?.payload?.plantId ||
+        n?.payload?.identifyId ||
+        n?.payload?.id;
+      if (!plantId) {
+        Alert.alert("Missing data", "This verification request has no plantId in payload.");
+        return;
+      }
+      navigation.navigate("PlantManagementDetail", { id: plantId, fromNotification: true, notiId: n.id });
+      return;
+    }
+
+    // 4) post interactions -> open PostDetail
+    if (n.type === "post_like" || n.type === "post_save" || n.type === "post_comment") {
+      const postId = n?.payload?.postId;
+      if (!postId) {
+        Alert.alert("Missing post", "This notification has no postId.");
+        return;
+      }
+      navigation.navigate("PostDetail", { postId });
+      return;
+    }
+
+    // 5) admin replies -> open feedback detail if payload.reportId
+    if (n.type === "admin_reply") {
+      const reportId = n?.payload?.reportId;
+      if (!reportId) {
+        Alert.alert("Missing report", "This notification has no reportId.");
+        return;
+      }
+      navigation.navigate("UserFeedbackDetail", { reportId } );
+      return;
+    }
+
+    // default
+    Alert.alert(n.title || "Notification", n.message || JSON.stringify(n.payload || {}));
+  };
+
+  const renderRow = (n) => {
     const top1Name =
       n?.payload?.model_predictions?.top_1?.plant_species ??
       n?.payload?.top_1?.plant_species ??
       n?.payload?.label ??
       "Unknown";
 
-    const rowTitle = n.title || "Plant Identification Complete";
-    //const rowMsg = n.message || top1Name;
-    // prefer actorName (canonical) if this is a post interaction
-const rowMsg =
-  (n.type?.startsWith("post_") && n?.payload?.actorName && n.message
-    ? n.message.replace(/^[^ ]+/, n.payload.actorName) // replace first token with canonical name
-    : n.message) ||
-  top1Name;
-
-    // const onPressRow = async () => {
-    //   try { await markNotificationRead(n.id); }
-    //   catch (e) { console.log("mark read failed:", e); }
-
-    //   if (n.type === "plant_identified") {
-    //     const p = n.payload || {};
-    //     const prediction = buildPrediction(p);
-    //     if (!prediction?.length) {
-    //       Alert.alert("Missing data", "This notification has no prediction data.");
-    //       return;
-    //     }
-
-    //     // Accept multiple possible keys for uploaded image URL
-    //     const imageURL = p.imageURL || p.ImageURL || p.downloadURL || null;
-    //     const isHttpUrl = (u) => typeof u === "string" && /^https?:\/\//.test(u);
-
-
-    //     // Use uploaded image if present; otherwise pass a 1x1 transparent placeholder
-    //     const placeholder =
-    //       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
-
-    //     navigation.navigate("IdentifyOutput", {
-    //     prediction,
-    //     imageURI: imageURL || null,
-    //     hasImage: isHttpUrl(imageURL),  // ✅ 新增這個
-    //     fromNotification: true,
-    //     notiId: n.id,
-    //   });
-
-    //     return;
-    //   }
-
-    //   // add more types here later...
-    // };
-
-    const onPressRow = async () => {
-  try { await markNotificationRead(n.id); } catch (e) { console.log("mark read failed:", e); }
-
-  // 1) Plant identification → identify_output screen
-  if (n.type === "plant_identified") {
-  const p = n.payload || {};
-  const prediction = buildPrediction(p);
-
-  // collect possible image fields -> always an array
-  const imageURLs =
-    Array.isArray(p.imageURLs) ? p.imageURLs :
-    Array.isArray(p.ImageURLs) ? p.ImageURLs :
-    p.imageURL  ? [p.imageURL]  :
-    p.ImageURL  ? [p.ImageURL]  :
-    p.downloadURL ? [p.downloadURL] : [];
-
-  navigation.navigate("IdentifyOutput", {
-    prediction,
-    imageURI: imageURLs,          // pass array
-    hasImage: imageURLs.length > 0,
-    fromNotification: true,
-    notiId: n.id,
-  });
-  return;
-}
-
-
-  // 2) Post interactions → open PostDetailUser with the post loaded by id
-  if (n.type === "post_like" || n.type === "post_save" || n.type === "post_comment") {
-    const postId = n?.payload?.postId;
-    if (!postId) {
-      Alert.alert("Missing post", "This notification has no postId.");
-      return;
-    }
-    // The PostDetail screen fetches the post data itself using the postId.
-    // ⚠️ Use your actual route name. Your file is PostDetailUser.js,
-    // so most stacks register the screen as "PostDetailUser".
-    navigation.navigate("PostDetail", { postId });
-    return;
-  }
-
-  // NotificationUser.js 的 onPressRow 中
-if (n.type === "admin_reply") {
-  const reportId = n?.payload?.reportId;
-  if (!reportId) {
-    Alert.alert("Missing report", "This notification has no reportId.");
-    return;
-  }
-  navigation.navigate("UserFeedbackDetail", { reportId } );
-  return;
-}
-
-// add other types here…
-
-};
+    const rowTitle = n.title || (n.type === "plant_identified" ? "Plant Identification Complete" : "Notification");
+    const rowMsg =
+      (n.type?.startsWith("post_") && n?.payload?.actorName && n.message
+        ? n.message.replace(/^[^ ]+/, n.payload.actorName)
+        : n.message) ||
+      top1Name;
 
     return (
       <TouchableOpacity
         key={n.id}
         style={[styles.row, n.read ? styles.rowRead : styles.rowUnread]}
-        onPress={onPressRow}
-        onLongPress={() => confirmDelete(n)}  // long-press to delete
+        onPress={() => onPressRow(n)}
+        onLongPress={() => confirmDelete(n)}
         delayLongPress={300}
         activeOpacity={0.7}
       >
@@ -259,7 +260,6 @@ if (n.type === "admin_reply") {
 
         <Text style={styles.tag}>{tag(n.type)}</Text>
 
-        {/* tiny trash button (alt to long-press) */}
         <TouchableOpacity onPress={() => confirmDelete(n)} style={styles.trashBtn}>
           <Text style={styles.trashText}>🗑️</Text>
         </TouchableOpacity>
@@ -274,30 +274,28 @@ if (n.type === "admin_reply") {
         contentContainerStyle={[styles.container, { paddingBottom: NAV_HEIGHT + NAV_MARGIN_TOP + 16 }]}
         showsVerticalScrollIndicator={false}
       >
-
-          {/* tiny popup menu */}
-          {menuOpen && (
-            <>
-              {/* tap outside to close */}
-              <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuOpen(false)} />
-              <View style={styles.menu}>
-                {[
-                  { key: "all",   label: "All" },
-                  { key: "plant", label: "Plant identification" },
-                  { key: "post",  label: "Post interactions" },
-                  { key: "admin", label: "Admin replies" },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.key}
-                    style={[styles.menuItem, filter === opt.key && styles.menuItemActive]}
-                    onPress={() => { setFilter(opt.key); setMenuOpen(false); }}
-                  >
-                    <Text style={styles.menuItemText}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          )}
+        {/* tiny popup menu */}
+        {menuOpen && (
+          <>
+            <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuOpen(false)} />
+            <View style={styles.menu}>
+              {[
+                { key: "all",   label: "All" },
+                { key: "plant", label: "Plant identification" },
+                { key: "post",  label: "Post interactions" },
+                { key: "admin", label: "Admin replies" },
+              ].map((opt) => (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.menuItem, filter === opt.key && styles.menuItemActive]}
+                  onPress={() => { setFilter(opt.key); setMenuOpen(false); }}
+                >
+                  <Text style={styles.menuItemText}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
 
         {/* New */}
         <View style={styles.section}>
@@ -327,19 +325,17 @@ if (n.type === "admin_reply") {
 
 const tag = (t) =>
   t === "plant_identified" ? "Plant" :
+  t === "verification_result" ? "Plant" :
+  t === "verification_request" ? "Verify" :
   t === "post_like"       ? "Like"  :
   t === "post_save"       ? "Save"  :
   t === "post_comment"    ? "Comment" :
   t === "admin_reply"     ? "Admin" : "Info";
 
-  const filterLabel = (f) =>
+const filterLabel = (f) =>
   f === "plant" ? "Plant" :
   f === "post"  ? "Post"  :
   f === "admin" ? "Admin" : "All";
-
-/* ---------- styles ---------- */
-const GREEN = "#6EA564";
-const BG = "#fefae0";
 
 const styles = StyleSheet.create({
   background: { flex: 1, backgroundColor: BG },
@@ -368,8 +364,6 @@ const styles = StyleSheet.create({
 
   // dots button & popup
   dotsBtn: { marginLeft: "auto" , zIndex: 60 },
-  dots: { marginLeft: "auto", flexDirection: "row", columnGap: 6 },
-  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#e5e2db" },
   menuBackdrop: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 40,
   },

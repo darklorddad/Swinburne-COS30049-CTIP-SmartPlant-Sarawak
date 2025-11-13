@@ -27,7 +27,7 @@ import { useRoute, useNavigation } from "@react-navigation/native";
 // noti
 import { updateNotificationPayload } from "../firebase/notification_user/updateNotificationPayload";
 import { getDisplayName } from "../firebase/UserProfile/getDisplayName";
-import { assignExpertsAndNotify } from "../firebase/verification/assignExpertsAndNotify"; 
+import assignExpertsAndNotify from "../firebase/verification/assignExpertsAndNotify"; 
 // device/location
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -298,78 +298,65 @@ export default function ResultScreen() {
 
         // verification metadata (used by expert flow)
         verification: {
-          status: identification_status === "pending" ? "pending" : "auto_verified",
-          required: 3,             // require 3 expert votes
-          assignedExperts: [],     // filled after assignExpertsAndNotify
-          responses: {},           // map expertId -> { vote: "approve"|"reject", at: TS }
-          result: null,            // "approved" | "rejected" | null
-          decidedAt: null,
+        status: identification_status === "pending" ? "pending" : "auto_verified",
+        required: 1,             // ⬅️ 现在只要 1 个 expert 作决定
+        assignedExperts: [],     // assignExpertsAndNotify 会填满所有 experts
+        decidedBy: null,         // ⬅️ 新增：是谁决定 verified/rejected
+        responses: {},           // expertUid -> { vote: ..., at: TS }
+        result: null,            // "approved" | "rejected" | null
+        decidedAt: null,
         },
       };
 
       // write plant_identify doc
       const docId = await addPlantIdentify(plantData);
 
-            // noti start verification process (only when low confidence)
-      if (safePred?.[0]?.confidence < HIGH_CONFIDENCE_THRESHOLD) {
-        try {
-          // make sure docId exists
-          if (!docId) {
-            console.error("assignExpertsAndNotify skipped: docId missing");
-          } else {
-            const uploaderUid = userID || null;
+      // ========== assign experts (safe call) ==========
+if (safePred?.[0]?.confidence < HIGH_CONFIDENCE_THRESHOLD) {
+  try {
+    if (!docId) {
+      console.error("assignExpertsAndNotify skipped: docId missing");
+    } else {
+      const uploaderUid = userID || null;
 
-            // debug log
-            console.log("[identify_output] calling assignExpertsAndNotify for plantId:", docId, "uploader:", uploaderUid);
+      console.log("[identify_output] calling assignExpertsAndNotify for plantIdentifyId:", docId, "uploader:", uploaderUid);
 
-            // call assignExpertsAndNotify with expected keys: plantId + uploaderUid + plantData
-            const assigned = await assignExpertsAndNotify({
-              plantId: docId,
-              uploaderUid,
-              plantData: {
-                top1: safePred?.[0]?.class || "Unknown",
-                score: safePred?.[0]?.confidence || 0,
-                imageURLs: downloadURLs,
-                userId: userID,
-                userName,
-              },
-            });
+      // 1) call with the exact param name expected: plantIdentifyId
+      await assignExpertsAndNotify({ plantIdentifyId: docId, payload: { uploaderUid } });
 
-            console.log("[identify_output] assignExpertsAndNotify returned:", assigned);
-
-            // persist assignedExperts if returned
-            if (Array.isArray(assigned) && assigned.length > 0) {
-              try {
-                const plantRef = doc(db, "plant_identify", docId);
-                await updateDoc(plantRef, {
-                  "verification.assignedExperts": assigned,
-                  "verification.status": "pending",
-                });
-                console.log("[identify_output] persisted assignedExperts for", docId);
-              } catch (updErr) {
-                console.warn("Failed to update plant_identify with assignedExperts:", updErr);
-              }
-            } else {
-              console.warn("assignExpertsAndNotify returned no assigned experts for", docId);
-            }
-          }
-        } catch (e) {
-          console.error("assignExpertsAndNotify failed:", e);
+      // 2) re-fetch the plant_identify doc to pick up assignedExperts written by assignExpertsAndNotify
+      try {
+        const plantRef = doc(db, "plant_identify", docId);
+        const plantSnap = await getDoc(plantRef);
+        if (plantSnap.exists()) {
+          const v = plantSnap.data().verification || {};
+          // if you want to persist assignedExperts locally or do other UI logic, use v.assignedExperts
+          console.log("[identify_output] verification after assign:", v);
+          // update local verification.status to pending (defensive)
+          await updateDoc(plantRef, { "verification.status": "pending" });
+        } else {
+          console.warn("[identify_output] plant_identify not found after assignExpertsAndNotify:", docId);
         }
-      } else {
-        // high-confidence path: auto-verified, you may still want to auto-create a post etc.
-        // leave verification.result as "approved"
-        try {
-          const plantRef = doc(db, "plant_identify", docId);
-          await updateDoc(plantRef, {
-            "verification.status": "auto_verified",
-            "verification.result": "approved",
-            "verification.decidedAt": serverTimestamp()
-          });
-        } catch (e) {
-          console.warn("Failed to mark auto_verified:", e);
-        }
+      } catch (rerr) {
+        console.warn("[identify_output] failed to fetch/persist assignedExperts after assign:", rerr);
       }
+    }
+  } catch (e) {
+    console.error("assignExpertsAndNotify failed:", e);
+  }
+} else {
+  // high-confidence auto path (no change)
+  try {
+    const plantRef = doc(db, "plant_identify", docId);
+    await updateDoc(plantRef, {
+      "verification.status": "auto_verified",
+      "verification.result": "approved",
+      "verification.decidedAt": serverTimestamp()
+    });
+  } catch (e) {
+    console.warn("Failed to mark auto_verified:", e);
+  }
+}
 
       // mirror into markers (best-effort)
       try {

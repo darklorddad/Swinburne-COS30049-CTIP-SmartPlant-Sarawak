@@ -1,8 +1,16 @@
-// screens/PlantManagementDetail.js
+// pages/PlantManagementDetail.js
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, TextInput } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Alert,
+  TextInput,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { submitVerification } from "../firebase/verification/submitVerification";
 import { db, auth } from "../firebase/FirebaseConfig";
 import {
   doc,
@@ -12,9 +20,12 @@ import {
   setDoc,
   collection,
   addDoc,
-  arrayUnion,
 } from "firebase/firestore";
 import ImageSlideshow from "../components/ImageSlideShow";
+
+// new imports
+import submitVerification from "../firebase/verification/submitVerification"; // default export
+import { getDisplayName } from "../firebase/UserProfile/getDisplayName";
 
 const fmtDate = (ts) => {
   if (!ts) return "—";
@@ -46,8 +57,6 @@ export default function PlantManagementDetail({ route, navigation }) {
   const [catalogCategory, setCatalogCategory] = useState(null);
 
   // ===== species source mode =====
-  // "prediction" => use top-1 predicted species; status fetched from plant catalog
-  // "new"        => admin types a new scientific name + picks conservation status
   const [mode, setMode] = useState("prediction");
 
   // when admin creates a new species
@@ -55,6 +64,9 @@ export default function PlantManagementDetail({ route, navigation }) {
 
   // conservation status fetched for the predicted sciName from plant catalog
   const [predictionFetchedStatus, setPredictionFetchedStatus] = useState(null);
+
+  // show friendly name for who decided (verified_by / rejected_by / decided_by)
+  const [verifiedByName, setVerifiedByName] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -66,6 +78,20 @@ export default function PlantManagementDetail({ route, navigation }) {
 
         const data = { id: snap.id, ...snap.data() };
         setPost(data);
+
+        // fetch who decided if exists
+        const decidedUid =
+          data?.verified_by || data?.rejected_by || data?.decided_by || null;
+        if (decidedUid) {
+          try {
+            const name = await getDisplayName(decidedUid);
+            if (mounted) setVerifiedByName(name || decidedUid);
+          } catch {
+            if (mounted) setVerifiedByName(decidedUid);
+          }
+        } else {
+          if (mounted) setVerifiedByName(null);
+        }
 
         const existing = (data?.conservation_status || data?.category || "").toLowerCase();
         if (["common", "rare", "endangered"].includes(existing)) {
@@ -163,12 +189,11 @@ export default function PlantManagementDetail({ route, navigation }) {
     let finalCategory = null;
 
     if (mode === "prediction") {
-      // Use predicted species; conservation status fetched from DB
       finalSciName = sciName && sciName !== "—" ? sciName : null;
       finalCategory =
         predictionFetchedStatus || // from plant catalog
-        suggestedCategory ||       // auto-suggested (if available)
-        catalogCategory ||         // read-only fallback (verified)
+        suggestedCategory || // auto-suggested (if available)
+        catalogCategory || // read-only fallback (verified)
         null;
 
       if (!finalSciName) {
@@ -199,18 +224,33 @@ export default function PlantManagementDetail({ route, navigation }) {
 
     setLoadingAction(true);
     try {
-      // 1) Update plant_identify
-      await updateDoc(doc(db, "plant_identify", post.id), {
-        identify_status: "verified",
-        verified_by: auth.currentUser?.uid || "expert",
-        verified_at: serverTimestamp(),
-        conservation_status: finalCategory,
-        categorized_by: auth.currentUser?.uid || "expert",
-        categorized_at: serverTimestamp(),
-        ...(mode === "new" ? { manual_scientific_name: finalSciName } : {}), // optional note
+      // First attempt to submit the verification decision via centralized function.
+      const res = await submitVerification({
+        plantIdentifyId: post.id,
+        expertId: auth.currentUser?.uid,
+        vote: "approve",
       });
 
-      // 2) Merge into plant catalog (append sample_images only; don't overwrite plant_image)
+      if (res && res.alreadyDecided) {
+        // someone already decided
+        const whoUid = res.decidedBy || null;
+        let whoName = whoUid;
+        try {
+          whoName = whoUid ? await getDisplayName(whoUid) : whoUid;
+        } catch {
+          whoName = whoUid;
+        }
+        Alert.alert("Already decided", `This item was already ${res.decidedStatus} by ${whoName || whoUid}.`);
+        // refresh document to reflect final state
+        const fresh = await getDoc(doc(db, "plant_identify", post.id));
+        if (fresh.exists()) setPost({ id: fresh.id, ...fresh.data() });
+        navigation.navigate("PlantManagementList");
+        return;
+      }
+
+      // If successful, we still need to merge into plant catalog (same as before)
+      // Determine finalSciName & finalCategory again (we already validated).
+      // Merge into plant catalog (append sample_images only; don't overwrite plant_image)
       if (finalSciName) {
         const plantRef = doc(db, "plant", finalSciName);
         const sampleImagesPayload = images.length ? { sample_images: arrayUnion(...images) } : {};
@@ -228,16 +268,21 @@ export default function PlantManagementDetail({ route, navigation }) {
         );
       }
 
-      // 3) Log moderation action
-      await addDoc(collection(db, "plant_identify", post.id, "moderation_logs"), {
-        action: "approved",
-        by: auth.currentUser?.uid || "expert",
-        at: serverTimestamp(),
-        category: finalCategory,
-        mode,
-      });
+      // Log moderation action locally as well (best-effort)
+      try {
+        await addDoc(collection(db, "plant_identify", post.id, "moderation_logs"), {
+          action: "approved",
+          by: auth.currentUser?.uid || "expert",
+          at: serverTimestamp(),
+          category: finalCategory,
+          mode,
+        });
+      } catch {
+        // ignore
+      }
 
-      setPost((p) => ({ ...p, identify_status: "verified", conservation_status: finalCategory }));
+      // Update local state so UI shows verified
+      setPost((p) => ({ ...p, identify_status: "verified", conservation_status: finalCategory, verified_by: auth.currentUser?.uid }));
       Alert.alert("Approved", "Post has been verified and categorized.");
       navigation.navigate("PlantManagementList");
     } catch (e) {
@@ -251,19 +296,39 @@ export default function PlantManagementDetail({ route, navigation }) {
     if (!post?.id) return;
     setLoadingAction(true);
     try {
-      await updateDoc(doc(db, "plant_identify", post.id), {
-        identify_status: "rejected",
-        verified_by: auth.currentUser?.uid || "expert",
-        verified_at: serverTimestamp(),
+      const res = await submitVerification({
+        plantIdentifyId: post.id,
+        expertId: auth.currentUser?.uid,
+        vote: "reject",
       });
 
-      await addDoc(collection(db, "plant_identify", post.id, "moderation_logs"), {
-        action: "rejected",
-        by: auth.currentUser?.uid || "expert",
-        at: serverTimestamp(),
-      });
+      if (res && res.alreadyDecided) {
+        const whoUid = res.decidedBy || null;
+        let whoName = whoUid;
+        try {
+          whoName = whoUid ? await getDisplayName(whoUid) : whoUid;
+        } catch {
+          whoName = whoUid;
+        }
+        Alert.alert("Already decided", `This item was already ${res.decidedStatus} by ${whoName || whoUid}.`);
+        const fresh = await getDoc(doc(db, "plant_identify", post.id));
+        if (fresh.exists()) setPost({ id: fresh.id, ...fresh.data() });
+        navigation.navigate("PlantManagementList");
+        return;
+      }
 
-      setPost((p) => ({ ...p, identify_status: "rejected" }));
+      // add moderation log
+      try {
+        await addDoc(collection(db, "plant_identify", post.id, "moderation_logs"), {
+          action: "rejected",
+          by: auth.currentUser?.uid || "expert",
+          at: serverTimestamp(),
+        });
+      } catch {
+        // ignore
+      }
+
+      setPost((p) => ({ ...p, identify_status: "rejected", rejected_by: auth.currentUser?.uid }));
       Alert.alert("Rejected", "Post has been rejected.");
       navigation.navigate("PlantManagementList");
     } catch (e) {
@@ -467,86 +532,38 @@ export default function PlantManagementDetail({ route, navigation }) {
         </View>
       </View>
 
-      {/* === Combined actions: expert vote OR admin approve/reject === */}
-{identifyStatus === "pending" && (
-  <View style={[styles.actions, { backgroundColor: "#FFF5EB" }]}>
-    {Array.isArray(post?.verification?.assignedExperts) &&
-    post.verification.assignedExperts.includes(auth.currentUser?.uid) ? (
-      // Current user is one of the assigned experts -> show vote (submitVerification)
-      <>
-        <TouchableOpacity
-          style={[styles.btn, styles.approve, loadingAction && { opacity: 0.6 }]}
-          onPress={async () => {
-            setLoadingAction(true);
-            try {
-              await submitVerification({
-                plantIdentifyId: id,
-                expertId: auth.currentUser?.uid,
-                vote: "approve",
-              });
-              Alert.alert("Submitted", "You have approved this identification.");
-              navigation.navigate("PlantManagementList");
-            } catch (e) {
-              console.error("submitVerification failed", e);
-              Alert.alert("Error", e?.message || "Failed to submit verification.");
-            } finally {
-              setLoadingAction(false);
-            }
-          }}
-          disabled={loadingAction}
-        >
-          <Text style={styles.btnText}>Approve</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.btn, styles.reject, loadingAction && { opacity: 0.6 }]}
-          onPress={async () => {
-            setLoadingAction(true);
-            try {
-              await submitVerification({
-                plantIdentifyId: id,
-                expertId: auth.currentUser?.uid,
-                vote: "reject",
-              });
-              Alert.alert("Submitted", "You have rejected this identification.");
-              navigation.navigate("PlantManagementList");
-            } catch (e) {
-              console.error("submitVerification failed", e);
-              Alert.alert("Error", e?.message || "Failed to submit verification.");
-            } finally {
-              setLoadingAction(false);
-            }
-          }}
-          disabled={loadingAction}
-        >
-          <Text style={styles.btnText}>Reject</Text>
-        </TouchableOpacity>
-      </>
-    ) : (
-      // Not an assigned expert -> show admin-style approve/reject that modifies catalog
-      <>
-        <TouchableOpacity
-          style={[styles.btn, styles.approve, loadingAction && { opacity: 0.6 }]}
-          onPress={approve}
-          disabled={loadingAction}
-        >
-          <Text style={styles.btnText}>
-            {mode === "prediction" ? "Approve Prediction" : "Approve New Species"}
+      {/* show verified/rejected by when available */}
+      {(identifyStatus === "verified" || identifyStatus === "rejected") && verifiedByName && (
+        <View style={{ marginTop: 10, paddingHorizontal: 16 }}>
+          <Text style={[styles.fieldLabel]}>
+            {identifyStatus === "verified" ? "Verified by:" : "Rejected by:"}
           </Text>
-        </TouchableOpacity>
+          <Text style={styles.value}>{verifiedByName}</Text>
+        </View>
+      )}
 
-        <TouchableOpacity
-          style={[styles.btn, styles.reject, loadingAction && { opacity: 0.6 }]}
-          onPress={reject}
-          disabled={loadingAction}
-        >
-          <Text style={styles.btnText}>Reject</Text>
-        </TouchableOpacity>
-      </>
-    )}
-  </View>
-)}
+      {/* Actions (only while pending) */}
+      {identifyStatus === "pending" && (
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.btn, styles.approve, loadingAction && { opacity: 0.6 }]}
+            onPress={approve}
+            disabled={loadingAction}
+          >
+            <Text style={styles.btnText}>
+              {mode === "prediction" ? "Approve Prediction" : "Approve New Species"}
+            </Text>
+          </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[styles.btn, styles.reject, loadingAction && { opacity: 0.6 }]}
+            onPress={reject}
+            disabled={loadingAction}
+          >
+            <Text style={styles.btnText}>Reject</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -616,7 +633,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 2,
   },
-  catCommonOff: { borderColor: "#2FA66A", backgroundColor: "transparent"},
+  catCommonOff: { borderColor: "#2FA66A", backgroundColor: "transparent" },
   catCommonOn: { borderColor: "#2FA66A", backgroundColor: "#2FA66A" },
   catRareOff: { borderColor: "#E6A23C", backgroundColor: "transparent" },
   catRareOn: { borderColor: "#E6A23C", backgroundColor: "#E6A23C" },

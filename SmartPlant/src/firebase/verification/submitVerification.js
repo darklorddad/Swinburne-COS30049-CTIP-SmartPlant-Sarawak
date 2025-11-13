@@ -1,120 +1,135 @@
 // firebase/verification/submitVerification.js
+import { db } from "../FirebaseConfig";
 import {
   doc,
+  getDoc,
   runTransaction,
   serverTimestamp,
-  getDoc,
-  updateDoc,
+  collection,
 } from "firebase/firestore";
-import { db } from "../FirebaseConfig"; // 调整为你项目中实际路径
-// optional: notification helper if you want to notify owner / experts
-import { addNotification } from "../notification_user/addNotification"; // adjust path if needed
+
+import { addNotification } from "../notification_user/addNotification";
 
 /**
  * submitVerification({ plantIdentifyId, expertId, vote })
  * vote: "approve" | "reject"
+ * Returns structured result instead of throwing on "already decided".
  */
-export async function submitVerification({ plantIdentifyId, expertId, vote }) {
+export default async function submitVerification({ plantIdentifyId, expertId, vote }) {
   if (!plantIdentifyId) throw new Error("plantIdentifyId required");
   if (!expertId) throw new Error("expertId required");
-  if (!["approve", "reject"].includes(vote)) throw new Error("vote must be 'approve' or 'reject'");
+  if (!["approve", "reject"].includes(vote)) throw new Error("vote must be approve or reject");
 
   const plantRef = doc(db, "plant_identify", plantIdentifyId);
 
-  return runTransaction(db, async (tx) => {
-    const snap = await tx.get(plantRef);
-    if (!snap.exists()) throw new Error("Plant identify doc not found");
+  try {
+    const txResult = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(plantRef);
+      if (!snap.exists()) throw new Error("Plant identify not found");
+      const data = snap.data();
 
-    const data = snap.data();
-    const verification = data.verification || {};
-    const required = Number.isInteger(verification.required) ? verification.required : 3;
-    const assigned = Array.isArray(verification.assignedExperts) ? verification.assignedExperts : [];
-
-    // Guard: expert must be assigned (optional - if you want enforce)
-    if (assigned.length > 0 && !assigned.includes(expertId)) {
-      throw new Error("You are not assigned to verify this identification");
-    }
-
-    const responses = verification.responses || {}; // object map expertId -> { vote, at }
-    // set or overwrite this expert's vote
-    responses[expertId] = { vote, at: serverTimestamp() };
-
-    // compute votes so far (use current responses object)
-    const votes = Object.values(responses).map((r) => r.vote);
-    const votesCount = votes.length;
-
-    let newVerification = {
-      ...verification,
-      responses,
-    };
-
-    let finalResult = null;
-    let finalIdentifyStatus = null;
-    let decided = false;
-
-    if (votesCount >= required) {
-      // Apply unanimous rule: only if ALL votes equal "approve" -> approved
-      const allApprove = votes.every((v) => v === "approve");
-      if (allApprove) {
-        finalResult = "approved";
-        finalIdentifyStatus = "verified";
-      } else {
-        // any non-approve among required votes => rejected
-        finalResult = "rejected";
-        finalIdentifyStatus = "rejected";
+      const currentStatus = (data.identify_status || "").toLowerCase();
+      if (currentStatus === "verified" || currentStatus === "rejected") {
+        // someone already decided -> return info (do NOT throw)
+        return {
+          alreadyDecided: true,
+          decidedStatus: currentStatus,
+          decidedBy: data.verified_by || data.rejected_by || data.decided_by || null,
+        };
       }
 
-      newVerification = {
-        ...newVerification,
-        result: finalResult,
-        status: finalIdentifyStatus === "verified" ? "verified" : "pending", // keep status field consistent (optional)
-        decidedAt: serverTimestamp(),
+      const decidedStatus = vote === "approve" ? "verified" : "rejected";
+      const updates = {
+        identify_status: decidedStatus,
+        decided_by: expertId,
+        decided_at: serverTimestamp(),
+        "verification.status": decidedStatus,
+        "verification.decidedAt": serverTimestamp(),
+        "verification.decidedBy": expertId,
       };
-      decided = true;
-    }
 
-    // write the updated verification subfields
-    tx.update(plantRef, {
-      "verification.responses": newVerification.responses,
-      ...(newVerification.result ? { "verification.result": newVerification.result } : {}),
-      ...(newVerification.decidedAt ? { "verification.decidedAt": newVerification.decidedAt } : {}),
-      // set identify_status only when decided to avoid conflicting states
-      ...(decided ? { identify_status: finalIdentifyStatus } : {}),
+      // also set verified_by / rejected_by / verified_at / rejected_at
+      if (decidedStatus === "verified") {
+        updates.verified_by = expertId;
+        updates.verified_at = serverTimestamp();
+        updates["verification.result"] = "approved";
+      } else {
+        updates.rejected_by = expertId;
+        updates.rejected_at = serverTimestamp();
+        updates["verification.result"] = "rejected";
+      }
+
+      tx.update(plantRef, updates);
+
+      // moderation log (create new doc under moderation_logs)
+      const logsCol = collection(db, "plant_identify", plantIdentifyId, "moderation_logs");
+      const newLogRef = doc(logsCol); // generates new id
+      tx.set(newLogRef, {
+        action: decidedStatus === "verified" ? "approved" : "rejected",
+        by: expertId,
+        at: serverTimestamp(),
+      });
+
+      return { alreadyDecided: false, decidedStatus, decidedBy: expertId };
     });
 
-    return { decided, result: finalResult, votesCount, required };
-  }).then(async (res) => {
-    // optional: send notifications after transaction committed
-    // notify owner when decision made
-    if (res.decided) {
-      try {
-        // fetch plant doc to know owner etc
-        const plantSnap = await getDoc(doc(db, "plant_identify", plantIdentifyId));
-        if (plantSnap.exists()) {
-          const plant = plantSnap.data();
-          const ownerUid = plant.user_id;
-          // notify owner
-          if (ownerUid) {
-            await addNotification({
-              userId: ownerUid,
-              type: "verification_result",
-              title: `Identification ${res.result === "approved" ? "Approved" : "Rejected"}`,
-              message: `${plant.model_predictions?.top_1?.plant_species || "Plant"} was ${res.result}`,
-              payload: { plantIdentifyId, result: res.result },
-            });
-          }
-          // optionally notify assigned experts that decision reached
-        }
-      } catch (e) {
-        // non-fatal - notification failure shouldn't break flow
-        console.warn("post-decision notification failed", e);
-      }
+    // After transaction: if we got alreadyDecided true, return that object
+    if (txResult.alreadyDecided) {
+      return { ok: false, alreadyDecided: true, decidedStatus: txResult.decidedStatus, decidedBy: txResult.decidedBy };
     }
-    return res;
-  }).catch((err) => {
-    // bubble error
-    throw err;
-  });
-}
 
-export default submitVerification;
+    // txResult indicates success and decidedBy
+    // notify uploader (best-effort)
+    try {
+      const snapAfter = await getDoc(doc(db, "plant_identify", plantIdentifyId));
+      if (snapAfter.exists()) {
+        const plant = snapAfter.data();
+        const ownerUid = plant.uploaderUid || plant.user_id || plant.userId || plant.userUid || null;
+        const postId = plant.postId || plant.post_id || null;
+        const decidedStatus = txResult.decidedStatus || (txResult.alreadyDecided ? txResult.decidedStatus : null);
+
+        if (ownerUid) {
+          await addNotification({
+            userId: ownerUid,
+            type: "verification_result",
+            title: decidedStatus === "verified" ? "Plant Identification Verified" : "Plant Identification Rejected",
+            message: decidedStatus === "verified"
+              ? "An expert has approved your plant identification."
+              : "An expert has rejected your plant identification.",
+            payload: {
+              plantIdentifyId,
+              result: decidedStatus,
+              decidedBy: txResult.decidedBy,
+              postId: postId || null,
+            },
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.warn("submitVerification notification error (non-fatal):", notifErr);
+    }
+
+    // mark verification_request notifications as read (best-effort)
+    try {
+      // We intentionally run a lightweight query outside transaction to mark related verification_request notifications read.
+      // Implementation is optional here — keep as best-effort to avoid blocking main flow.
+      const { query, where, getDocs, updateDoc } = await import("firebase/firestore");
+      const notiCol = collection(db, "notifications");
+      const q = query(notiCol, where("type", "==", "verification_request"), where("payload.plantIdentifyId", "==", plantIdentifyId));
+      const snaps = await getDocs(q);
+      const p = [];
+      snaps.forEach((d) => {
+        p.push(updateDoc(doc(db, "notifications", d.id), { read: true }));
+      });
+      await Promise.all(p);
+    } catch (e) {
+      // non-fatal
+    }
+
+    return { ok: true, decidedBy: txResult.decidedBy, decidedStatus: txResult.decidedStatus };
+  } catch (e) {
+    // any unexpected error -> rethrow so caller can handle
+    console.error("submitVerification transaction failed:", e);
+    throw e;
+  }
+}
