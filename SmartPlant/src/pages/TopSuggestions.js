@@ -1,5 +1,5 @@
 // pages/TopSuggestions.js
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   View,
   Text,
@@ -9,10 +9,7 @@ import {
 } from "react-native";
 import BottomNav from "../components/Navigation";
 import { TOP_PAD } from "../components/StatusBarManager";
-
-// Firestore
-import { db } from "../firebase/FirebaseConfig";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { useRoute } from "@react-navigation/native";
 
 // helper
 const fmtDate = (ms) => {
@@ -21,67 +18,61 @@ const fmtDate = (ms) => {
 };
 
 export default function TopSuggestions() {
-  const [rows, setRows] = useState([]);
+  const route = useRoute();
+  const { prediction, post } = route.params || {};
 
-  useEffect(() => {
-    // Get a recent window of posts, then compute top-3 by confidence client-side
-    const qRef = query(
-      collection(db, "plant_identify"),
-      orderBy("createdAt", "desc"),
-      limit(200) // adjust if you want a larger/smaller window
-    );
+  // Normalize to exactly the 3 outputs from identify_output
+  const cards = useMemo(() => {
+    // 1) If the identify_output passed predictions directly
+    let preds = Array.isArray(prediction) ? prediction : [];
 
-    const unsub = onSnapshot(qRef, (snap) => {
-      const items = snap.docs.map((d) => {
-        const v = d.data() || {};
+    // 2) Or if a post was passed with model_predictions
+    if ((!preds || preds.length === 0) && post?.model_predictions) {
+      preds = [
+        post.model_predictions.top_1,
+        post.model_predictions.top_2,
+        post.model_predictions.top_3,
+      ].filter(Boolean);
+    }
 
-        const top1 = v?.model_predictions?.top_1 || {};
-        const species = top1?.plant_species ?? top1?.class ?? "Unknown Plant";
-        const score = typeof top1?.ai_score === "number"
-          ? top1.ai_score
-          : (typeof top1?.confidence === "number" ? top1.confidence : null);
+    // Keep only top 3 (already ordered by your pipeline), and map to UI model
+    const three = (preds || []).slice(0, 3);
 
-        const createdMs =
-          v?.createdAt?.toMillis?.() ??
-          (v?.createdAt?.seconds ? v.createdAt.seconds * 1000 : null);
+    // pick a display date (from post if provided)
+    const dateMs =
+      post?.time ??
+      post?.createdAt?.toMillis?.() ??
+      (post?.createdAt?.seconds ? post.createdAt.seconds * 1000 : null);
 
-        const imageURIs = Array.isArray(v?.ImageURLs) && v.ImageURLs.length
-          ? v.ImageURLs
-          : (v?.ImageURL ? [v.ImageURL] : []);
+    // pick a thumb from post if provided
+    const thumb =
+      (Array.isArray(post?.imageURIs) && post.imageURIs[0]) ||
+      (Array.isArray(post?.ImageURLs) && post.ImageURLs[0]) ||
+      post?.ImageURL ||
+      null;
 
-        return {
-          id: d.id,
-          species,
-          score,                 // 0..1 (or null)
-          date: fmtDate(createdMs),
-          thumb: imageURIs[0] || null,
-        };
-      });
+    const rows = three.map((p, idx) => {
+      const species = p?.plant_species ?? p?.class ?? "Unknown Plant";
+      const score = typeof p?.ai_score === "number"
+        ? p.ai_score
+        : (typeof p?.confidence === "number" ? p.confidence : null);
 
-      setRows(items);
+      return {
+        id: `${post?.id || "pred"}-${idx}`,
+        title: species,
+        confidence: typeof score === "number" ? Math.round(score * 100) : null,
+        date: fmtDate(dateMs),
+        thumb,
+      };
     });
 
-    return () => unsub();
-  }, []);
-
-  const cards = useMemo(() => {
-    const scored = rows
-      .filter((r) => typeof r.score === "number")
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
-      .map((r, idx) => ({
-        id: r.id || idx,
-        title: r.species || "Unknown Plant",
-        confidence: Math.round((r.score || 0) * 100),
-        date: r.date,
-        thumb: r.thumb,
-      }));
-
-    if (scored.length === 0) {
+    // fallback if nothing was passed
+    if (rows.length === 0) {
       return [{ id: "empty", title: "No suggestions", confidence: null, date: "—", thumb: null }];
     }
-    return scored;
-  }, [rows]);
+
+    return rows;
+  }, [prediction, post]);
 
   return (
     <View style={styles.background}>

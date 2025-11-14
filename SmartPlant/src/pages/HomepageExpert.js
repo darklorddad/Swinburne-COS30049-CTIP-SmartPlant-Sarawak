@@ -30,11 +30,8 @@ import {
   increment,
 } from "firebase/firestore";
 
-// Match NavigationExpert.js overlay
 const NAV_HEIGHT = 60;
 const NAV_MARGIN_TOP = 150;
-
-// small top padding so the heading sits lower (under status bar / notch safely)
 const TOP_PAD = Platform.OS === "ios" ? 56 : (StatusBar.currentHeight || 0) + 8;
 
 const timeAgo = (ms) => {
@@ -58,10 +55,9 @@ export default function HomepageExpert({ navigation }) {
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [likeBusy, setLikeBusy] = useState(new Set());   // prevent spam taps
+  const [likeBusy, setLikeBusy] = useState(new Set());
   const [saveBusy, setSaveBusy] = useState(new Set());
 
-  // Live feed
   useEffect(() => {
     const qRef = query(
       collection(db, "plant_identify"),
@@ -112,10 +108,14 @@ export default function HomepageExpert({ navigation }) {
           saved_count,
           liked_by,
           identify_status: (v?.identify_status || "pending").toLowerCase(),
+
+          manual_scientific_name:
+            typeof v?.manual_scientific_name === "string" ? v.manual_scientific_name : null,
         };
       });
 
-      setPosts(items);
+      const visibleItems = items.filter((it) => it.identify_status !== "rejected");
+      setPosts(visibleItems);
     });
     return () => unsub();
   }, []);
@@ -135,9 +135,18 @@ export default function HomepageExpert({ navigation }) {
     }
   }, [latest?.time]);
 
+  const recentTitle = useMemo(() => {
+    if (!latest) return "Plant";
+    const manual = (latest.manual_scientific_name || "").trim();
+    if (manual) return manual;
+    const top1 =
+      (latest.prediction && latest.prediction[0]) ||
+      (latest.model_predictions?.top_1 ?? null);
+    return top1?.plant_species || top1?.class || "Plant";
+  }, [latest]);
+
   const openDetail = (post) => navigation.navigate("PostDetail", { postId: post.id });
 
-  // ===== interactions =====
   const setPostPartial = (id, patch) =>
     setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
@@ -154,7 +163,6 @@ export default function HomepageExpert({ navigation }) {
       : [...(p.liked_by || []), myId];
     const optimisticLikeCount = (p.like_count || 0) + (already ? -1 : 1);
 
-    // optimistic UI
     setPostPartial(p.id, { liked_by: optimisticLikedBy, like_count: optimisticLikeCount });
 
     const postRef = doc(db, "plant_identify", p.id);
@@ -166,7 +174,6 @@ export default function HomepageExpert({ navigation }) {
         const likedBy = Array.isArray(v.liked_by) ? v.liked_by : [];
         const has = likedBy.includes(myId);
         if (has && !already) {
-          // server says already liked, but client thought not; just ensure counts ok
           tx.update(postRef, {});
           return;
         }
@@ -176,7 +183,6 @@ export default function HomepageExpert({ navigation }) {
         });
       });
     } catch (e) {
-      // revert on fail
       setPostPartial(p.id, { liked_by: p.liked_by, like_count: p.like_count });
       console.log("toggleLike failed:", e);
     } finally {
@@ -199,7 +205,6 @@ export default function HomepageExpert({ navigation }) {
       : [...(p.saved_by || []), myId];
     const optimisticSavedCount = (p.saved_count || 0) + (already ? -1 : 1);
 
-    // optimistic UI
     setPostPartial(p.id, { saved_by: optimisticSavedBy, saved_count: optimisticSavedCount });
 
     const postRef = doc(db, "plant_identify", p.id);
@@ -209,7 +214,6 @@ export default function HomepageExpert({ navigation }) {
         saved_count: increment(already ? -1 : 1),
       });
     } catch (e) {
-      // revert on fail
       setPostPartial(p.id, { saved_by: p.saved_by, saved_count: p.saved_count });
       console.log("toggleSave failed:", e);
     } finally {
@@ -219,7 +223,6 @@ export default function HomepageExpert({ navigation }) {
     }
   };
 
-  // Round icon-only badge (same look, we'll position it absolute in styles)
   const StatusIcon = ({ status }) => {
     let style = styles.iconWrapPending;
     let icon = "time";
@@ -251,7 +254,7 @@ export default function HomepageExpert({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Greeting (same as user) */}
+        {/* Greeting */}
         <View style={styles.greetingCard}>
           <View style={styles.avatar} />
           <View style={{ flex: 1 }}>
@@ -272,8 +275,7 @@ export default function HomepageExpert({ navigation }) {
             )}
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Text style={styles.recentTitle}>Plant</Text>
-                {/* keep small inline badge for the recent row */}
+                <Text style={styles.recentTitle}>{recentTitle}</Text>
                 <StatusIcon status={latest.identify_status} />
               </View>
               <Text style={styles.recentMeta}>{formattedDate}</Text>
@@ -301,16 +303,21 @@ export default function HomepageExpert({ navigation }) {
           <Text style={styles.pmCount}>{posts.length || 0}</Text>
         </TouchableOpacity>
 
-        {/* Feed — same structure as HomepageUser, but interactive */}
+        {/* Feed */}
         {posts.map((p) => {
           const savedCount =
             typeof p.saved_count === "number" ? p.saved_count : p.saved_by?.length || 0;
           const liked = Array.isArray(p.liked_by) && p.liked_by.includes(myId);
           const saved = Array.isArray(p.saved_by) && p.saved_by.includes(myId);
 
+          // plant name for card
+          const plantName =
+            (p.manual_scientific_name && p.manual_scientific_name.trim()) ||
+            (p.prediction?.[0]?.plant_species || p.prediction?.[0]?.class) ||
+            "Plant";
+
           return (
             <View key={p.id} style={styles.feedCard}>
-              {/* Absolute verified badge top-right */}
               <View style={styles.statusAbsolute}>
                 <StatusIcon status={p.identify_status} />
               </View>
@@ -338,13 +345,12 @@ export default function HomepageExpert({ navigation }) {
                   <View style={styles.feedImage} />
                 )}
 
-                {p.caption ? <Text style={{ marginTop: 8 }}>{p.caption}</Text> : null}
+                {/* Render plant name instead of "Top: ..." */}
+                <Text style={{ marginTop: 8 }}>{plantName}</Text>
               </TouchableOpacity>
 
-              {/* Bottom row with interactive icons + Details on the right */}
               <View style={styles.feedActions}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  {/* like */}
                   <TouchableOpacity
                     onPress={() => toggleLike(p)}
                     disabled={likeBusy.has(p.id)}
@@ -355,7 +361,6 @@ export default function HomepageExpert({ navigation }) {
                     <Text style={styles.countText}>{p.like_count || 0}</Text>
                   </TouchableOpacity>
 
-                  {/* comment -> go to details (composer is in PostDetail) */}
                   <TouchableOpacity
                     onPress={() => openDetail(p)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -365,7 +370,6 @@ export default function HomepageExpert({ navigation }) {
                     <Text style={styles.countText}>{p.comment_count || 0}</Text>
                   </TouchableOpacity>
 
-                  {/* save */}
                   <TouchableOpacity
                     onPress={() => toggleSave(p)}
                     disabled={saveBusy.has(p.id)}
@@ -389,8 +393,7 @@ export default function HomepageExpert({ navigation }) {
           );
         })}
 
-        {/* Banner (kept) */}
-        <View style={styles.banner} />
+        {/* (no bottom green banner) */}
       </ScrollView>
 
       <BottomNav navigation={navigation} />
@@ -403,7 +406,6 @@ const styles = StyleSheet.create({
   scroller: { marginBottom: -NAV_MARGIN_TOP },
   container: { flexGrow: 1, padding: 16, minHeight: "100%" },
 
-  // Greeting (same as user)
   greetingCard: {
     backgroundColor: "#FFF",
     borderRadius: 16,
@@ -420,7 +422,6 @@ const styles = StyleSheet.create({
 
   sectionTitle: { marginTop: 18, marginBottom: 8, fontWeight: "700", color: "#2b2b2b" },
 
-  // Recent (same footprint as user)
   recentCard: {
     backgroundColor: "#E7F0E5",
     borderRadius: 16,
@@ -441,7 +442,6 @@ const styles = StyleSheet.create({
   recentMeta: { color: "#2b2b2b", opacity: 0.7, fontSize: 12 },
   linkText: { color: "#2b2b2b", opacity: 0.8, fontWeight: "600" },
 
-  // PM summary
   pmCard: {
     marginTop: 12,
     backgroundColor: "#D1E7D2",
@@ -453,13 +453,12 @@ const styles = StyleSheet.create({
   pmTitle: { color: "#2b2b2b", fontWeight: "700" },
   pmCount: { marginTop: 6, fontSize: 28, fontWeight: "800", color: "#2b2b2b" },
 
-  // Feed
   feedCard: {
     marginTop: 16,
     backgroundColor: "#FFF",
     borderRadius: 12,
     padding: 12,
-    position: "relative", // needed for absolute status badge
+    position: "relative",
   },
   feedHeader: { flexDirection: "row", alignItems: "center" },
   feedAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#D7E3D8" },
@@ -468,7 +467,6 @@ const styles = StyleSheet.create({
 
   feedImage: { height: 140, backgroundColor: "#5A7B60", borderRadius: 10, marginTop: 12 },
 
-  // bottom row now has details on the right
   feedActions: {
     flexDirection: "row",
     alignItems: "center",
@@ -478,9 +476,6 @@ const styles = StyleSheet.create({
   countGroup: { flexDirection: "row", alignItems: "center" },
   countText: { marginLeft: 6 },
 
-  banner: { marginTop: 12, height: 160, borderRadius: 12, backgroundColor: "#5A7B60" },
-
-  // ===== Visible icon-only status badge (same look) =====
   iconWrapBase: {
     width: 28,
     height: 28,
@@ -497,10 +492,8 @@ const styles = StyleSheet.create({
   iconWrapRejected: { backgroundColor: "#D36363" },
   iconWrapPending: { backgroundColor: "#9CA3AF" },
 
-  // absolute placement like the screenshot
   statusAbsolute: { position: "absolute", top: 8, right: 10, zIndex: 2 },
 
-  // Details pill bottom-right
   detailsBtn: {
     backgroundColor: "#10B981",
     paddingHorizontal: 12,

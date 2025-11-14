@@ -58,6 +58,13 @@ export default function PlantDetailUser({ navigation, route }) {
   }, [post]);
   const top1 = prediction?.[0];
 
+  // NEW: scientific name prioritizes manual_scientific_name from PlantManagementDetail
+  const scientificName = useMemo(() => {
+    const manual = typeof post?.manual_scientific_name === "string" ? post.manual_scientific_name.trim() : "";
+    if (manual) return manual;
+    return top1?.plant_species || top1?.class || "—";
+  }, [post, top1]);
+
   const [currentSlide, setCurrentSlide] = useState(0);
   const [userProfiles, setUserProfiles] = useState(new Map());
   // ---- Live comments pulled from the same place as PostDetail ----
@@ -78,6 +85,7 @@ export default function PlantDetailUser({ navigation, route }) {
     // otherwise, if verified + has a known scientific name, read from plant catalog
     const status = (post?.identify_status || "pending").toLowerCase();
     const sciName =
+      post?.manual_scientific_name || // if expert created a new species
       post?.model_predictions?.top_1?.plant_species ||
       post?.model_predictions?.top_1?.class ||
       null;
@@ -211,7 +219,7 @@ export default function PlantDetailUser({ navigation, route }) {
           <Text style={styles.value}>—</Text>
 
           <Text style={styles.label}>Scientific Name:</Text>
-          <Text style={styles.value}>{top1?.plant_species || top1?.class || "—"}</Text>
+          <Text style={styles.value}>{scientificName}</Text>
 
           <Text style={styles.label}>Conservation Status:</Text>
 
@@ -238,7 +246,7 @@ export default function PlantDetailUser({ navigation, route }) {
                   focus: {
                     latitude: Number(lat),
                     longitude: Number(lng),
-                    title: top1?.plant_species || top1?.class || "Plant",
+                    title: scientificName || "Plant",
                   },
                 })
               }

@@ -138,12 +138,20 @@ export default function HomepageUser({ navigation }) {
               v?.model_predictions?.top_3,
             ].filter(Boolean),
             coordinate: v?.coordinate ?? null,
-            // counts + membership arrays (kept if present)
-            like_count: typeof v?.like_count === "number" ? v.like_count : (Array.isArray(v?.liked_by) ? v.liked_by.length : 0),
+            like_count:
+              typeof v?.like_count === "number"
+                ? v.like_count
+                : Array.isArray(v?.liked_by)
+                ? v.liked_by.length
+                : 0,
             comment_count: typeof v?.comment_count === "number" ? v.comment_count : 0,
             saved_by: Array.isArray(v?.saved_by) ? v.saved_by : [],
             saved_count: typeof v?.saved_count === "number" ? v.saved_count : undefined,
-            liked_by: Array.isArray(v?.liked_by) ? v.liked_by : [], // ← to know if I liked
+            liked_by: Array.isArray(v?.liked_by) ? v.liked_by : [],
+
+            // ← allow showing a manually assigned scientific name (new species)
+            manual_scientific_name:
+              typeof v?.manual_scientific_name === "string" ? v.manual_scientific_name : null,
           };
         });
 
@@ -193,12 +201,62 @@ export default function HomepageUser({ navigation }) {
 
   const openDetail = (post) => navigation.navigate("PostDetail", { postId: post.id });
 
+  // ---- Filter: hide rejected; pending only if mine ----
+  const visiblePosts = useMemo(
+    () =>
+      posts.filter((p) => {
+        const status = (p.identify_status || "pending").toLowerCase();
+        if (status === "rejected") return false;
+        if (status === "pending") return p.user_id === myId;
+        return true;
+      }),
+    [posts, myId]
+  );
+
+  // Recent card data based on visible posts
+  const latest = visiblePosts[0];
+  const formattedDate = useMemo(() => {
+    if (!latest?.time) return "—";
+    try {
+      return new Date(latest.time).toDateString();
+    } catch {
+      return "—";
+    }
+  }, [latest?.time]);
+
+  // Prefer manual (new species) name; else model top-1 species/class
+  const recentTitle = useMemo(() => {
+    if (!latest) return "Plant";
+    const manual = (latest.manual_scientific_name || "").trim();
+    if (manual) return manual;
+    const top1 =
+      (latest.prediction && latest.prediction[0]) ||
+      (latest.model_predictions?.top_1 ?? null);
+    return top1?.plant_species || top1?.class || "Plant";
+  }, [latest]);
+
+  const StatusIcon = ({ status }) => {
+    let wrapStyle = styles.iconWrapPending;
+    let icon = "time";
+    if (status === "verified") {
+      wrapStyle = styles.iconWrapVerified;
+      icon = "checkmark";
+    } else if (status === "rejected") {
+      wrapStyle = styles.iconWrapRejected;
+      icon = "close";
+    }
+    return (
+      <View style={[styles.iconWrapBase, wrapStyle]}>
+        <Ionicons name={icon} size={16} color="#fff" />
+      </View>
+    );
+  };
+
   // ---- Feed actions (minimal + optimistic) ----
   const toggleLike = async (p) => {
     if (!p?.id) return;
     const ref = doc(db, "plant_identify", p.id);
     const already = Array.isArray(p.liked_by) && p.liked_by.includes(myId);
-    // optimistic UI
     setPosts((cur) =>
       cur.map((x) =>
         x.id === p.id
@@ -217,14 +275,13 @@ export default function HomepageUser({ navigation }) {
         const v = snap.data() || {};
         const likedBy = Array.isArray(v.liked_by) ? v.liked_by : [];
         const amIn = likedBy.includes(myId);
-        if (amIn === !already) return; // someone else already applied same change
+        if (amIn === !already) return;
         tx.update(ref, {
           liked_by: already ? arrayRemove(myId) : arrayUnion(myId),
           like_count: increment(already ? -1 : 1),
         });
       });
     } catch (e) {
-      // revert on failure
       setPosts((cur) =>
         cur.map((x) =>
           x.id === p.id
@@ -232,7 +289,7 @@ export default function HomepageUser({ navigation }) {
                 ...x,
                 liked_by: already ? [...x.liked_by, myId] : x.liked_by.filter((u) => u !== myId),
                 like_count: (x.like_count || 0) + (already ? 1 : -1),
-            }
+              }
             : x
         )
       );
@@ -243,7 +300,6 @@ export default function HomepageUser({ navigation }) {
     if (!p?.id) return;
     const ref = doc(db, "plant_identify", p.id);
     const already = Array.isArray(p.saved_by) && p.saved_by.includes(myId);
-    // optimistic UI
     setPosts((cur) =>
       cur.map((x) =>
         x.id === p.id
@@ -264,7 +320,6 @@ export default function HomepageUser({ navigation }) {
         saved_count: increment(already ? -1 : 1),
       });
     } catch (e) {
-      // revert on failure
       setPosts((cur) =>
         cur.map((x) =>
           x.id === p.id
@@ -275,7 +330,7 @@ export default function HomepageUser({ navigation }) {
                   typeof x.saved_count === "number"
                     ? x.saved_count + (already ? 1 : -1)
                     : (x.saved_by?.length || 0) + (already ? 1 : -1),
-            }
+              }
             : x
         )
       );
@@ -284,34 +339,6 @@ export default function HomepageUser({ navigation }) {
 
   const openCommentsComposer = (p) =>
     navigation.navigate("PostDetail", { postId: p.id, openComposer: true });
-  // ------------------------------------------------
-
-  const latest = posts[0];
-  const formattedDate = useMemo(() => {
-    if (!latest?.time) return "—";
-    try {
-      return new Date(latest.time).toDateString();
-    } catch {
-      return "—";
-    }
-  }, [latest?.time]);
-
-  const StatusIcon = ({ status }) => {
-    let wrapStyle = styles.iconWrapPending;
-    let icon = "time";
-    if (status === "verified") {
-      wrapStyle = styles.iconWrapVerified;
-      icon = "checkmark";
-    } else if (status === "rejected") {
-      wrapStyle = styles.iconWrapRejected;
-      icon = "close";
-    }
-    return (
-      <View style={[styles.iconWrapBase, wrapStyle]}>
-        <Ionicons name={icon} size={16} color="#fff" />
-      </View>
-    );
-  };
 
   return (
     <View style={styles.background}>
@@ -354,7 +381,7 @@ export default function HomepageUser({ navigation }) {
               <View style={styles.recentThumb} />
             )}
             <View style={{ flex: 1 }}>
-              <Text style={styles.recentTitle}>Plant</Text>
+              <Text style={styles.recentTitle}>{recentTitle}</Text>
               <Text style={styles.recentMeta}>{formattedDate}</Text>
               <Text style={styles.recentMeta}>{latest.locality ?? "—"}</Text>
             </View>
@@ -371,11 +398,17 @@ export default function HomepageUser({ navigation }) {
         )}
 
         {/* Feed list */}
-        {posts.map((p) => {
+        {visiblePosts.map((p) => {
           const savedCount =
             typeof p.saved_count === "number" ? p.saved_count : p.saved_by?.length || 0;
           const isLiked = Array.isArray(p.liked_by) && p.liked_by.includes(myId);
           const isSaved = Array.isArray(p.saved_by) && p.saved_by.includes(myId);
+
+          // ---- Plant name for each card (manual first, else top-1) ----
+          const plantName =
+            (p.manual_scientific_name && p.manual_scientific_name.trim()) ||
+            (p.prediction?.[0]?.plant_species || p.prediction?.[0]?.class) ||
+            "Plant";
 
           return (
             <View key={p.id} style={styles.feedCard}>
@@ -411,7 +444,8 @@ export default function HomepageUser({ navigation }) {
                   <View style={styles.feedImage} />
                 )}
 
-                {p.caption ? <Text style={{ marginTop: 8 }}>{p.caption}</Text> : null}
+                {/* Render plant name instead of "Top: ..." */}
+                <Text style={{ marginTop: 8 }}>{plantName}</Text>
               </TouchableOpacity>
 
               {/* Bottom action row with Details pill on the right */}
