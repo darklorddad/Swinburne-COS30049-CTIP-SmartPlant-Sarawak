@@ -114,7 +114,6 @@ export default function UserLogin({navigation}){
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.text1}>Remember Me</Text>
           <Text style={styles.link1} onPress={() => navigation.navigate("ForgetPassword")}>Forget Password</Text>
 
         </View>
@@ -197,7 +196,7 @@ const styles = StyleSheet.create({
   backlogo: {
     width: 40,
     height: 40,
-    bottom: 70,
+    bottom: 140,
     right: 165,
   },
 
@@ -285,6 +284,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 5,
     marginTop: 5,
+    marginLeft: 221,
   },
 
   text1: {

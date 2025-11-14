@@ -1,6 +1,6 @@
 import { auth, db } from "../FirebaseConfig";
 import { getFullProfile } from "../UserProfile/UserUpdate";
-import { signInWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, getDoc } from "firebase/firestore";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -125,68 +125,6 @@ async function getUserDataByEmail(email) {
   return userData;
 }
 
-
-async function loginWithGoogle(id_token) {
-  try {
-    const credential = GoogleAuthProvider.credential(id_token);
-    const userCredential = await signInWithCredential(auth, credential);
-    const user = userCredential.user;
-
-    await setDoc(doc(db, "user", user.uid), {
-      email: user.email || "",
-      full_name: user.displayName || "",
-      login_method: "google",
-      provider_id: user.uid,
-      is_active: true,
-      password: "",
-      role: "",
-      created_at: serverTimestamp(),
-    }, { merge: true });
-
-    return { success: true, user };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-}
-
-async function loginWithFacebook(access_token) {
-  try {
-    const credential = FacebookAuthProvider.credential(access_token);
-    const userCredential = await signInWithCredential(auth, credential);
-    const user = userCredential.user;
-
-    await setDoc(doc(db, "user", user.uid), {
-      email: user.email || "",
-      full_name: user.displayName || "",
-      login_method: "facebook",
-      provider_id: user.uid,
-      is_active: true,
-      password: "",
-      role: "",
-      created_at: serverTimestamp(),
-    }, { merge: true });
-
-    return { success: true, user };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-}
-
-// async function checkUserRole(uid) {
-//   const docRef = doc(db, "account", uid);
-//   const docSnap = await getDoc(docRef);
-
-//   if (docSnap.exists()) {
-//     const data = docSnap.data();
-//     if (data.role) {
-//       return data.role.toLowerCase();
-//     }
-//     return null;
-//   } else {
-//     return null;
-//   }
-// }
-
 async function getSavedCredentials() {
   try {
     const email = await AsyncStorage.getItem("savedEmail");
@@ -208,9 +146,6 @@ export {
   loginWithEmail, 
   saveBiometric, 
   saveCredentials, 
-  loginWithGoogle, 
-  loginWithFacebook, 
-  // checkUserRole, 
   getSavedCredentials,
   getFullProfile,
   getUserDataByEmail
