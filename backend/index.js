@@ -4,7 +4,8 @@ const path = require("path");
 const predictRoutes = require("./routes/predict");
 const predictMultipleRoutes = require("./routes/predict_multiple");
 const heatmapRoutes = require("./routes/heatmap");
-const askRoutes = require("./controllers/AgentController");
+const askRoutes = require("./routes/ask");
+const endRoutes = require("./routes/end_session");
 require('dotenv').config({ path: '../.env' }); // path relative to backend folder
 ///add for retraining
 const { startRetrainWatcher } = require("./controllers/retrainWatcher");
@@ -31,6 +32,7 @@ try {
   app.use("/predict_multiple", predictMultipleRoutes);
   app.use("/heatmap", heatmapRoutes);
   app.use("/ask", askRoutes);
+  app.use("/end-session",endRoutes)
   // Start retrain watcher
   startRetrainWatcher();
 

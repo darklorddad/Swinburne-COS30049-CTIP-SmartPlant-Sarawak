@@ -1,7 +1,8 @@
+// AgentController.js//
 const express = require("express");
-const { ChatGroq } = require("@langchain/groq");
+
 const { DynamicTool } = require("@langchain/core/tools");
-const { createReactAgent } = require("@langchain/langgraph/prebuilt");
+
 const admin = require("firebase-admin");
 const serviceAccount = require("../smartplantsarawak-firebase-adminsdk-fbsvc-aee0d5a952.json");
 admin.initializeApp({
@@ -66,46 +67,5 @@ const fetchHistoryReadingTool = new DynamicTool({
   },
 });
 
-//route
-router.post("/", async (req, res) => {
-  try {
-    const { query } = req.body;
-    if (!query)
-      return res.status(400).json({ error: "Missing 'query' in request body." });
 
-    const model = new ChatGroq({
-      apiKey: process.env.GROQ_API_KEY,
-      model: "meta-llama/llama-4-maverick-17b-128e-instruct",
-      temperature: 0.3,
-    });
-
-    //  Modern ReAct reasoning agent
-    const agent = createReactAgent({
-      llm: model,
-      tools: [fetchLatestReadingTool, fetchHistoryReadingTool],
-      prompt:
-        `You are a smart IoT reasoning assistant. Think step-by-step. The sensor is equipped near plant outdoor, normally out of reach from user. To protect endangered species, IoT-based monitoring systems for real-time tracking and alerts.Use tools only if needed to answer the user's query about sensor data. You analyze data, detect anomalies, and answer user questions about plant's condition. Perform reasoning like giving opinion if the plant is in danger situation and need human interruption. Do not answer user unrelated questions and tell them it is out of scope `,
-    });
-    console.log(agent.type)
-
-    const response = await agent.invoke({ messages: [{ role: "user", content: query }] });
-
-    // Extract final answer text
-    const answer =
-      typeof response?.messages?.at(-1)?.content === "string"
-        ? response.messages.at(-1).content
-        : JSON.stringify(response, null, 2);
-
-    res.json({
-      query,
-      response: answer,
-    });
-  } catch (err) {
-    console.error("Error in /ask route:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-
-
-module.exports = router;
+module.exports = {fetchHistoryReadingTool,fetchLatestReadingTool};

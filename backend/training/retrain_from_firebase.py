@@ -21,7 +21,7 @@ from math import ceil
 #print(f"Current best model path: {config.MODEL_PATH}")
 #print(f"Current best EMBEDDING path: {config.EMBEDDING_PATH}")
 # -----------------------------
-# 1️⃣ Firebase initialization
+# Firebase initialization
 # -----------------------------
 SERVICE_ACCOUNT_PATH = "smartplantsarawak-firebase-adminsdk-fbsvc-aee0d5a952.json"
 BUCKET_NAME = "smartplantsarawak.firebasestorage.app"
@@ -34,7 +34,7 @@ bucket = storage.bucket()
 db = firestore.client()
 
 # -----------------------------
-# 2️⃣ Local paths
+# Local paths
 # -----------------------------
 LOCAL_FIREBASE_DIR = "./firebase_downloaded_data"
 BASE_DATASET_DIR = "./base_Dataset/plant_species"
@@ -43,7 +43,7 @@ TRAIN_DIR = os.path.join(MERGED_DATASET_DIR, "train")
 VAL_DIR = os.path.join(MERGED_DATASET_DIR, "val")
 
 # -----------------------------
-# 3️⃣ Download new images from Firebase Storage
+#Download new images from Firebase Storage
 # -----------------------------
 def download_new_verified_images(prefix="plant_images/verified/"):
     if os.path.exists(LOCAL_FIREBASE_DIR):
@@ -70,47 +70,7 @@ def download_new_verified_images(prefix="plant_images/verified/"):
         local_path = os.path.join(class_dir, filename)
         blob.download_to_filename(local_path)
 
-    print(f"✅ Downloaded new images from Firebase into {LOCAL_FIREBASE_DIR}")
-
-
-# -----------------------------
-# 4️⃣ Merge datasets and split
-# -----------------------------
-# def merge_and_split_datasets(train_ratio=0.8):
-#     if os.path.exists(MERGED_DATASET_DIR):
-#         shutil.rmtree(MERGED_DATASET_DIR)
-#     os.makedirs(TRAIN_DIR)
-#     os.makedirs(VAL_DIR)
-
-#     # Merge BASE_DATASET_DIR + LOCAL_FIREBASE_DIR
-#     all_classes = sorted(os.listdir(BASE_DATASET_DIR))
-#     for cls in all_classes:
-#         # Gather images from base dataset
-#         base_cls_dir = os.path.join(BASE_DATASET_DIR, cls)
-#         base_images = [os.path.join(base_cls_dir, f) for f in os.listdir(base_cls_dir)
-#                        if f.lower().endswith(("png", "jpg", "jpeg"))]
-
-#         # Gather images from firebase
-#         fb_cls_dir = os.path.join(LOCAL_FIREBASE_DIR, cls)
-#         fb_images = []
-#         if os.path.exists(fb_cls_dir):
-#             fb_images = [os.path.join(fb_cls_dir, f) for f in os.listdir(fb_cls_dir)
-#                          if f.lower().endswith(("png", "jpg", "jpeg"))]
-
-#         all_images = base_images + fb_images
-#         num_train = int(len(all_images) * train_ratio)
-
-#         train_cls_dir = os.path.join(TRAIN_DIR, cls)
-#         val_cls_dir = os.path.join(VAL_DIR, cls)
-#         os.makedirs(train_cls_dir, exist_ok=True)
-#         os.makedirs(val_cls_dir, exist_ok=True)
-
-#         for i, img_path in enumerate(all_images):
-#             if i < num_train:
-#                 shutil.copy(img_path, train_cls_dir)
-#             else:
-#                 shutil.copy(img_path, val_cls_dir)
-#     print(f"✅ Merged datasets and split into train/val at {MERGED_DATASET_DIR}")
+    print(f"Downloaded new images from Firebase into {LOCAL_FIREBASE_DIR}")
 
 
 def merge_and_split_datasets(train_ratio=0.8, min_val_per_class=1, seed=42):
@@ -151,7 +111,7 @@ def merge_and_split_datasets(train_ratio=0.8, min_val_per_class=1, seed=42):
 
         # --- Skip empty classes ---
         if not all_images:
-            print(f"⚠️ No images found for class '{cls}', skipping.")
+            print(f"No images found for class '{cls}', skipping.")
             continue
 
         # --- Shuffle to avoid bias ---
@@ -178,57 +138,10 @@ def merge_and_split_datasets(train_ratio=0.8, min_val_per_class=1, seed=42):
             dest_dir = train_cls_dir if i < num_train else val_cls_dir
             shutil.copy(img_path, dest_dir)
 
-        print(f"✅ Class '{cls}': {num_train} train / {num_total - num_train} val images")
+        print(f" Class '{cls}': {num_train} train / {num_total - num_train} val images")
 
-    print(f"🎯 Merged and split dataset saved under:\n  Train → {TRAIN_DIR}\n  Val   → {VAL_DIR}")
+    print(f" Merged and split dataset saved under:\n  Train → {TRAIN_DIR}\n  Val   → {VAL_DIR}")
 
-
-# -----------------------------
-# 5️⃣ Dataset for validation
-# -----------------------------
-# class SingleImageDataset(Dataset):
-#     def __init__(self, root_dir, transform=None):
-#         self.root_dir = root_dir
-#         self.transform = transform
-#         self.classes = sorted(os.listdir(root_dir))
-#         self.class_to_idx = {c: i for i, c in enumerate(self.classes)}
-
-#         self.samples = [
-#             (os.path.join(root_dir, c, img), self.class_to_idx[c])
-#             for c in self.classes
-#             for img in os.listdir(os.path.join(root_dir, c))
-#             if img.lower().endswith(('png', 'jpg', 'jpeg'))
-#         ]
-
-#     def __len__(self):
-#         return len(self.samples)
-
-#     def __getitem__(self, idx):
-#         path, label = self.samples[idx]
-#         img = Image.open(path).convert("RGB")
-#         if self.transform:
-#             img = self.transform(img)
-#         return img, label
-
-# def evaluate_model(model_ckpt_path, val_dir):
-#     transform = transforms.Compose([
-#         transforms.Resize((224, 224)),
-#         transforms.ToTensor(),
-#         transforms.Normalize([0.485, 0.456, 0.406],
-#                              [0.229, 0.224, 0.225])
-#     ])
-#     val_dataset = SingleImageDataset(val_dir, transform=transform)
-#     val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False)
-
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#     ckpt = torch.load(model_ckpt_path, map_location=device)
-#     model = MultiHeadResNet18(num_classes=len(val_dataset.classes), embedding_dim=128)
-#     model.load_state_dict(ckpt['model_state_dict'])
-#     model.to(device)
-#     model.eval()
-#     print(f"🔎 Evaluating model: {model_ckpt_path}")
-#     validate_embeddings(model, val_loader, device)
-#     return model
 def evaluate_embeddings(model, test_loader, device):
     model.eval()
     embeddings, labels = [], []
@@ -256,7 +169,7 @@ def evaluate_embeddings(model, test_loader, device):
         total += 1
 
     acc = correct / total
-    print(f"✅ Embedding Retrieval Accuracy (cosine match): {acc * 100:.2f}%")
+    print(f"Embedding Retrieval Accuracy (cosine match): {acc * 100:.2f}%")
     return acc
 
 def evaluate_classification(model, test_loader, device):
@@ -272,7 +185,7 @@ def evaluate_classification(model, test_loader, device):
             all_labels.extend(labels.cpu().numpy())
 
     acc = accuracy_score(all_labels, all_preds)
-    print(f"✅ Classification Accuracy: {acc * 100:.2f}%")
+    print(f" Classification Accuracy: {acc * 100:.2f}%")
     print("\nClassification Report:")
     print(classification_report(all_labels, all_preds, digits=4))
     return acc
@@ -298,46 +211,11 @@ def evaluate_model(model_ckpt_path, val_dir):
     embedding_acc= evaluate_embeddings(model, test_loader, device)
     return classifier_acc, embedding_acc
 
-# -----------------------------
-# 6️⃣ Main retraining logic
-# -----------------------------
-# if __name__ == "__main__":
-#     # Step 1: download new images
-#     current_model_classfier_acc, current_model_embedding_acc,x,y= 0
-#     download_new_verified_images()
-
-#     # Step 2: merge datasets and split
-#     merge_and_split_datasets()
-
-#     # Step 3: evaluate old model
-#     current_model_classfier_acc, current_model_embedding_acc= evaluate_model(CKPT_PATH, VAL_DIR)
-
-#     # Step 4: retrain model
-#     new_model = train_and_validate(
-#         train_root=TRAIN_DIR,
-#         val_root=VAL_DIR,
-#         num_classes=len(os.listdir(TRAIN_DIR)),
-#         num_epochs=1,
-#         batch_size=16
-#     )
-
-#     # Step 5: evaluate new model
-#     new_model_ckpt = "new_models/multihead_resnet18_ckpt_new.pth"
-#     torch.save({
-#         'model_state_dict': new_model.state_dict(),
-#         'class_list': os.listdir(TRAIN_DIR),
-#         'num_classes': len(os.listdir(TRAIN_DIR)),
-#         'embedding_dim': 128
-#     }, new_model_ckpt)
-#     x,y= evaluate_model(new_model_ckpt, VAL_DIR)
-
-#     if (x>current_model_classfier_acc and y>  current_model_embedding_acc):
-#         best_model=new_model_ckpt
 
 if __name__ == "__main__":
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    download_new_verified_images()
-    merge_and_split_datasets()
+    #download_new_verified_images()
+    #merge_and_split_datasets()
 
     current_cls_acc, current_emb_acc = evaluate_model(config.MODEL_PATH, VAL_DIR)
 
@@ -371,5 +249,5 @@ if __name__ == "__main__":
         # Save embedding model
         save_versioned_model("models/new_embedding.pth", config.EMBEDDING_PATH, label="embedding model")
     else:
-        print("⚠️ New model did not outperform current best models.")
+        print("New model did not outperform current best models.")
 
