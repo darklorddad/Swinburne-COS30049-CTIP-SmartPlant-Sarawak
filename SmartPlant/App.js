@@ -21,6 +21,8 @@ import MapPage from "./src/pages/MapPage";
 import Introduction from "./src/pages/Introduction";
 import UserLogin from "./src/pages/UserLogin";
 import UserRegister from "./src/pages/UserRegister";
+import LoginSelection from "./src/pages/LoginSelection";
+import ForgetPassword from "./src/pages/ForgetPassword";
 
 import HomepageExpert from "./src/pages/HomepageExpert";
 import HomepageUser from "./src/pages/HomepageUser";
@@ -72,6 +74,8 @@ export default function App() {
           <Stack.Screen name="Introduction" component={Introduction} />
           <Stack.Screen name="UserLogin" component={UserLogin} />
           <Stack.Screen name="UserRegister" component={UserRegister} />
+          <Stack.Screen name="LoginSelection" component={LoginSelection} />
+          <Stack.Screen name="ForgetPassword" component={ForgetPassword} />
 
           <Stack.Screen name="HomepageExpert" component={HomepageExpert}/>
           <Stack.Screen name="HomepageUser" component={HomepageUser}/>
