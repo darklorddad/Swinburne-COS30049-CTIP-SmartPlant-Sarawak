@@ -479,7 +479,7 @@ if (safePred?.[0]?.confidence < HIGH_CONFIDENCE_THRESHOLD) {
 
       <Text style={styles.title}>AI Identification Result</Text>
 
-      {safePred && safePred.length > 0 && (safePred[0].confidence ?? 0) >= 0.1 ? (
+      {safePred && safePred.length > 0 && (safePred[0].confidence ?? 0) >= 0.7 ? (
         <View style={{ width: "100%", alignItems: "center" }}>
           {safePred.map((item, index) => (
             <PlantSuggestionCard
