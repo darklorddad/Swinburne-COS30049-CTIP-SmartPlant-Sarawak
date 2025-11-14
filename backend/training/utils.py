@@ -20,12 +20,12 @@ from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import config
 
 
-
-PLANTNET_CKPT = "resnet18_with_class_label_weights_best_acc.tar"
+PLANTNET_CKPT = config.PLANTNET_PRETRAINED_MODEL
 # ===============================================================
-# 1️⃣ Dataset: TripletDataset
+# Dataset: TripletDataset
 # ===============================================================
 class TripletDataset(Dataset):
     def __init__(self, root_dir, transform=None):
@@ -76,7 +76,7 @@ class TripletDataset(Dataset):
 
 
 # ===============================================================
-# 2️⃣ Dataset: SingleImageDataset (for validation / Grad-CAM)
+# Dataset: SingleImageDataset (for validation / Grad-CAM)
 # ===============================================================
 class SingleImageDataset(Dataset):
     def __init__(self, root_dir, transform=None):
@@ -104,7 +104,7 @@ class SingleImageDataset(Dataset):
 
 
 # ===============================================================
-# 3️⃣ Model: Multi-Head ResNet18
+# Model: Multi-Head ResNet18
 # ===============================================================
 
 class MultiHeadResNet18(nn.Module):
@@ -117,7 +117,7 @@ class MultiHeadResNet18(nn.Module):
 
         # ---- 2. Optionally load pretrained PlantNet weights ----
         if plantnet_ckpt is not None and os.path.exists(plantnet_ckpt):
-            print(f"🔍 Loading PlantNet checkpoint from: {plantnet_ckpt}")
+            print(f"Loading PlantNet checkpoint from: {plantnet_ckpt}")
             ckpt = torch.load(plantnet_ckpt, map_location="cpu")
 
             # handle checkpoint format
@@ -145,9 +145,9 @@ class MultiHeadResNet18(nn.Module):
             for name, module in self.backbone.named_children():
                 if name in backbone_dict:
                     module.load_state_dict(backbone_dict[name].state_dict())
-            print(f"✅ Loaded {len(filtered)} backbone weights from PlantNet.")
+            print(f" Loaded {len(filtered)} backbone weights from PlantNet.")
         else:
-            print("⚠️ No PlantNet checkpoint found, using ImageNet pretrained weights.")
+            print("No PlantNet checkpoint found, using ImageNet pretrained weights.")
 
         if freeze_backbone:
             for param in self.backbone.parameters():
@@ -178,7 +178,7 @@ class MultiHeadResNet18(nn.Module):
 
 
 # ===============================================================
-# 5️⃣ Training + Validation
+# Training + Validation
 # ===============================================================
 
 def train_and_validate(
@@ -264,13 +264,13 @@ def train_and_validate(
         'embedding_dim': embedding_dim
     }
     #torch.save(save_dict, "new_models/multihead_resnet18_ckpt.pth")
-    #print("✅ Training complete. Model and class mapping saved as multihead_resnet18_ckpt.pth")
+    #print("Training complete. Model and class mapping saved as multihead_resnet18_ckpt.pth")
 
     return model
 
 
 # ===============================================================
-# 6️⃣ Validation Function
+#Validation Function
 # ===============================================================
 def validate_embeddings(model, val_loader, device):
     model.eval()
@@ -320,7 +320,7 @@ def evaluate_embeddings(model, test_loader, device):
         total += 1
 
     acc = correct / total
-    print(f"✅ Embedding Retrieval Accuracy (cosine match): {acc * 100:.2f}%")
+    print(f" Embedding Retrieval Accuracy (cosine match): {acc * 100:.2f}%")
 
 def evaluate_classification(model, test_loader, device):
     model.eval()
@@ -335,7 +335,7 @@ def evaluate_classification(model, test_loader, device):
             all_labels.extend(labels.cpu().numpy())
 
     acc = accuracy_score(all_labels, all_preds)
-    print(f"✅ Classification Accuracy: {acc * 100:.2f}%")
+    print(f"Classification Accuracy: {acc * 100:.2f}%")
     print("\nClassification Report:")
     print(classification_report(all_labels, all_preds, digits=4))
 
@@ -370,7 +370,7 @@ def generate_reference_embeddings(model, data_loader, device):
     # Normalize the reference embeddings (important for cosine similarity)
     reference_embeddings = F.normalize(reference_embeddings, p=2, dim=1)
 
-    print(f"✅ Generated {reference_embeddings.shape[0]} reference embeddings.")
+    print(f"Generated {reference_embeddings.shape[0]} reference embeddings.")
     return reference_embeddings
 
 import os
@@ -401,23 +401,25 @@ def save_versioned_model(new_model_path, target_model_path, label="model/embeddi
         backup_path = os.path.join(models_dir, f"{name}_v{next_version}{ext}")
 
         os.rename(target_model_path, backup_path)
-        print(f"📦 Old {label} backed up as {backup_path}")
+        print(f"Old {label} backed up as {backup_path}")
 
     # replace with new one
     shutil.move(new_model_path, target_model_path)
-    print(f"✅ New {label} deployed at {target_model_path}")
+    print(f" New {label} deployed at {target_model_path}")
 
 
-# ===============================================================
-# Main Entry Point
-# ===============================================================
-if __name__ == "__main__":
-    model = train_and_validate(
-        train_root="/kaggle/working/Plant_dataset/train",
-        val_root="/kaggle/working/Plant_dataset/val",
-        num_classes=12,
-        num_epochs=10,
-        batch_size=64
-    )
+def check_species_num(EMBEDDING_PATH):
+    try:
+        # Load the tensor. This assumes the file was saved using torch.save(reference_embeddings, path)
+        reference_embeddings = torch.load(EMBEDDING_PATH)
+        print("Successfully loaded the reference embeddings tensor.")
+    except FileNotFoundError:
+        print(f"Error: Reference embeddings file not found at {EMBEDDING_PATH}")
+        exit()
+    # The shape will be (Number of Species, Embedding Dimension)
+    # Example shape: torch.Size([200, 128]) 
+    num_species = reference_embeddings.shape[0]
 
-   
+    print(f"Total Number of Species (Classes) in the embeddings: {num_species}")
+    print(f"Embedding Dimension (Feature Size): {reference_embeddings.shape[1]}")
+    return num_species

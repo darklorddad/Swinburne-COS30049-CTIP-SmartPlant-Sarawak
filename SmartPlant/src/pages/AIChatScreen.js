@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { StatusBar } from "react-native";
-
 import {
   View,
   Text,
@@ -14,14 +13,35 @@ import {
 } from "react-native";
 import { API_URL } from "../config";
 import Entypo from '@expo/vector-icons/Entypo';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 
-export default function ChatScreen() {
 
+
+
+export default function ChatScreen({ navigation }) {
+  const [sessionId, setSessionId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([
     { id: "1", sender: "ai", text: "Hello! I’m your AI plant assistant 🌱" },
   ]);
   const [input, setInput] = useState("");
+
+  useEffect(() => {
+    // Create a session ID when screen opens
+    const newSession = uuidv4();
+    setSessionId(newSession);
+
+    return () => {
+      // When user leaves, end the session on backend
+      fetch(`${API_URL}/end-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: newSession }),
+      }).catch(() => { });
+    };
+  }, []);
+
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -37,7 +57,11 @@ export default function ChatScreen() {
       setLoading(true);
       const response = await fetch(`${API_URL}/ask`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-id": sessionId
+        },
+
         body: JSON.stringify({ query: input }),
       });
 
@@ -83,7 +107,7 @@ export default function ChatScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
-    <StatusBar hidden={true} />
+      <StatusBar hidden={true} />
       {loading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#00ff3cff" />
@@ -92,9 +116,20 @@ export default function ChatScreen() {
       )}
       <View style={styles.topBar}>
         {/* The 'cross' icon acts as a back/close button */}
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => {
+            fetch(`${API_URL}/end-session`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId }),
+            }).catch(() => { });
+
+            navigation.goBack();
+          }}
+        >
           <Entypo name="cross" size={32} color="black" />
         </TouchableOpacity>
+
         <Text style={styles.topBarTitle}>Plant Assistant Chat</Text>
       </View>
       <FlatList
@@ -205,13 +240,14 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: "#fdfdfdff",
     paddingBottom: 10,
-    paddingTop:25,
+    paddingTop: 25,
   },
   topBarTitle: {
     color: 'black',
     fontSize: 20,
     fontWeight: 'bold',
     marginLeft: 15,
+    textAlign:"center"
   },
 });
 
