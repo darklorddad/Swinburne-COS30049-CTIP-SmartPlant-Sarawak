@@ -21,6 +21,7 @@ export default function MyPost({ navigation }) {
   const [userFullName, setUserFullName] = useState("");
   const userId = auth.currentUser?.uid;
   const userEmail = auth.currentUser?.email || "";
+  const userName = auth.currentUser?.displayName || "User";
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
@@ -43,31 +44,25 @@ export default function MyPost({ navigation }) {
       }
 
       try {
-        const userRef = doc(db, "account", userId);
-        const userSnap = await getDoc(userRef);
-        let fullName = "";
-        let profilePicture = "";
-
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          fullName = userData.full_name || "";
-          profilePicture = userData.profile_pic || "";
-          setUserFullName(fullName);
-        } else {
-          const userRef = doc(db, "user", userId);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            fullName = userData.full_name || "";
-            setUserFullName(fullName);
-          } 
+        // Get user's full name from Firestore "account" collection based on email
+        let fullName = auth.currentUser?.email?.split("@")[0] || "User"; // fallback
+        const accountQuery = query(
+          collection(db, "account"),
+          where("email", "==", auth.currentUser?.email || "")
+        );
+        const accountSnap = await getDocs(accountQuery);
+        if (!accountSnap.empty) {
+          const userData = accountSnap.docs[0].data();
+          fullName = userData.full_name || fullName;
         }
 
-        // Only the posts uploaded by this user
-        const postsQuery = query(collection(db, "plant_identify"), 
+        // Query posts uploaded by this user that are verified
+        const postsQuery = query(
+          collection(db, "plant_identify"),
           where("user_id", "==", userId),
           where("identify_status", "==", "verified")
         );
+
         const snapshot = await getDocs(postsQuery);
 
         if (snapshot.empty) {
@@ -76,11 +71,11 @@ export default function MyPost({ navigation }) {
           return;
         }
 
-        // No need to fetch "user" collection — just use the logged-in user info
+        // Map posts
         const userPosts = snapshot.docs.map((docSnap) => {
           const data = docSnap.data();
 
-          let predictions = [];
+          const predictions = [];
           if (data.model_predictions) {
             if (data.model_predictions.top_1) predictions.push(data.model_predictions.top_1);
             if (data.model_predictions.top_2) predictions.push(data.model_predictions.top_2);
@@ -90,19 +85,12 @@ export default function MyPost({ navigation }) {
           const imageURIs = Array.isArray(data.ImageURLs) && data.ImageURLs.length > 0
             ? data.ImageURLs
             : (data.ImageURL ? [data.ImageURL] : []);
-          
-          const postTime = data.time ?? data.createdAt ?? null;
 
-          let image = null;
-          if (data.ImageURLs && data.ImageURLs.length > 0) {
-            image = data.ImageURLs[0];
-          } else if (data.ImageURL) {
-            image = data.ImageURL;
-          }
+          const postTime = data.time ?? data.createdAt ?? null;
 
           return {
             id: docSnap.id,
-            imageURIs: imageURIs,
+            imageURIs,
             caption: data.caption || "",
             locality: data.locality || "",
             coordinate: data.coordinate || null,
@@ -110,26 +98,18 @@ export default function MyPost({ navigation }) {
             prediction: predictions,
             like_count: data.like_count || 0,
             comment_count: data.comment_count || 0,
-            saved_by: data.saved_by || [],
             liked_by_me: (data.liked_by || []).includes(userId),
             saved_by_me: (data.saved_by || []).includes(userId),
-            user: {
-              id: userId,
-              name: fullName,
-              email: userEmail,
-              profile_picture: profilePicture,
-            },
             liked_by: data.liked_by || [],
             saved_by: data.saved_by || [],
             uploader: {
               id: userId,
-              name: fullName,
-              email: userEmail,
-              profile_picture: profilePicture,
+              name: fullName,  
+              email: auth.currentUser?.email || "",
+              profile_picture: data.profile_pic || "", 
             },
             user_id: userId,
           };
-          
         });
 
         setPosts(userPosts);
@@ -147,8 +127,6 @@ export default function MyPost({ navigation }) {
   if (loading) {
     return <ActivityIndicator style={styles.loadingIndicator} size="large" color="#00796b" />;
   }
-
-
 
   return (
     <ScrollView contentContainerStyle={styles.background}>

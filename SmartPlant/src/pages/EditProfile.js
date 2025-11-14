@@ -6,6 +6,8 @@ import { storage } from "../firebase/FirebaseConfig";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { auth } from "../firebase/FirebaseConfig";
+import { updatePassword } from "firebase/auth";
 
 const colors = ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'];
 const getColorForId = (id) => {
@@ -186,7 +188,34 @@ export default function EditProfile({ navigation, route }) {
           Alert.alert("Error", "Passwords do not match");
           return;
         }
-        updatedProfile.password = newPassword; // hardcoded for your setup
+
+        const currentUser = auth.currentUser;
+
+        if (!currentUser) {
+          Alert.alert(
+            "Authentication Required",
+            "Please log out and log in again before changing your password."
+          );
+          return;
+        }
+
+        try {
+          await updatePassword(currentUser, newPassword);
+          updatedProfile.password = newPassword; // If you store password in Firestore (not recommended)
+        } catch (error) {
+          console.log("Password update error:", error);
+
+          if (error.code === "auth/requires-recent-login") {
+            Alert.alert(
+              "Security Check",
+              "Please log in again and then change your password."
+            );
+          } else {
+            Alert.alert("Error", error.message);
+          }
+
+          return;
+        }
       }
 
       // Update Firestore profile

@@ -80,7 +80,7 @@ export default function NotificationExpert({ navigation }) {
 
     if (n.type === "verification_request") {
       const plantId =
-        n?.payload?.plantId ||
+        n?.payload?.plantIdentifyId ||
         n?.payload?.identifyId ||
         n?.payload?.documentId ||
         n?.payload?.id;
