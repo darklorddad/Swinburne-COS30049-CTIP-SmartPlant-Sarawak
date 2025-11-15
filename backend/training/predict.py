@@ -11,7 +11,7 @@ import config
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-# --- 0. Model Definition (Copied from Training Script) ---
+#--- 0. Model Definition (Copied from Training Script) ---
 class MultiHeadResNet18(nn.Module):
     # Simplified init for inference (assuming weights are loaded)
     def __init__(self, num_classes=12, embedding_dim=128):

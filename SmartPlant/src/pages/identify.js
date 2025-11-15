@@ -314,7 +314,7 @@ export default function IdentifyPage() {
                                 style={[styles.smallButton, mode === "single" ? styles.active : styles.inactive]}
                                 onPress={() => navigation.navigate("IdentifyPage", { mode: "single" })}
                             >
-                                <Text style={{ fontWeight: '900', color: mode === "single" ? "black" : "white" }}>Identify</Text>
+                                <Text style={{ fontWeight: '900', color: mode === "single" ? "black" : "white" }}>Single</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.smallButton, mode === "multiple" ? styles.active : styles.inactive]}

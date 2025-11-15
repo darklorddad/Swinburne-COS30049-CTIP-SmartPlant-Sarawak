@@ -16,7 +16,7 @@ export default function PlantSuggestionCard({ name, confidence, image, onPress }
       </View>
 
       {/* "See More" link positioned at bottom-right */}
-      <Text style={styles.link}>See More →</Text>
+      {/* <Text style={styles.link}>See More →</Text> */}
     </TouchableOpacity>
   );
 }

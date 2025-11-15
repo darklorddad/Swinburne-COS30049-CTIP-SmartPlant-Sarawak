@@ -198,7 +198,7 @@ def evaluate_model(model_ckpt_path, val_dir):
                                 [0.229, 0.224, 0.225])
         ])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = MultiHeadResNet18(num_classes=12, embedding_dim=128, plantnet_ckpt=None)
+    model = MultiHeadResNet18(num_classes=12, embedding_dim=128, plantnet_ckpt=config.PLANTNET_PRETRAINED_MODEL)
     checkpoint=torch.load(model_ckpt_path, map_location=device)
     model.load_state_dict(checkpoint["model_state_dict"])
     model = model.to(device)

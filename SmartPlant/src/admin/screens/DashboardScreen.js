@@ -46,11 +46,11 @@ const DashboardScreen = ({ navigation }) => {
   const photoURL = currentUserData?.details?.profile_pic;
 
   return (
-    <View style={{flex: 1}}>
+    <View style={{ flex: 1 }}>
       <ScrollView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity
-            style={{flex: 1, flexDirection: 'row', alignItems: 'center'}}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
             onPress={() => {
               if (currentUserData) {
                 navigation.navigate('EditUser', { user: currentUserData });
@@ -62,7 +62,7 @@ const DashboardScreen = ({ navigation }) => {
             {photoURL ? (
               <Image source={{ uri: photoURL }} style={styles.avatar} />
             ) : (
-              <View style={[styles.avatar, {backgroundColor: currentUserData?.color || '#c8b6a6'}]}>
+              <View style={[styles.avatar, { backgroundColor: currentUserData?.color || '#c8b6a6' }]}>
                 <Text style={styles.avatarText}>{(userName || 'A').charAt(0)}</Text>
               </View>
             )}
@@ -128,7 +128,7 @@ const DashboardScreen = ({ navigation }) => {
                 <Text style={styles.progressValue}>{commonCount} / {plantCount}</Text>
               </View>
               <View style={styles.progressBarBackground}>
-                <View style={[styles.progressBar, { width: `${(commonCount/plantCount)*100}%`, backgroundColor: '#A59480' }]} />
+                <View style={[styles.progressBar, { width: `${(commonCount / plantCount) * 100}%`, backgroundColor: '#A59480' }]} />
               </View>
             </View>
 
@@ -138,7 +138,7 @@ const DashboardScreen = ({ navigation }) => {
                 <Text style={styles.progressValue}>{rareCount} / {plantCount}</Text>
               </View>
               <View style={styles.progressBarBackground}>
-                <View style={[styles.progressBar, { width: `${(rareCount/plantCount)*100}%`, backgroundColor: '#C8B6A6' }]} />
+                <View style={[styles.progressBar, { width: `${(rareCount / plantCount) * 100}%`, backgroundColor: '#C8B6A6' }]} />
               </View>
             </View>
 
@@ -148,7 +148,7 @@ const DashboardScreen = ({ navigation }) => {
                 <Text style={styles.progressValue}>{endangeredCount} / {plantCount}</Text>
               </View>
               <View style={styles.progressBarBackground}>
-                <View style={[styles.progressBar, { width: `${(endangeredCount/plantCount)*100}%`, backgroundColor: '#f87171' }]} />
+                <View style={[styles.progressBar, { width: `${(endangeredCount / plantCount) * 100}%`, backgroundColor: '#f87171' }]} />
               </View>
             </View>
           </View>
@@ -181,6 +181,26 @@ const DashboardScreen = ({ navigation }) => {
             </View>
           </View>
         </View>
+
+        {/*AI Agent Plant Assistant Section */}
+        <View style={styles.agentContainer}>
+          <Text style={styles.agentTitle}>AI Agent Plant Assistant</Text>
+          <Text style={styles.agentSubtitle}>
+            Ask the AI to analyze nearby IoT sensor readings and check plant conditions.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.agentButton}
+            onPress={() => navigate('AIChatScreen')}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.agentButtonText}>Chat With AI Agent</Text>
+          </TouchableOpacity>
+
+         
+        </View>
+
+
       </ScrollView>
 
       <AdminBottomNavBar navigation={navigation} activeScreen="Dashboard" />
@@ -210,13 +230,13 @@ const styles = StyleSheet.create({
     marginTop: 24, backgroundColor: 'white', padding: 16, borderRadius: 16,
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.20, shadowRadius: 1.41, elevation: 2,
   },
-  distributionTitle:{fontSize:18,fontWeight:'bold',color:'#3C3633',marginBottom:16},
-  progressItemsContainer:{gap:16},
-  progressLabelContainer:{flexDirection:'row',justifyContent:'space-between',marginBottom:4},
-  progressLabel:{fontWeight:'600',color:'#4b5563',fontSize:14},
-  progressValue:{color:'#6b7280',fontSize:14},
-  progressBarBackground:{width:'100%',backgroundColor:'#e5e7eb',borderRadius:9999,height:10},
-  progressBar:{height:10,borderRadius:9999},
+  distributionTitle: { fontSize: 18, fontWeight: 'bold', color: '#3C3633', marginBottom: 16 },
+  progressItemsContainer: { gap: 16 },
+  progressLabelContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  progressLabel: { fontWeight: '600', color: '#4b5563', fontSize: 14 },
+  progressValue: { color: '#6b7280', fontSize: 14 },
+  progressBarBackground: { width: '100%', backgroundColor: '#e5e7eb', borderRadius: 9999, height: 10 },
+  progressBar: { height: 10, borderRadius: 9999 },
 
   iotContainer: {
     marginTop: 24, backgroundColor: 'white', padding: 16, borderRadius: 16,
@@ -231,6 +251,47 @@ const styles = StyleSheet.create({
   iotChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   iotChip: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999 },
   iotChipText: { color: '#374151', fontSize: 12, fontWeight: '600' },
+
+  agentContainer: {
+    marginTop: 24,
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.20,
+    shadowRadius: 1.41,
+    elevation: 2,
+  },
+
+  agentTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#3C3633',
+    marginBottom: 6,
+  },
+
+  agentSubtitle: {
+    color: '#75685a',
+    marginBottom: 16,
+  },
+
+  agentButton: {
+    backgroundColor: "#578C5B",
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  agentButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+    letterSpacing: 0.3,
+  },
+
 });
 
 export default DashboardScreen;
