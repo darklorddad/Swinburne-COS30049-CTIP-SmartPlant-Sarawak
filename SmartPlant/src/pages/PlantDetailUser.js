@@ -82,17 +82,15 @@ export default function PlantDetailUser({ navigation, route }) {
 
   // Resolve category to display
   useEffect(() => {
-    // prefer category persisted on the post (what your experts pick)
     const persisted = (post?.conservation_status || "").toLowerCase();
     if (persisted === "common" || persisted === "rare" || persisted === "endangered") {
       setDisplayCategory(persisted);
       return;
     }
 
-    // otherwise, if verified + has a known scientific name, read from plant catalog
     const status = (post?.identify_status || "pending").toLowerCase();
     const sciName =
-      post?.manual_scientific_name || // if expert created a new species
+      post?.manual_scientific_name ||
       post?.model_predictions?.top_1?.plant_species ||
       post?.model_predictions?.top_1?.class ||
       null;
@@ -177,6 +175,10 @@ export default function PlantDetailUser({ navigation, route }) {
       ? `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`
       : "—");
 
+  // 👀 visibility check from database (supports boolean or "true"/"false")
+  const isLocationVisible =
+    post?.visible === true || post?.visible === "true";
+
   const images = useMemo(() => {
     if (post?.imageURIs) return post.imageURIs;
     if (Array.isArray(post?.ImageURLs) && post.ImageURLs.length > 0) return post.ImageURLs;
@@ -252,8 +254,37 @@ export default function PlantDetailUser({ navigation, route }) {
             Date Identified: {post?.time ? new Date(post.time).toDateString() : "—"}
           </Text>
 
-          {/* Location (no more "View on Map" button) */}
+          {/* Location + conditional View on Map */}
           <Text style={styles.sub}>Location: {locality}</Text>
+          {lat != null && lng != null && (
+            <TouchableOpacity
+              style={[
+                styles.viewOnMapBtn,
+                !isLocationVisible && styles.viewOnMapBtnDisabled,
+              ]}
+              disabled={!isLocationVisible}
+              onPress={() => {
+                if (!isLocationVisible) return;
+                navigation.navigate("MapPage", {
+                  focus: {
+                    latitude: Number(lat),
+                    longitude: Number(lng),
+                    title: scientificName || "Plant",
+                  },
+                  focusMarkerId: post?.id,
+                });
+              }}
+            >
+              <Text
+                style={[
+                  styles.viewOnMapText,
+                  !isLocationVisible && styles.viewOnMapTextDisabled,
+                ]}
+              >
+                View on Map
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <Text style={[styles.section, { marginTop: 10 }]}>Identification</Text>
           <Text style={styles.sub}>Confidence Score</Text>
@@ -347,6 +378,7 @@ const styles = StyleSheet.create({
   hr: { height: 1, backgroundColor: "#ddd", marginVertical: 8 },
   section: { fontWeight: "800", color: "#222" },
   sub: { color: "#444", marginTop: 4 },
+
   viewOnMapBtn: {
     marginTop: 6,
     alignSelf: "flex-start",
@@ -355,7 +387,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
+  viewOnMapBtnDisabled: {
+    backgroundColor: "#e5e5e5",
+  },
   viewOnMapText: { color: "#2b2b2b", fontWeight: "700" },
+  viewOnMapTextDisabled: {
+    color: "#999",
+  },
+
   location: { height: 80, borderRadius: 8, backgroundColor: "#CFD4D0", marginTop: 4 },
   quote: { marginTop: 6, fontStyle: "italic", color: "#333" },
   suggestion: {
