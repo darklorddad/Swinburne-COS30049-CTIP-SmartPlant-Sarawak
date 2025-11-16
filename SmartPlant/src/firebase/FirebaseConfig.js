@@ -21,7 +21,7 @@ import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 //   measurementId: "G-R6C6WXGMV9"
 // };
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyABa3u5MFTYVdM1drHsSbvBIZPmo0REhNs",
   authDomain: "smartplantsarawak.firebaseapp.com",
   databaseURL: "https://smartplantsarawak-default-rtdb.asia-southeast1.firebasedatabase.app",

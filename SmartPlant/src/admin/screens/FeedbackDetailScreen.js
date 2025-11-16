@@ -226,22 +226,22 @@ const sendReply = async () => {
               <Text style={styles.noMsgText}>No conversation yet.</Text>
             ) : (
               messages.map(m => {
-                const isAdmin = m.from === "admin";
+                const isMyMessage = m.senderId === myId;
                 const timeText = m.createdAt?.seconds
                   ? new Date(m.createdAt.seconds * 1000).toLocaleTimeString()
                   : m.createdAt? (new Date(m.createdAt).toLocaleTimeString?.() || "") : "";
                 return (
-                  <View key={m.id} style={[styles.msgRow, isAdmin ? styles.msgRowRight : styles.msgRowLeft]}>
-                    {!isAdmin && (
+                  <View key={m.id} style={[styles.msgRow, isMyMessage ? styles.msgRowRight : styles.msgRowLeft]}>
+                    {!isMyMessage && (
                       <View style={styles.msgAvatar}>
                         <Text style={styles.msgAvatarText}>{(m.senderName || "U").charAt(0)}</Text>
                       </View>
                     )}
-                    <View style={[styles.bubble, isAdmin ? styles.bubbleRight : styles.bubbleLeft]}>
+                    <View style={[styles.bubble, isMyMessage ? styles.bubbleRight : styles.bubbleLeft]}>
                       <Text style={styles.bubbleText}>{m.text}</Text>
                       <Text style={styles.bubbleTime}>{timeText}</Text>
                     </View>
-                    {isAdmin && (
+                    {isMyMessage && (
                       <View style={styles.adminAvatar}>
                         <Text style={{ color: "#fff", fontWeight: "700" }}>YOU</Text>
                       </View>

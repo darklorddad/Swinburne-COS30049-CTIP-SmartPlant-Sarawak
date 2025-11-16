@@ -15,6 +15,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { firebaseConfig } from '../firebase/FirebaseConfig';
 
 const AdminContext = createContext();
 
@@ -179,18 +181,22 @@ export const AdminProvider = ({ children }) => {
     const fs = getFirestore();
     try {
       await deleteDoc(doc(fs, 'account', userId));
-      showToast('User deleted successfully!');
+      await deleteDoc(doc(fs, 'user', userId));
+      showToast('User deleted from database. Note: The user must also be deleted from the Firebase Authentication console to free up the email.');
     } catch (error) {
       showToast(`Error deleting user: ${error.message}`);
     }
   };
 
   const handleAddNewUser = async (newUser, password) => {
-    const auth = getAuth();
     const fs = getFirestore();
+    const tempAppName = `user-creation-${Date.now()}`;
+    let tempApp;
     try {
+      tempApp = initializeApp(firebaseConfig, tempAppName);
+      const tempAuth = getAuth(tempApp);
       // Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, newUser.details.email, password);
+      const userCredential = await createUserWithEmailAndPassword(tempAuth, newUser.details.email, password);
       const user = userCredential.user;
       const firebaseuid = user.uid;
 
@@ -243,6 +249,10 @@ export const AdminProvider = ({ children }) => {
         showToast(`Error adding user: ${error.message}`);
       }
       throw error; // rethrow for component handling
+    } finally {
+      if (tempApp) {
+        await deleteApp(tempApp);
+      }
     }
   };
 

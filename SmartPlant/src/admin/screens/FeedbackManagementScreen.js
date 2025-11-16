@@ -26,10 +26,10 @@ const FeedbackManagementScreen = ({ navigation }) => {
     const matchesSearch = safeLower(hay).includes(safeLower(searchQuery));
     if (!matchesSearch) return false;
 
-    if (filter === 'read') {
+    if (filter === 'replied') {
         return f.admin_notes && String(f.admin_notes).trim() !== '';
     }
-    if (filter === 'unread') {
+    if (filter === 'unreplied') {
         return !f.admin_notes || String(f.admin_notes).trim() === '';
     }
     return true;
@@ -64,11 +64,13 @@ const FeedbackManagementScreen = ({ navigation }) => {
 
         <View style={styles.meta}>
           <Text style={styles.time}>{displayDate(item)}</Text>
-          {replied && (
-            <View style={styles.repliedBadge}>
-              <Text style={styles.repliedText}>Replied</Text>
-            </View>
-          )}
+          <View style={{ height: 28, justifyContent: 'flex-end' }}>
+            {replied && (
+              <View style={styles.repliedBadge}>
+                <Text style={styles.repliedText}>Replied</Text>
+              </View>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -95,16 +97,16 @@ const FeedbackManagementScreen = ({ navigation }) => {
             <Text style={[styles.filterText, filter === 'all' && styles.activeFilterText]}>All</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setFilter('unread')}
-            style={[styles.filterButton, filter === 'unread' && styles.activeFilter]}
+            onPress={() => setFilter('unreplied')}
+            style={[styles.filterButton, filter === 'unreplied' && styles.activeFilter]}
           >
-            <Text style={[styles.filterText, filter === 'unread' && styles.activeFilterText]}>Unread</Text>
+            <Text style={[styles.filterText, filter === 'unreplied' && styles.activeFilterText]}>Unreplied</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setFilter('read')}
-            style={[styles.filterButton, filter === 'read' && styles.activeFilter]}
+            onPress={() => setFilter('replied')}
+            style={[styles.filterButton, filter === 'replied' && styles.activeFilter]}
           >
-            <Text style={[styles.filterText, filter === 'read' && styles.activeFilterText]}>Read</Text>
+            <Text style={[styles.filterText, filter === 'replied' && styles.activeFilterText]}>Replied</Text>
           </TouchableOpacity>
         </View>
       </View>
