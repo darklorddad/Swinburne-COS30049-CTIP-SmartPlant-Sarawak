@@ -226,6 +226,7 @@ export default function MapScreen({ navigation }) {
             title={p.model_predictions?.top_1?.label ?? "Plant"}
             pinColor={getPinColor(p.conservation_status, false, p.visible === false)}
             opacity={p.visible === false ? 0.6 : 1.0}
+            onCalloutPress={() => navigation.navigate("PlantDetailScreen", { plant: p })}
           >
             {/* 🏷️ Hidden Tag Above Marker */}
             {p.visible === false && (
@@ -236,7 +237,6 @@ export default function MapScreen({ navigation }) {
 
             <Callout
               tooltip
-              onPress={() => navigation.navigate("PlantDetailScreen", { plant: p })}
             >
               <View style={styles.calloutCard}>
                 {p.ImageURLs && p.ImageURLs[0] && (
@@ -299,10 +299,9 @@ const styles = StyleSheet.create({
   filterRow: {
     position: "absolute",
     top: 90,
-    left: 0,
-    right: 0,
+    left: 15,
+    right: 15,
     zIndex: 10,
-    paddingHorizontal: 10,
   },
   filterBtn: {
     backgroundColor: "#eee",
