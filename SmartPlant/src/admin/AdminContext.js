@@ -16,7 +16,7 @@ import {
   arrayUnion,
   arrayRemove,
 } from 'firebase/firestore';
-import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { firebaseConfig } from '../firebase/FirebaseConfig';
 
