@@ -4,6 +4,8 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, getDoc } from "firebase/firestore";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+let otpStorage = {};
+
 async function loginWithEmail(email, password) {
   if (!email || !password) {
     return { success: false, error: "Please enter email and password" };
@@ -83,6 +85,48 @@ async function loginWithEmail(email, password) {
   }
 }
 
+// ---------------- SEND OTP ----------------
+async function sendOTPToPhone(phoneNumber) {
+  if (!phoneNumber) return { success: false, error: "Phone number is required" };
+
+  try {
+    // Generate 6-digit random OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store OTP with expiration (5 min)
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+    otpStorage[phoneNumber] = { code: otp, expiresAt };
+
+    console.log(`[DEV] OTP for ${phoneNumber}: ${otp}`); // Always log OTP for testing
+
+    // Always return OTP in development
+    return { success: true, message: "OTP sent successfully", otp: otp };
+
+  } catch (error) {
+    console.error("Error sending OTP:", error);
+    return { success: false, error: "Failed to send OTP. Please try again." };
+  }
+}
+
+// ---------------- VERIFY OTP ----------------
+async function verifyOTP(phoneNumber, otpCode) {
+  if (!phoneNumber || !otpCode) return { success: false, error: "Phone number and OTP are required" };
+
+  const storedOTP = otpStorage[phoneNumber];
+  if (!storedOTP) return { success: false, error: "No OTP found. Please request a new one." };
+
+  if (Date.now() > storedOTP.expiresAt) {
+    delete otpStorage[phoneNumber];
+    return { success: false, error: "OTP has expired. Please request a new one." };
+  }
+
+  if (storedOTP.code !== otpCode) return { success: false, error: "Invalid OTP. Please try again." };
+
+  // OTP valid, clean up
+  delete otpStorage[phoneNumber];
+  return { success: true, message: "OTP verified successfully" };
+}
+
 async function saveBiometric(email) {
   try {
     await AsyncStorage.setItem("savedEmail", email);
@@ -142,11 +186,13 @@ async function getSavedCredentials() {
 
 
 
-export { 
-  loginWithEmail, 
-  saveBiometric, 
-  saveCredentials, 
+export {
+  loginWithEmail,
+  sendOTPToPhone,
+  verifyOTP,
+  saveBiometric,
+  saveCredentials,
   getSavedCredentials,
-  getFullProfile,
-  getUserDataByEmail
+  getUserDataByEmail,
+  getFullProfile
 };

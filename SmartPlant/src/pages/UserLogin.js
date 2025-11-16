@@ -1,37 +1,43 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Button, Image, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { loginWithEmail, saveBiometric, saveCredentials, getUserDataByEmail  } from "../firebase/login_register/user_login";
-import Recaptcha from "react-native-recaptcha-that-works";
+import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import Recaptcha from 'react-native-recaptcha-that-works';
+import { loginWithEmail, saveBiometric, saveCredentials } from '../firebase/login_register/user_login';
+import * as LocalAuthentication from 'expo-local-authentication';
 
-export default function UserLogin({navigation}){
+export default function UserLogin({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Recaptcha Setup
+  // ReCAPTCHA
   const recaptchaRef = useRef();
   const [showCaptcha, setShowCaptcha] = useState(false);
 
-  // your site key & base URL (registered in reCAPTCHA console)
-  const SITE_KEY = "6LeViOkrAAAAAHFmBLtVJO5pc3VaeC6OINL3ThsB";   // from Google reCAPTCHA
-  const BASE_URL = "https://smartplantsarawak.com";  // use your domain or localhost for testing
+  const SITE_KEY = "6LeViOkrAAAAAHFmBLtVJO5pc3VaeC6OINL3ThsB";
+  const BASE_URL = "https://smartplantsarawak.com";
 
+  // ---------------- LOGIN ----------------
   async function handleLogin() {
-    const result = await loginWithEmail(email, password);
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter email and password");
+      return;
+    }
 
+    const result = await loginWithEmail(email, password);
     if (!result.success) {
       Alert.alert("Error", result.error);
       return;
     }
 
-    setShowCaptcha(true);
-    setTimeout(function() {
-      recaptchaRef.current.open();
-    }, 500);
-
+    // Store temporary login data
     global.tempUserResult = result;
-  }
 
+    // Show reCAPTCHA
+    setShowCaptcha(true);
+    setTimeout(() => recaptchaRef.current.open(), 300);
+  } 
+
+  // ---------------- CAPTCHA SUCCESS ----------------
   async function onCaptchaSuccess(token) {
     setShowCaptcha(false);
 
@@ -40,63 +46,100 @@ export default function UserLogin({navigation}){
       return;
     }
 
-    const biometricResult = await saveBiometric(email);
-    if (!biometricResult.success) {
-      Alert.alert("Error", biometricResult.error);
-      return;
-    }
+    // Run biometric after captcha
+    await handleBiometricVerification();
+  }
 
-    const saveResult = await saveCredentials(email, password);
-    console.log("Credentials saved result:", saveResult);
 
-    if (saveResult.success) {
+  async function handleBiometricVerification() {
+    try {
+      // Check biometric capability
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+
+      if (!hasHardware || !isEnrolled || supportedTypes.length === 0) {
+        Alert.alert("Biometrics not available", "Your device doesn't support biometric authentication.");
+        return;
+      }
+
+      // Prompt biometric scan
+      const authResult = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Verify your identity",
+        fallbackLabel: "Use Passcode",
+        disableDeviceFallback: false,
+      });
+
+      if (!authResult.success) {
+        Alert.alert("Authentication failed", "Could not verify your identity.");
+        return;
+      }
+
+      // If biometric passed → save credentials
+      await saveBiometric(email);
+      await saveCredentials(email, password);
+
       const loginData = global.tempUserResult;
 
       if (!loginData) {
-        Alert.alert("Error", "Login data missing. Please log in again.");
+        Alert.alert("Error", "Login session expired.");
         return;
       }
 
       const { role, userId } = loginData;
 
+      // Navigate according to role
       if (role === "admin" || (userId && userId.startsWith("A"))) {
         Alert.alert("Welcome", "Login successful!");
-        global.tempUserResult = null; // Reset after use
-        navigation.navigate("back");
-      } else if (role === "expert" || (userId && userId.startsWith("E"))) {
+        navigation.navigate("AdminDashboard");
+      } 
+      else if (role === "expert" || (userId && userId.startsWith("E"))) {
         Alert.alert("Welcome", "Login successful!");
-        global.tempUserResult = null;
         navigation.navigate("HomepageExpert", { userEmail: email });
-      } else if (role === "user" || (userId && userId.startsWith("U"))) {
+      } 
+      else if (role === "user" || (userId && userId.startsWith("U"))) {
         Alert.alert("Welcome", "Login successful!");
-        global.tempUserResult = null;
         navigation.navigate("HomepageUser", { userEmail: email });
-      } else {
+      } 
+      else {
         Alert.alert("Error", "Unrecognized account type.");
-        global.tempUserResult = null;
       }
+
+    } catch (e) {
+      console.log("Biometric Error:", e);
+      Alert.alert("Error", "Biometric authentication failed.");
     }
   }
 
-  function toSelection(){
+  // ---------------- NAVIGATION ----------------
+  function toSelection() {
     navigation.navigate("LoginSelection");
   }
 
-  function toUserRegister(){
+  function toUserRegister() {
     navigation.navigate("UserRegister");
   }
 
-  return(
+  return (
     <ScrollView contentContainerStyle={styles.container}>
+      {/* reCAPTCHA */}
       {showCaptcha && (
-          <Recaptcha style={styles.captcha} ref={recaptchaRef} siteKey={SITE_KEY} baseUrl={BASE_URL} onVerify={onCaptchaSuccess} size="normal" theme="light" retryInterval={3000}></Recaptcha>
+        <Recaptcha
+          ref={recaptchaRef}
+          siteKey={SITE_KEY}
+          baseUrl={BASE_URL}
+          onVerify={onCaptchaSuccess}
+          size="normal"
+          theme="light"
+        />
       )}
 
+      {/* MAIN UI */}
       <TouchableOpacity onPress={toSelection}>
-        <Image style={styles.backlogo} source={require('../../assets/backlogo.png')}></Image>
+        <Image style={styles.backlogo} source={require('../../assets/backlogo.png')} />
       </TouchableOpacity>
 
-      <Image style={styles.logo_login1} source={require('../../assets/applogo.png')} alt="Logo"></Image>
+      <Image style={styles.logo_login1} source={require('../../assets/applogo.png')} />
 
       <View style={styles.login_container1}>
         <View style={styles.login_container_text}>
@@ -105,17 +148,25 @@ export default function UserLogin({navigation}){
 
         <View>
           <Text style={styles.input_label}>Email</Text>
-          <TextInput style={styles.input_textinput} placeholder="john@example.com" onChangeText={(text) => setEmail(text)}></TextInput>
+          <TextInput
+            style={styles.input_textinput}
+            placeholder="john@example.com"
+            onChangeText={setEmail}
+          />
         </View>
 
         <View>
           <Text style={styles.input_label}>Password</Text>
-          <TextInput style={styles.input_textinput} placeholder="********" secureTextEntry={true} onChangeText={(text) => setPassword(text)}></TextInput>
+          <TextInput
+            style={styles.input_textinput}
+            placeholder="********"
+            secureTextEntry
+            onChangeText={setPassword}
+          />
         </View>
 
         <View style={styles.row}>
           <Text style={styles.link1} onPress={() => navigation.navigate("ForgetPassword")}>Forget Password</Text>
-
         </View>
 
         <View style={styles.button_login_container}>
@@ -123,13 +174,16 @@ export default function UserLogin({navigation}){
             <Text style={styles.button_text}>Log In</Text>
           </TouchableOpacity>
         </View>
-      </View>  
-      
-      <Text style={styles.text2}>Don't have an account? <Text style={styles.link2} onPress={toUserRegister}>Sign Up</Text></Text>
+      </View>
+
+      <Text style={styles.text2}>
+        Don't have an account? <Text style={styles.link2} onPress={toUserRegister}>Sign Up</Text>
+      </Text>
     </ScrollView>
   );
 }
 
+// ===== Keep OLD CSS =====
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -139,89 +193,11 @@ const styles = StyleSheet.create({
     padding: 20,
   },
 
-  // Login Selection Page
-  logo: {
-    width: 100,
-    height: 100,
-    marginBottom: 18,
-    borderRadius: 50,
-  },
-
-  logo_caption: {
-    fontWeight: 'bold',
-    fontSize: 17,
-  },
-
-  touchid: {
-    width: 85,
-    height: 85,
-    margin: 15,
-  },
-
-  button_container: {
-    marginTop: 110,
-    flexDirection: 'row',
-  },
-
-  button_text: {
-    color: '#fff',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    fontSize: 17,
-  },
-
-  button_selection: {
-    backgroundColor: '#578C5B',
-    padding: 15,
-    marginVertical: 10,
-    borderRadius: 20,
-    width: 150,
-    marginHorizontal: 7,
-  },
-
-  quicklogin_text1: {
-    marginTop: 60,
-    fontWeight: 'bold',
-    fontSize: 17,
-    color: '#344d36ff',
-  },
-
-  quicklogin_text2: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-
-  // User Login Page & Admin Login Page
   backlogo: {
     width: 40,
     height: 40,
     bottom: 140,
     right: 165,
-  },
-
-  backlogo1: {
-    width: 40,
-    height: 40,
-    bottom: 95,
-    right: 165,
-  },
-
-  backlogo2: {
-    width: 40,
-    height: 40,
-    bottom: 168,
-    right: 165,
-  },
-
-  back_selction: {
-    marginTop: 40,
-    marginLeft: 10,
-    fontSize: 17,
-    fontWeight: 'bold',
-    position: 'absolute',
-    top: 10,
-    left: 10,
   },
 
   logo_login1:{
@@ -234,7 +210,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 8, // for Android
+    elevation: 8,
     borderWidth: 2,
     borderColor: "rgba(255, 255, 255, 0.4)",  
   },
@@ -287,19 +263,6 @@ const styles = StyleSheet.create({
     marginLeft: 221,
   },
 
-  text1: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-
-  text2: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#000',
-    marginTop: 15,
-  },
-
   link1: {
     color: '#fff',
     fontWeight: 'bold',
@@ -311,6 +274,13 @@ const styles = StyleSheet.create({
     color: '#344d36ff',
     fontWeight: 'bold',
     fontSize: 15,
+  },
+
+  text2: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#000',
+    marginTop: 15,
   },
 
   button_login_container: {
@@ -325,46 +295,93 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
 
-  text_OR: {
-    fontSize: 22,
-    marginTop: 25,
-    marginBottom: 25,
-    fontWeight: 'bold',
-  },
-
-  login_method_container: {
-    backgroundColor: '#578C5B',
-    padding: 20,
-    borderRadius: 20,
-    shadowColor: '#143d17ff',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 10,
-    flexDirection: 'row',
-  },
-
-  login_method: {
-    padding: 15,
-    marginHorizontal: 10,
-    backgroundColor: '#eee',
-    borderRadius: 20,
-    alignItems: 'center',
-    width: '40%',
-  },
-
-  login_method_text: {
-    fontSize: 17,
-    fontWeight: 'bold',
-  },
-
-  text_agreement: {
-    fontSize: 15,
+  button_text: {
     color: '#fff',
-    alignItems: 'center',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    fontSize: 17,
   },
 
-  text_agreement_container: {
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+
+  modalContainer: {
+    backgroundColor: "#fff",
+    padding: 20,
+    width: "85%",
+    borderRadius: 20,
+  },
+
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+
+  modalSubtitle: {
+    fontSize: 14,
+    marginBottom: 20,
+  },
+
+  phoneInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#eee",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    marginBottom: 15,
+  },
+
+  countryCode: {
+    fontSize: 16,
+    marginRight: 10,
+  },
+
+  phoneInput: {
+    flex: 1,
+    fontSize: 16,
+    padding: 10,
+  },
+
+  sendOTPButton: {
+    backgroundColor: "#578C5B",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  verifyButton: {
+    backgroundColor: "#496D4C",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginVertical: 10,
+  },
+
+  otpInput: {
+    backgroundColor: "#eee",
+    padding: 10,
+    borderRadius: 10,
+    fontSize: 20,
+    textAlign: "center",
+    marginBottom: 10,
+  },
+
+  cancelButton: {
+    padding: 10,
+    alignItems: "center",
+  },
+
+  cancelText: {
+    color: "red",
+    fontSize: 14,
+    fontWeight: "bold",
   },
 
   captcha: {
@@ -375,6 +392,5 @@ const styles = StyleSheet.create({
     zIndex: 9999,
     backgroundColor: "rgba(0,0,0,0.5)", 
     padding: 20,
-  }
+  },
 });
-

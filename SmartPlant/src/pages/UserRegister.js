@@ -1,9 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import { user_register } from '../firebase/login_register/user_register.js';
-import { getAuth } from "firebase/auth";
 import CheckBox from 'expo-checkbox';
+import Recaptcha from 'react-native-recaptcha-that-works';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 export default function UserRegister({navigation}){
   const [fullName, setFullName] = useState("");
@@ -12,75 +13,123 @@ export default function UserRegister({navigation}){
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agree, setAgree] = useState(false);
 
+  // reCAPTCHA
+  const recaptchaRef = useRef();
+  const [showCaptcha, setShowCaptcha] = useState(false);
+
+  const SITE_KEY = "6LeViOkrAAAAAHFmBLtVJO5pc3VaeC6OINL3ThsB";  
+  const BASE_URL = "https://smartplantsarawak.com";               
+
   const minLength = /^.{8,}$/;  
   const hasUppercase = /[A-Z]/;
   const hasNumber = /\d/;
   const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/;
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const scrollViewRef = useRef();
+  useEffect(() => {
+    if (showCaptcha && recaptchaRef.current) {
+      setTimeout(() => recaptchaRef.current.open(), 300);
+    }
+  }, [showCaptcha]);
 
-  function scrollToInput(refY) {
-    scrollViewRef.current?.scrollTo({ y: refY - 600, animated: true });
-  }
-
-  async function handleRegister() {
-    // Check empty fields
+  function handleRegister() {
     if (!fullName || !email || !password || !confirmPassword) {
       Alert.alert("Error", "All fields are required.");
       return;
     }
 
-    // Check email format
     if (!emailPattern.test(email)) {
       Alert.alert("Invalid Email", "Please enter a valid email address.");
       return;
     }
 
-    // Check if passwords match
     if (password !== confirmPassword) {
       Alert.alert("Error", "Passwords do not match.");
       return;
     }
 
-    // Check password strength with separate error messages
     if (!minLength.test(password)) {
-      Alert.alert("Weak Password", "Password must be at least 8 characters long.");
+      Alert.alert("Weak Password", "Password must be at least 8 characters.");
       return;
     }
-
     if (!hasUppercase.test(password)) {
-      Alert.alert("Weak Password", "Password must contain at least one uppercase letter.");
+      Alert.alert("Weak Password", "Include at least one uppercase letter.");
       return;
     }
-
     if (!hasNumber.test(password)) {
-      Alert.alert("Weak Password", "Password must contain at least one number.");
+      Alert.alert("Weak Password", "Include at least one number.");
       return;
     }
-
     if (!hasSymbol.test(password)) {
-      Alert.alert("Weak Password", "Password must contain at least one special character.");
+      Alert.alert("Weak Password", "Include at least one special character.");
       return;
     }
 
     if (!agree) {
-      Alert.alert("Agreement Required", "You must agree to the Terms and Privacy Policy.");
+      Alert.alert("Agreement Required", "You must agree to the Terms & Privacy Policy.");
       return;
     }
 
-    // If all checks pass, proceed to register
-    const auth = getAuth();
+    // Show reCAPTCHA BEFORE biometric
+    setShowCaptcha(true);
+  }
+
+  async function onCaptchaSuccess(token) {
+    setShowCaptcha(false);
+
+    if (!token) {
+      Alert.alert("Error", "reCAPTCHA failed. Please try again.");
+      return;
+    }
+
+    // Move to biometric verification
+    await handleBiometricVerification();
+  }
+
+  async function handleBiometricVerification() {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      const supported = await LocalAuthentication.supportedAuthenticationTypesAsync();
+
+      if (!hasHardware || !isEnrolled || supported.length === 0) {
+        Alert.alert("Biometric Not Available", "Your device doesn't support biometric authentication.");
+        return;
+      }
+
+      const authResult = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Verify your identity",
+        fallbackLabel: "Use Passcode",
+        disableDeviceFallback: false,
+      });
+
+      if (!authResult.success) {
+        Alert.alert("Authentication Failed", "Biometric verification failed.");
+        return;
+      }
+
+      // If biometric passes → register user
+      await registerUserNow();
+
+    } catch (err) {
+      console.log("Biometric Error:", err);
+      Alert.alert("Error", "Biometric authentication failed.");
+    }
+  }
+
+  async function registerUserNow() {
     try {
       await user_register(fullName, email, password);
+
       Alert.alert("Success", "Account created successfully!", [
-        { text: "OK", onPress: function () { navigation.navigate("UserLogin") } }
+        { text: "OK", onPress: () => navigation.navigate("UserLogin") }
       ]);
+
     } catch (error) {
       if (error.code === 'auth/email-already-in-use') {
-        Alert.alert("Email Already Used", "This email is already registered. Please use another email.");
+        Alert.alert("Email Already Exists", "This email is already registered.");
       } else {
-        Alert.alert("Registration Failed", "Try Again!");
+        Alert.alert("Registration Failed", "Please try again.");
       }
     }
   }
@@ -88,10 +137,22 @@ export default function UserRegister({navigation}){
   function toUserLogin() {
     navigation.navigate("UserLogin");
   }
+  
 
   return(
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={Platform.select({ ios: 0, android: 0 })}>
-      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {showCaptcha && (
+          <Recaptcha
+            ref={recaptchaRef}
+            siteKey={SITE_KEY}
+            baseUrl={BASE_URL}
+            size="normal"
+            theme="light"
+            onVerify={onCaptchaSuccess}
+          />
+        )}
+
         <TouchableOpacity onPress={toUserLogin}>
           <Image style={styles.backlogo1} source={require('../../assets/backlogo.png')}></Image>
         </TouchableOpacity>
@@ -105,22 +166,22 @@ export default function UserRegister({navigation}){
 
           <View>
             <Text style={styles.input_label}>Full Name</Text>
-            <TextInput style={styles.input_textinput} placeholder="John Doe" onChangeText={setFullName} onFocus={(e) => scrollToInput(e.nativeEvent.target)}></TextInput>
+            <TextInput style={styles.input_textinput} placeholder="John Doe" onChangeText={setFullName} onFocus={() => {}}></TextInput>
           </View>
 
           <View>
             <Text style={styles.input_label}>Email</Text>
-            <TextInput style={styles.input_textinput} placeholder="john@gmail.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" onFocus={(e) => scrollToInput(e.nativeEvent.target)}></TextInput>
+            <TextInput style={styles.input_textinput} placeholder="john@gmail.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" onFocus={() => {}}></TextInput>
           </View>
           
           <View>
             <Text style={styles.input_label}>Password</Text>
-            <TextInput style={styles.input_textinput} placeholder="Password" secureTextEntry={true} value={password} onChangeText={setPassword} onFocus={(e) => scrollToInput(e.nativeEvent.target)}></TextInput>
+            <TextInput style={styles.input_textinput} placeholder="Password" secureTextEntry={true} value={password} onChangeText={setPassword} onFocus={() => {}}></TextInput>
           </View>
 
           <View>
             <Text style={styles.input_label}>Confirm Password</Text>
-            <TextInput style={styles.input_textinput} placeholder="Confirm Password" secureTextEntry={true} value={confirmPassword} onChangeText={setConfirmPassword} onFocus={(e) => scrollToInput(e.nativeEvent.target)}></TextInput>
+            <TextInput style={styles.input_textinput} placeholder="Confirm Password" secureTextEntry={true} value={confirmPassword} onChangeText={setConfirmPassword} onFocus={() => {}}></TextInput>
           </View>
           
           <View style={styles.text_agreement_container}>
