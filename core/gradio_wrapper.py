@@ -528,7 +528,9 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                     # Convert to float32 to reduce memory usage during resampling
                     X_train_flat = X_train.reshape(original_shape[0], -1).astype(np.float32)
 
-                    min_class_count = np.min(np.bincount(y_train))
+                    class_counts = np.bincount(y_train)
+                    # Get the count of the smallest class that has at least one sample
+                    min_class_count = np.min(class_counts[np.nonzero(class_counts)])
                     k_neighbors = min(5, min_class_count - 1) if min_class_count > 1 else 0
 
                     if k_neighbors < 1:
@@ -536,8 +538,19 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                     else:
                         print("Applying SMOTE and RandomUnderSampler to the training set...")
                         # Define a pipeline that first oversamples minorities, then undersamples the majority.
-                        # This is more memory-efficient than just oversampling to match the majority class.
-                        over_strategy = 0.2  # Bring minorities to 20% of the majority size
+                        
+                        # --- Oversampling strategy: Increase minority classes by 100% (double them) ---
+                        majority_class_label = np.argmax(class_counts)
+                        over_strategy = {
+                            label: count * 2
+                            for label, count in enumerate(class_counts)
+                            if label != majority_class_label and count > 0
+                        }
+                        # If there are no minority classes, SMOTE will do nothing with this strategy.
+                        if not over_strategy:
+                            over_strategy = 'auto'
+
+                        # --- Undersampling strategy ---
                         under_strategy = 0.25 # Make majority 4x the size of minorities (after oversampling)
 
                         over = SMOTE(sampling_strategy=over_strategy, random_state=42, k_neighbors=k_neighbors)
