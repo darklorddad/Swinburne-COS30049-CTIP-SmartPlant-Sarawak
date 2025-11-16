@@ -14,6 +14,11 @@ import random
 import zipfile
 import math
 import matplotlib.pyplot as plt
+import cv2
+import numpy as np
+from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import TomekLinks
+from imblearn.pipeline import Pipeline as ImblearnPipeline
 import queue
 import threading
 
@@ -343,7 +348,7 @@ def organise_dataset_folders(destination_dir: str, source_dir: str):
         raise gr.Error(f"Failed to organise dataset: {e}")
 
 
-def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train_manifest_path, val_manifest_path, test_manifest_path, split_type, train_ratio, val_ratio, test_ratio):
+def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train_manifest_path, val_manifest_path, test_manifest_path, split_type, train_ratio, val_ratio, test_ratio, resample_train_set):
     """Splits a dataset into train, validation, and optional test sets."""
     
     def _generate_category_stats(class_dict, category_name):
@@ -483,26 +488,82 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
 
     try:
         for set_name, classes in final_splits.items():
-            if not classes: continue
-            
+            if not classes:
+                continue
+
             set_dir = os.path.join(temp_parent_dir, set_name)
             os.makedirs(set_dir, exist_ok=True)
             manifest_files = []
+            resampling_applied = False
 
-            for class_name, files_to_copy in classes.items():
-                class_dir = os.path.join(set_dir, class_name)
-                os.makedirs(class_dir)
-                for f in files_to_copy:
-                    shutil.copy2(f, class_dir)
-                    file_name = os.path.basename(f)
-                    manifest_path_in_zip = f"{class_name}/{file_name}".replace(os.sep, '/')
-                    manifest_files.append(manifest_path_in_zip)
-            
-            # Build manifest content with summary
+            # --- Handle training set resampling ---
+            if set_name == 'train' and resample_train_set:
+                print("Applying SMOTE and Tomek Links to the training set...")
+                X_train, y_train = [], []
+                class_names_map = sorted(classes.keys())
+                label_map = {name: i for i, name in enumerate(class_names_map)}
+                IMG_DIM = (224, 224)
+
+                for class_name, files in classes.items():
+                    for f in files:
+                        img = cv2.imread(f)
+                        if img is not None:
+                            img = cv2.resize(img, IMG_DIM)
+                            X_train.append(img)
+                            y_train.append(label_map[class_name])
+
+                if not X_train:
+                    print("Warning: No images could be loaded for resampling. Skipping resampling.")
+                else:
+                    X_train, y_train = np.array(X_train), np.array(y_train)
+                    original_shape = X_train.shape
+                    X_train_flat = X_train.reshape(original_shape[0], -1)
+
+                    min_class_count = np.min(np.bincount(y_train))
+                    k_neighbors = min(5, min_class_count - 1) if min_class_count > 1 else 0
+
+                    if k_neighbors < 1:
+                        print(f"Warning: Skipping SMOTE as smallest class has {min_class_count} sample(s), which is not enough (needs at least 2).")
+                    else:
+                        resampling_pipeline = ImblearnPipeline([
+                            ('smote', SMOTE(random_state=42, k_neighbors=k_neighbors)),
+                            ('tomek', TomekLinks(sampling_strategy='auto'))
+                        ])
+                        X_resampled_flat, y_resampled = resampling_pipeline.fit_resample(X_train_flat, y_train)
+                        X_resampled = X_resampled_flat.reshape(-1, IMG_DIM[0], IMG_DIM[1], 3)
+                        
+                        resampled_class_counts = {class_names_map[i]: count for i, count in enumerate(np.bincount(y_resampled))}
+                        for class_name, count in resampled_class_counts.items():
+                            if class_name in included_classes:
+                                included_classes[class_name]['splits']['train'] = count
+                        
+                        for i, (img_array, label_idx) in enumerate(zip(X_resampled, y_resampled)):
+                            class_name = class_names_map[label_idx]
+                            class_dir = os.path.join(set_dir, class_name)
+                            os.makedirs(class_dir, exist_ok=True)
+                            filename = f"resampled_{i:05d}.png"
+                            filepath = os.path.join(class_dir, filename)
+                            cv2.imwrite(filepath, img_array)
+                            manifest_files.append(f"{class_name}/{filename}".replace(os.sep, '/'))
+                        
+                        resampling_applied = True
+
+            # --- Default file copying for validation/test or if resampling is skipped ---
+            if not manifest_files:
+                for class_name, files_to_copy in classes.items():
+                    class_dir = os.path.join(set_dir, class_name)
+                    os.makedirs(class_dir, exist_ok=True)
+                    for f in files_to_copy:
+                        shutil.copy2(f, class_dir)
+                        file_name = os.path.basename(f)
+                        manifest_files.append(f"{class_name}/{file_name}".replace(os.sep, '/'))
+
+            # --- Build manifest content with summary ---
             manifest_content = [f"# {set_name.capitalize()} Set Manifest"]
+            if resampling_applied:
+                manifest_content.append("\n*This training set has been resampled using SMOTE and Tomek Links to address class imbalance.*")
 
-            # --- Detailed Breakdown for this set ---
-            set_class_counts = {name: data['splits'][set_name] for name, data in included_classes.items() if data['splits'][set_name] > 0}
+            set_class_counts = {name: data['splits'][set_name] for name, data in included_classes.items() if data['splits'].get(set_name, 0) > 0}
             
             manifest_content.append("\n## Set Summary")
             if not set_class_counts:
@@ -515,7 +576,6 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                 for class_name, count in sorted(set_class_counts.items()):
                     manifest_content.append(f"- {class_name}: {count} items")
 
-            # --- Overall Split Information ---
             manifest_content.extend(_generate_category_stats(included_classes, "All Included Classes (from source)"))
             manifest_content.extend(_generate_category_stats(skipped_classes, "All Skipped Classes (from source)"))
 
@@ -528,16 +588,13 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
             manifest_content.append("\n## File List")
             manifest_content.extend(sorted(manifest_files))
 
-            # Write manifest with relative file paths
             with open(os.path.join(set_dir, 'manifest.md'), 'w', encoding='utf-8') as f:
                 f.write('\n'.join(manifest_content))
 
-            # Write manifest to external directory
             external_manifest_path = manifest_paths[set_name]
             with open(external_manifest_path, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(manifest_content))
 
-            # Create zip in its designated output directory
             zip_path = output_paths[set_name]
             zip_path_base = os.path.splitext(zip_path)[0]
             archive_path = shutil.make_archive(zip_path_base, 'zip', set_dir)

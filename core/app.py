@@ -130,6 +130,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                     ds_train_ratio = gr.Slider(0, 100, value=80, step=1, label="Train %")
                     ds_val_ratio = gr.Slider(0, 100, value=20, step=1, label="Validate %", interactive=False)
                     ds_test_ratio = gr.Slider(0, 100, value=0, step=1, label="Test %", visible=False)
+                ds_resample = gr.Checkbox(label="Apply SMOTE + Tomek resampling to training set", value=False)
                 ds_split_button = gr.Button("Split", variant="primary")
                 ds_status_message = gr.Textbox(label="Status", interactive=False, lines=5)
 
@@ -164,7 +165,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
 
             ds_split_button.click(
                 fn=split_dataset,
-                inputs=[ds_source_dir, ds_train_output_dir, ds_val_output_dir, ds_test_output_dir, ds_train_manifest_path, ds_val_manifest_path, ds_test_manifest_path, ds_split_type, ds_train_ratio, ds_val_ratio, ds_test_ratio],
+                inputs=[ds_source_dir, ds_train_output_dir, ds_val_output_dir, ds_test_output_dir, ds_train_manifest_path, ds_val_manifest_path, ds_test_manifest_path, ds_split_type, ds_train_ratio, ds_val_ratio, ds_test_ratio, ds_resample],
                 outputs=ds_status_message
             )
 
