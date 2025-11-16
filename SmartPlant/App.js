@@ -41,6 +41,8 @@ import AIChatScreen from "./src/pages/AIChatScreen"
 import PlantDetailScreen from "./src/screens/PlantDetailScreen";
 import UserFeedbackDetail from "./src/pages/UserFeedbackDetail";
 
+import AlertHistory from "./src/admin/screens/AlertHistory";
+
 //testing the component
 import Tabs from './tabs/Tabs';
 
@@ -52,7 +54,7 @@ export default function App() {
     <AdminProvider>
     <PermissionProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="Introduction" screenOptions={{ headerShown: false }}>
+        <Stack.Navigator initialRouteName="LoginSelection" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Back" component={Tabs}/>
           <Stack.Screen name="Profile" component={Profile} />
           {/* <Stack.Screen name="IoTDashboard" component={IoTDashboard} /> */}
@@ -85,10 +87,11 @@ export default function App() {
           <Stack.Screen name="PostDetail" component={PostDetail}/>
           <Stack.Screen name="ReportError" component={ReportError}/>
           <Stack.Screen name="TopSuggestions" component={TopSuggestions}/>
-          <Stack.Screen name="AdminDashboard" component={AdminNavigator} />
+          <Stack.Screen name="back" component={AdminNavigator} />
           <Stack.Screen name="AIChatScreen" component={AIChatScreen} />
           <Stack.Screen name="PlantDetailScreen" component={PlantDetailScreen} options={{ headerShown: true, headerTitle: "Plant", headerBackTitleVisible: false, }} />
           <Stack.Screen name="UserFeedbackDetail" component={UserFeedbackDetail} />
+          <Stack.Screen name="AlertHistory" component={AlertHistory} options={{ headerShown: true, headerTitle: "Alert History", headerBackTitleVisible: true, }} />
 
         </Stack.Navigator>
       </NavigationContainer>

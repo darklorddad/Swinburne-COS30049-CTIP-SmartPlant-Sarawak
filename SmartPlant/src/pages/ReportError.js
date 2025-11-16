@@ -16,7 +16,11 @@ import { TOP_PAD } from "../components/StatusBarManager";
 import { db, auth } from "../firebase/FirebaseConfig"; // app/storage not needed anymore
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
-export default function ReportError({ navigation }) {
+export default function ReportError({ navigation, route }) {
+  // NEW: if someone navigates with navigation.navigate("ReportError", { post })
+  // we capture that post here. If not provided, this is just undefined.
+  const { post } = route?.params || {};
+
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -37,6 +41,13 @@ export default function ReportError({ navigation }) {
         platform: Platform.OS,
         status: "open",
         createdAt: serverTimestamp(),
+
+        // 🔹 NEW: extra info so admin knows which post was reported
+        // (these are null if ReportError was opened without a post)
+        post_id: post?.id || null,
+        post_author: post?.author || post?.identifiedBy || null,
+        post_locality: post?.locality || null,
+        post_coordinate: post?.coordinate || null,
       });
 
       Alert.alert("Thanks!", "Your report has been submitted.");

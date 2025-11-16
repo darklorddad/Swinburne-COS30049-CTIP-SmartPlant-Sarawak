@@ -8,9 +8,8 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
-  Platform,          // ← added
-  StatusBar,         // ← added
-  Modal
+  Platform,
+  StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BottomNav from "../components/NavigationExpert";
@@ -29,10 +28,14 @@ import {
   arrayUnion,
   arrayRemove,
   increment,
+  getDocs,
 } from "firebase/firestore";
 
+// Match NavigationExpert.js overlay
 const NAV_HEIGHT = 60;
 const NAV_MARGIN_TOP = 150;
+
+// small top padding so the heading sits lower (under status bar / notch safely)
 const TOP_PAD = Platform.OS === "ios" ? 56 : (StatusBar.currentHeight || 0) + 8;
 
 const timeAgo = (ms) => {
@@ -46,6 +49,17 @@ const timeAgo = (ms) => {
   return `${d}d`;
 };
 
+// pretty initials color (same palette as user page)
+const colors = ["#fca5a5", "#16a34a", "#a3e635", "#fef08a", "#c084fc", "#60a5fa", "#f9a8d4"];
+const getColorForId = (id) => {
+  if (!id) return colors[0];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 export default function HomepageExpert({ navigation }) {
   const expertName =
     auth.currentUser?.displayName ||
@@ -56,9 +70,28 @@ export default function HomepageExpert({ navigation }) {
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [likeBusy, setLikeBusy] = useState(new Set());
+  const [likeBusy, setLikeBusy] = useState(new Set()); // prevent spam taps
   const [saveBusy, setSaveBusy] = useState(new Set());
 
+  // ------- Profiles map (robust: index by doc.id, uid/user_id, and email) -------
+  const [profilesMap, setProfilesMap] = useState(new Map());
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "account"), (snap) => {
+      const map = new Map();
+      snap.forEach((s) => {
+        const data = s.data() || {};
+        const docId = s.id;
+        const uid = data.user_id || data.uid;
+        const email = (data.email || data.user_email || "").toLowerCase();
+        [docId, uid, email].filter(Boolean).forEach((k) => map.set(String(k), data));
+      });
+      setProfilesMap(map);
+    });
+    return () => unsub();
+  }, []);
+  // -----------------------------------------------------------------------------
+
+  // Live feed
   useEffect(() => {
     const qRef = query(
       collection(db, "plant_identify"),
@@ -74,8 +107,20 @@ export default function HomepageExpert({ navigation }) {
             (v?.createdAt?.seconds ? v.createdAt.seconds * 1000 : Date.now())) ||
           Date.now();
 
-        const author =
-          v?.author_name || (v?.user_id ? `@${String(v.user_id).slice(0, 6)}` : "User");
+        // resolve profile for avatar
+        const uidKey = v?.user_id ? String(v.user_id) : null;
+        const emailKey = (v?.user_email || v?.author_email || "").toLowerCase();
+        const prof =
+          (uidKey && profilesMap.get(uidKey)) ||
+          (emailKey && profilesMap.get(emailKey)) ||
+          null;
+
+        const authorName =
+          prof?.full_name ||
+          v?.author_name ||
+          (v?.user_id ? `@${String(v.user_id).slice(0, 6)}` : "User");
+
+        const userImage = prof?.profile_pic || null;
 
         const imageURIs = Array.isArray(v?.ImageURLs)
           ? v.ImageURLs.filter((u) => typeof u === "string" && u.trim() !== "")
@@ -90,11 +135,15 @@ export default function HomepageExpert({ navigation }) {
 
         return {
           id: d.id,
+          user_id: v.user_id || null,
+          user_email: v.user_email || null,
+          userImage, // ← resolved avatar
           imageURIs,
+          // caption now just the plant name will render below; keep this for compatibility
           caption: top1
             ? `Top: ${top1.plant_species} (${Math.round((top1.ai_score || 0) * 100)}%)`
             : "New identification",
-          author,
+          author: authorName,
           time: ms,
           locality: v?.locality || "Kuching",
           prediction: [
@@ -110,16 +159,18 @@ export default function HomepageExpert({ navigation }) {
           liked_by,
           identify_status: (v?.identify_status || "pending").toLowerCase(),
 
+          // allow experts to see if a manual (new-species) name exists
           manual_scientific_name:
             typeof v?.manual_scientific_name === "string" ? v.manual_scientific_name : null,
         };
       });
 
+      // only pending + verified (hide rejected)
       const visibleItems = items.filter((it) => it.identify_status !== "rejected");
       setPosts(visibleItems);
     });
     return () => unsub();
-  }, []);
+  }, [profilesMap]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -136,18 +187,9 @@ export default function HomepageExpert({ navigation }) {
     }
   }, [latest?.time]);
 
-  const recentTitle = useMemo(() => {
-    if (!latest) return "Plant";
-    const manual = (latest.manual_scientific_name || "").trim();
-    if (manual) return manual;
-    const top1 =
-      (latest.prediction && latest.prediction[0]) ||
-      (latest.model_predictions?.top_1 ?? null);
-    return top1?.plant_species || top1?.class || "Plant";
-  }, [latest]);
-
   const openDetail = (post) => navigation.navigate("PostDetail", { postId: post.id });
 
+  // ===== interactions =====
   const setPostPartial = (id, patch) =>
     setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
@@ -164,6 +206,7 @@ export default function HomepageExpert({ navigation }) {
       : [...(p.liked_by || []), myId];
     const optimisticLikeCount = (p.like_count || 0) + (already ? -1 : 1);
 
+    // optimistic UI
     setPostPartial(p.id, { liked_by: optimisticLikedBy, like_count: optimisticLikeCount });
 
     const postRef = doc(db, "plant_identify", p.id);
@@ -184,6 +227,7 @@ export default function HomepageExpert({ navigation }) {
         });
       });
     } catch (e) {
+      // revert on fail
       setPostPartial(p.id, { liked_by: p.liked_by, like_count: p.like_count });
       console.log("toggleLike failed:", e);
     } finally {
@@ -206,6 +250,7 @@ export default function HomepageExpert({ navigation }) {
       : [...(p.saved_by || []), myId];
     const optimisticSavedCount = (p.saved_count || 0) + (already ? -1 : 1);
 
+    // optimistic UI
     setPostPartial(p.id, { saved_by: optimisticSavedBy, saved_count: optimisticSavedCount });
 
     const postRef = doc(db, "plant_identify", p.id);
@@ -215,6 +260,7 @@ export default function HomepageExpert({ navigation }) {
         saved_count: increment(already ? -1 : 1),
       });
     } catch (e) {
+      // revert on fail
       setPostPartial(p.id, { saved_by: p.saved_by, saved_count: p.saved_count });
       console.log("toggleSave failed:", e);
     } finally {
@@ -224,6 +270,7 @@ export default function HomepageExpert({ navigation }) {
     }
   };
 
+  // Round icon-only badge (same look, we'll position it absolute in styles)
   const StatusIcon = ({ status }) => {
     let style = styles.iconWrapPending;
     let icon = "time";
@@ -240,7 +287,17 @@ export default function HomepageExpert({ navigation }) {
       </View>
     );
   };
-  const [showSafetyModal, setShowSafetyModal] = useState(true); // added to pop out safetly guideline for plant expert
+
+  // For the small "Recent" row, use plant name (manual override then top-1)
+  const recentTitle = useMemo(() => {
+    if (!latest) return "Plant";
+    const manual = (latest.manual_scientific_name || "").trim();
+    if (manual) return manual;
+    const top1 =
+      (latest.prediction && latest.prediction[0]) ||
+      (latest.model_predictions?.top_1 ?? null);
+    return top1?.plant_species || top1?.class || "Plant";
+  }, [latest]);
 
   return (
     <View style={styles.background}>
@@ -258,7 +315,7 @@ export default function HomepageExpert({ navigation }) {
       >
         {/* Greeting */}
         <View style={styles.greetingCard}>
-          <View style={styles.avatar} />
+          <View style={[styles.avatar, { backgroundColor: "#D7E3D8" }]} />
           <View style={{ flex: 1 }}>
             <Text style={styles.greetingTitle}>Good Morning</Text>
             <Text style={styles.greetingSub}>{expertName}</Text>
@@ -278,6 +335,7 @@ export default function HomepageExpert({ navigation }) {
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Text style={styles.recentTitle}>{recentTitle}</Text>
+                {/* small inline badge */}
                 <StatusIcon status={latest.identify_status} />
               </View>
               <Text style={styles.recentMeta}>{formattedDate}</Text>
@@ -312,7 +370,7 @@ export default function HomepageExpert({ navigation }) {
           const liked = Array.isArray(p.liked_by) && p.liked_by.includes(myId);
           const saved = Array.isArray(p.saved_by) && p.saved_by.includes(myId);
 
-          // plant name for card
+          // plant display name: manual override → top-1 species/class → "Plant"
           const plantName =
             (p.manual_scientific_name && p.manual_scientific_name.trim()) ||
             (p.prediction?.[0]?.plant_species || p.prediction?.[0]?.class) ||
@@ -320,13 +378,27 @@ export default function HomepageExpert({ navigation }) {
 
           return (
             <View key={p.id} style={styles.feedCard}>
+              {/* Absolute status badge top-right */}
               <View style={styles.statusAbsolute}>
                 <StatusIcon status={p.identify_status} />
               </View>
 
               <TouchableOpacity onPress={() => openDetail(p)} activeOpacity={0.85}>
                 <View style={styles.feedHeader}>
-                  <View style={styles.feedAvatar} />
+                  {p.userImage ? (
+                    <Image source={{ uri: p.userImage }} style={styles.feedAvatar} />
+                  ) : (
+                    <View
+                      style={[
+                        styles.feedAvatar,
+                        { backgroundColor: getColorForId(p.user_id) },
+                      ]}
+                    >
+                      <Text style={styles.feedAvatarText}>
+                        {(p.author || "U").charAt(0)}
+                      </Text>
+                    </View>
+                  )}
                   <View style={{ marginLeft: 8, flexShrink: 1, flex: 1 }}>
                     <Text style={styles.feedName} numberOfLines={1}>
                       {p.author ?? "User"}
@@ -347,12 +419,14 @@ export default function HomepageExpert({ navigation }) {
                   <View style={styles.feedImage} />
                 )}
 
-                {/* Render plant name instead of "Top: ..." */}
+                {/* Plant name subtitle */}
                 <Text style={{ marginTop: 8 }}>{plantName}</Text>
               </TouchableOpacity>
 
+              {/* Bottom row with interactive icons + Details on the right */}
               <View style={styles.feedActions}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  {/* like */}
                   <TouchableOpacity
                     onPress={() => toggleLike(p)}
                     disabled={likeBusy.has(p.id)}
@@ -363,6 +437,7 @@ export default function HomepageExpert({ navigation }) {
                     <Text style={styles.countText}>{p.like_count || 0}</Text>
                   </TouchableOpacity>
 
+                  {/* comment -> detail page (composer there) */}
                   <TouchableOpacity
                     onPress={() => openDetail(p)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -372,6 +447,7 @@ export default function HomepageExpert({ navigation }) {
                     <Text style={styles.countText}>{p.comment_count || 0}</Text>
                   </TouchableOpacity>
 
+                  {/* save */}
                   <TouchableOpacity
                     onPress={() => toggleSave(p)}
                     disabled={saveBusy.has(p.id)}
@@ -394,29 +470,9 @@ export default function HomepageExpert({ navigation }) {
             </View>
           );
         })}
-
-        {/* (no bottom green banner) */}
       </ScrollView>
 
       <BottomNav navigation={navigation} />
-
-      {/* Safety Guideline Modal */}
-      <Modal visible={showSafetyModal} animationType="fade" transparent={true} onRequestClose={() => setShowSafetyModal(false)}>
-        <View style={styles.modalBackground}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>🛡️ Expert Safety Guidelines</Text>
-            <Text style={styles.modalText}>• Never share your login credentials or expert access codes.</Text>
-            <Text style={styles.modalText}>• Verify plant-related requests before responding to users.</Text>
-            <Text style={styles.modalText}>• Avoid downloading or opening unverified links or attachments.</Text>
-            <Text style={styles.modalText}>• Protect user data and avoid exposing private user information.</Text>
-            <Text style={styles.modalText}>• Contact the admin immediately if you suspect fraudulent activity.</Text>
-
-            <TouchableOpacity style={styles.modalButton} onPress={() => setShowSafetyModal(false)}>
-              <Text style={styles.modalButtonText}>I Understand</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -426,6 +482,7 @@ const styles = StyleSheet.create({
   scroller: { marginBottom: -NAV_MARGIN_TOP },
   container: { flexGrow: 1, padding: 16, minHeight: "100%" },
 
+  // Greeting (same as user)
   greetingCard: {
     backgroundColor: "#FFF",
     borderRadius: 16,
@@ -442,6 +499,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: { marginTop: 18, marginBottom: 8, fontWeight: "700", color: "#2b2b2b" },
 
+  // Recent
   recentCard: {
     backgroundColor: "#E7F0E5",
     borderRadius: 16,
@@ -458,10 +516,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#d8e3d8",
   },
-  recentTitle: { fontWeight: "700", color: "#2b2b2b", marginBottom: 4 },
+  recentTitle: { fontWeight: "700", color: "#2b2b2b", marginBottom: 4, maxWidth: "80%" },
   recentMeta: { color: "#2b2b2b", opacity: 0.7, fontSize: 12 },
   linkText: { color: "#2b2b2b", opacity: 0.8, fontWeight: "600" },
 
+  // PM summary
   pmCard: {
     marginTop: 12,
     backgroundColor: "#D1E7D2",
@@ -473,20 +532,30 @@ const styles = StyleSheet.create({
   pmTitle: { color: "#2b2b2b", fontWeight: "700" },
   pmCount: { marginTop: 6, fontSize: 28, fontWeight: "800", color: "#2b2b2b" },
 
+  // Feed
   feedCard: {
     marginTop: 16,
     backgroundColor: "#FFF",
     borderRadius: 12,
     padding: 12,
-    position: "relative",
+    position: "relative", // needed for absolute status badge
   },
   feedHeader: { flexDirection: "row", alignItems: "center" },
-  feedAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#D7E3D8" },
+  feedAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#D7E3D8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  feedAvatarText: { color: "white", fontSize: 12, fontWeight: "bold" },
   feedName: { fontWeight: "700", color: "#2b2b2b", maxWidth: "80%" },
   feedMeta: { color: "#2b2b2b", opacity: 0.7, fontSize: 12, marginBottom: 10 },
 
   feedImage: { height: 140, backgroundColor: "#5A7B60", borderRadius: 10, marginTop: 12 },
 
+  // bottom row now has details on the right
   feedActions: {
     flexDirection: "row",
     alignItems: "center",
@@ -496,6 +565,10 @@ const styles = StyleSheet.create({
   countGroup: { flexDirection: "row", alignItems: "center" },
   countText: { marginLeft: 6 },
 
+  // (banner style kept; element removed)
+  banner: { marginTop: 12, height: 160, borderRadius: 12, backgroundColor: "#5A7B60" },
+
+  // ===== Visible icon-only status badge (same look) =====
   iconWrapBase: {
     width: 28,
     height: 28,
@@ -512,8 +585,10 @@ const styles = StyleSheet.create({
   iconWrapRejected: { backgroundColor: "#D36363" },
   iconWrapPending: { backgroundColor: "#9CA3AF" },
 
+  // absolute placement like the screenshot
   statusAbsolute: { position: "absolute", top: 8, right: 10, zIndex: 2 },
 
+  // Details pill bottom-right
   detailsBtn: {
     backgroundColor: "#10B981",
     paddingHorizontal: 12,
@@ -521,39 +596,4 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   detailsBtnText: { color: "#fff", fontWeight: "700" },
-  // Safety guideline modal styles
-  modalBackground: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalBox: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    width: "85%",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 12,
-    color: "#2b2b2b",
-  },
-  modalText: {
-    fontSize: 14,
-    color: "#333",
-    marginBottom: 6,
-  },
-  modalButton: {
-    backgroundColor: "#6EA564",
-    borderRadius: 8,
-    marginTop: 16,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  modalButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
 });
