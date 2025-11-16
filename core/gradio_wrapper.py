@@ -525,7 +525,8 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                 else:
                     X_train, y_train = np.array(X_train), np.array(y_train)
                     original_shape = X_train.shape
-                    X_train_flat = X_train.reshape(original_shape[0], -1)
+                    # Convert to float32 to reduce memory usage during resampling
+                    X_train_flat = X_train.reshape(original_shape[0], -1).astype(np.float32)
 
                     min_class_count = np.min(np.bincount(y_train))
                     k_neighbors = min(5, min_class_count - 1) if min_class_count > 1 else 0
