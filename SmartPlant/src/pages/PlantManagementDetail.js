@@ -109,7 +109,15 @@ export default function PlantManagementDetail({ route, navigation }) {
 
         const top1 = data?.model_predictions?.top_1 || {};
         const score = typeof top1?.ai_score === "number" ? top1.ai_score : 0;
-        const sciName = top1?.plant_species || top1?.class || null;
+
+        // ✅ PREFER manual_scientific_name if it already exists on the doc
+        const sciName =
+          (typeof data?.manual_scientific_name === "string" &&
+            data.manual_scientific_name.trim()) ||
+          top1?.plant_species ||
+          top1?.class ||
+          null;
+
         const isPending =
           (data?.identify_status || "pending").toLowerCase() === "pending";
 
@@ -151,7 +159,7 @@ export default function PlantManagementDetail({ route, navigation }) {
           }
         }
 
-        // always fetch conservation status for predicted sciName (for prediction mode)
+        // always fetch conservation status for predicted/explicit sciName (for prediction mode)
         if (sciName) {
           try {
             const plantSnap = await getDoc(doc(db, "plant", sciName));
@@ -183,7 +191,15 @@ export default function PlantManagementDetail({ route, navigation }) {
   }, [id]);
 
   const top1 = post?.model_predictions?.top_1 || null;
-  const sciName = top1?.plant_species || top1?.class || "—";
+
+  // ✅ PREFER manual_scientific_name for display & for map title
+  const sciName =
+    (typeof post?.manual_scientific_name === "string" &&
+      post.manual_scientific_name.trim()) ||
+    top1?.plant_species ||
+    top1?.class ||
+    "—";
+
   const identifyStatus = (post?.identify_status || "pending").toLowerCase();
   const coords = post?.coordinate || null;
   const locationLabel = post?.locality || "Unknown location";
@@ -277,6 +293,23 @@ export default function PlantManagementDetail({ route, navigation }) {
         return;
       }
 
+      // ✅ Persist chosen sciName + category back onto plant_identify doc
+      try {
+        const identifyRef = doc(db, "plant_identify", post.id);
+        const updatePayload = {
+          conservation_status: finalCategory,
+        };
+        if (mode === "new") {
+          updatePayload.manual_scientific_name = finalSciName;
+        }
+        await updateDoc(identifyRef, updatePayload);
+      } catch (err) {
+        console.warn(
+          "Failed to update plant_identify with manual sci name/category:",
+          err
+        );
+      }
+
       // Merge into plant catalog (append sample_images only; don't overwrite plant_image)
       if (finalSciName) {
         const plantRef = doc(db, "plant", finalSciName);
@@ -313,13 +346,18 @@ export default function PlantManagementDetail({ route, navigation }) {
         // ignore
       }
 
-      // Update local state so UI shows verified
+      // ✅ Update local state so UI shows verified + new sci name (if any)
       setPost((p) => ({
         ...p,
         identify_status: "verified",
         conservation_status: finalCategory,
         verified_by: auth.currentUser?.uid,
+        ...(mode === "new"
+          ? { manual_scientific_name: finalSciName }
+          : {}),
       }));
+      setCategory(finalCategory);
+
       Alert.alert("Approved", "Post has been verified and categorized.");
       navigation.navigate("PlantManagementList");
     } catch (e) {
@@ -613,7 +651,7 @@ export default function PlantManagementDetail({ route, navigation }) {
         <Text style={styles.fieldLabel}>Date identified:</Text>
         <Text style={styles.value}>{fmtDate(post?.createdAt)}</Text>
 
-        {/* ✅ LOCATION SECTION SIMPLIFIED */}
+        {/* LOCATION SECTION */}
         <Text style={styles.fieldLabel}>Location:</Text>
         <Text style={styles.value}>{locationLabel}</Text>
         {coords && (
@@ -693,7 +731,12 @@ const styles = StyleSheet.create({
   fieldLabel: { color: "#2b2b2b", opacity: 0.7, marginTop: 6 },
   value: { color: "#2b2b2b", marginBottom: 4 },
   divider: { height: 1, backgroundColor: "#cfcfcf", marginVertical: 8 },
-  locationBox: { height: 90, borderRadius: 8, backgroundColor: "#CFD4D0", marginTop: 4 },
+  locationBox: {
+    height: 90,
+    borderRadius: 8,
+    backgroundColor: "#CFD4D0",
+    marginTop: 4,
+  },
   quote: { marginTop: 8, paddingVertical: 12, borderTopWidth: 1, borderColor: "#cfcfcf" },
   quoteText: { fontStyle: "italic", color: "#2b2b2b" },
 
