@@ -9,7 +9,7 @@ export default function BottomNav({ navigation }) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.bottomNav, { height: 50 + insets.bottom, paddingBottom: insets.bottom }]}>
+    <View style={[styles.bottomNav, { height: 40 + insets.bottom, paddingBottom: insets.bottom }]}>
       <TouchableOpacity
         style={[styles.tab, route.name === "HomepageExpert" && styles.activeTab]}
         onPress={() => navigation.navigate("HomepageExpert")}
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     backgroundColor: "#578C5B",
-    height: 50,
+    height: 40,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     bottom: 0,
