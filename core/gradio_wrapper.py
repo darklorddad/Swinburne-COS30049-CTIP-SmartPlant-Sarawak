@@ -16,9 +16,7 @@ import math
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
-from imblearn.over_sampling import SMOTE
-from imblearn.under_sampling import RandomUnderSampler
-from imblearn.pipeline import Pipeline as ImblearnPipeline
+from sklearn.neighbors import NearestNeighbors
 import queue
 import threading
 
@@ -498,87 +496,104 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
 
             # --- Handle training set resampling ---
             if set_name == 'train' and resample_train_set:
-                print("Applying SMOTE and RandomUnderSampler to the training set...")
-                X_train, y_train = [], []
-                class_names_map = sorted(classes.keys())
-                label_map = {name: i for i, name in enumerate(class_names_map)}
+                print("Applying memory-efficient SMOTE and RandomUnderSampler to the training set...")
+                resampling_applied = True
                 IMG_DIM = (224, 224)
 
-                for class_name, files in classes.items():
-                    for f in files:
-                        try:
-                            # Read with numpy to handle special characters in file paths
-                            n = np.fromfile(f, np.uint8)
-                            img = cv2.imdecode(n, cv2.IMREAD_COLOR)
-                            
-                            if img is not None:
-                                img = cv2.resize(img, IMG_DIM)
-                                X_train.append(img)
-                                y_train.append(label_map[class_name])
-                            else:
-                                print(f"Warning: Failed to decode image (is it a valid image file?): {f}")
-                        except Exception as e:
-                            print(f"Warning: Could not load image {f}. Error: {e}")
-
-                if not X_train:
-                    print("Warning: No images could be loaded for resampling. Skipping resampling.")
+                # 1. Get class counts and identify majority class
+                class_file_counts = {name: len(files) for name, files in classes.items()}
+                if not class_file_counts:
+                    print("Warning: No classes found for resampling. Skipping.")
+                    resampling_applied = False
                 else:
-                    X_train, y_train = np.array(X_train), np.array(y_train)
-                    original_shape = X_train.shape
-                    # Convert to float32 to reduce memory usage during resampling
-                    X_train_flat = X_train.reshape(original_shape[0], -1).astype(np.float32)
+                    majority_class_name = max(class_file_counts, key=class_file_counts.get)
+                    
+                    final_class_counts = {}
+                    new_minority_counts = []
 
-                    class_counts = np.bincount(y_train)
-                    # Get the count of the smallest class that has at least one sample
-                    min_class_count = np.min(class_counts[np.nonzero(class_counts)])
-                    k_neighbors = min(5, min_class_count - 1) if min_class_count > 1 else 0
+                    # 2. Process and copy/oversample each minority class
+                    for class_name, files_to_process in classes.items():
+                        if class_name == majority_class_name:
+                            continue
 
-                    if k_neighbors < 1:
-                        print(f"Warning: Skipping SMOTE as smallest class has {min_class_count} sample(s), which is not enough (needs at least 2).")
+                        class_dir = os.path.join(set_dir, class_name)
+                        os.makedirs(class_dir, exist_ok=True)
+                        
+                        num_original_samples = len(files_to_process)
+                        num_to_synthesize = num_original_samples # 100% increase
+                        final_class_counts[class_name] = num_original_samples + num_to_synthesize
+                        new_minority_counts.append(final_class_counts[class_name])
+
+                        # Copy original files
+                        for f in files_to_process:
+                            shutil.copy2(f, class_dir)
+                            manifest_files.append(f"{class_name}/{os.path.basename(f)}".replace(os.sep, '/'))
+
+                        # Apply SMOTE if possible
+                        k_neighbors = min(5, num_original_samples - 1) if num_original_samples > 1 else 0
+                        if k_neighbors > 0 and num_to_synthesize > 0:
+                            print(f"Applying SMOTE to class '{class_name}' to generate {num_to_synthesize} new samples...")
+                            X_class = []
+                            for f in files_to_process:
+                                try:
+                                    n = np.fromfile(f, np.uint8)
+                                    img = cv2.imdecode(n, cv2.IMREAD_COLOR)
+                                    if img is not None:
+                                        X_class.append(cv2.resize(img, IMG_DIM))
+                                except Exception as e:
+                                    print(f"Warning: Could not load image {f} for SMOTE. Error: {e}")
+                            
+                            if len(X_class) > k_neighbors:
+                                X_class_flat = np.array(X_class).reshape(len(X_class), -1).astype(np.float32)
+                                
+                                nn = NearestNeighbors(n_neighbors=k_neighbors + 1).fit(X_class_flat)
+                                indices = nn.kneighbors(X_class_flat, return_distance=False)[:, 1:]
+                                
+                                for i in range(num_to_synthesize):
+                                    sample_idx = random.randint(0, len(X_class_flat) - 1)
+                                    neighbor_idx = random.choice(indices[sample_idx])
+                                    
+                                    diff = X_class_flat[neighbor_idx] - X_class_flat[sample_idx]
+                                    synthetic_sample_flat = X_class_flat[sample_idx] + random.random() * diff
+                                    
+                                    synthetic_img = synthetic_sample_flat.reshape(IMG_DIM[0], IMG_DIM[1], 3).astype(np.uint8)
+                                    filename = f"synthetic_{i:05d}.png"
+                                    filepath = os.path.join(class_dir, filename)
+                                    cv2.imwrite(filepath, synthetic_img)
+                                    manifest_files.append(f"{class_name}/{filename}".replace(os.sep, '/'))
+                            else:
+                                print(f"Warning: Not enough valid images loaded for '{class_name}' to perform SMOTE.")
+                        else:
+                            final_class_counts[class_name] = num_original_samples # Revert count if SMOTE was skipped
+                            print(f"Skipping SMOTE for class '{class_name}' (not enough samples).")
+
+                    # 3. Handle the majority class (Undersampling)
+                    if new_minority_counts:
+                        avg_minority_size = sum(new_minority_counts) / len(new_minority_counts)
+                        target_majority_size = int(avg_minority_size * 4) # 4:1 ratio
                     else:
-                        print("Applying SMOTE and RandomUnderSampler to the training set...")
-                        # Define a pipeline that first oversamples minorities, then undersamples the majority.
-                        
-                        # --- Oversampling strategy: Increase minority classes by 100% (double them) ---
-                        majority_class_label = np.argmax(class_counts)
-                        over_strategy = {
-                            label: count * 2
-                            for label, count in enumerate(class_counts)
-                            if label != majority_class_label and count > 0
-                        }
-                        # If there are no minority classes, SMOTE will do nothing with this strategy.
-                        if not over_strategy:
-                            over_strategy = 'auto'
+                        target_majority_size = class_file_counts.get(majority_class_name, 0)
 
-                        # --- Undersampling strategy ---
-                        under_strategy = 0.25 # Make majority 4x the size of minorities (after oversampling)
+                    majority_files = classes.get(majority_class_name, [])
+                    num_majority_original = len(majority_files)
+                    
+                    final_majority_size = min(num_majority_original, target_majority_size)
+                    final_class_counts[majority_class_name] = final_majority_size
+                    
+                    print(f"Undersampling majority class '{majority_class_name}' from {num_majority_original} to {final_majority_size} samples.")
+                    
+                    majority_class_dir = os.path.join(set_dir, majority_class_name)
+                    os.makedirs(majority_class_dir, exist_ok=True)
+                    
+                    files_to_copy = random.sample(majority_files, final_majority_size) if num_majority_original > 0 else []
+                    for f in files_to_copy:
+                        shutil.copy2(f, majority_class_dir)
+                        manifest_files.append(f"{majority_class_name}/{os.path.basename(f)}".replace(os.sep, '/'))
 
-                        over = SMOTE(sampling_strategy=over_strategy, random_state=42, k_neighbors=k_neighbors)
-                        under = RandomUnderSampler(sampling_strategy=under_strategy, random_state=42)
-
-                        resampling_pipeline = ImblearnPipeline([
-                            ('smote', over),
-                            ('rus', under)
-                        ])
-                        
-                        X_resampled_flat, y_resampled = resampling_pipeline.fit_resample(X_train_flat, y_train)
-                        X_resampled = X_resampled_flat.reshape(-1, IMG_DIM[0], IMG_DIM[1], 3).astype(np.uint8)
-                        
-                        resampled_class_counts = {class_names_map[i]: count for i, count in enumerate(np.bincount(y_resampled))}
-                        for class_name, count in resampled_class_counts.items():
-                            if class_name in included_classes:
-                                included_classes[class_name]['splits']['train'] = count
-                        
-                        for i, (img_array, label_idx) in enumerate(zip(X_resampled, y_resampled)):
-                            class_name = class_names_map[label_idx]
-                            class_dir = os.path.join(set_dir, class_name)
-                            os.makedirs(class_dir, exist_ok=True)
-                            filename = f"resampled_{i:05d}.png"
-                            filepath = os.path.join(class_dir, filename)
-                            cv2.imwrite(filepath, img_array)
-                            manifest_files.append(f"{class_name}/{filename}".replace(os.sep, '/'))
-                        
-                        resampling_applied = True
+                    # 4. Update the main `included_classes` dict with new counts for the manifest
+                    for class_name, count in final_class_counts.items():
+                        if class_name in included_classes:
+                            included_classes[class_name]['splits']['train'] = count
 
             # --- Default file copying for validation/test or if resampling is skipped ---
             if not manifest_files:
