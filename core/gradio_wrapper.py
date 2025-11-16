@@ -494,13 +494,12 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
             manifest_files = []
             resampling_applied = False
 
-            # --- Handle training set resampling ---
+            # --- Handle training set resampling or default file copying ---
             if set_name == 'train' and resample_train_set:
                 print("Applying memory-efficient SMOTE and RandomUnderSampler to the training set...")
                 resampling_applied = True
                 IMG_DIM = (224, 224)
 
-                # 1. Get class counts and identify majority class
                 class_file_counts = {name: len(files) for name, files in classes.items()}
                 if not class_file_counts:
                     print("Warning: No classes found for resampling. Skipping.")
@@ -508,7 +507,6 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                 else:
                     # 1. Define Majority/Minority classes based on a threshold
                     max_count = max(class_file_counts.values()) if class_file_counts else 0
-                    # Classes with counts >= 75% of the max are considered 'majority'
                     majority_threshold = max_count * 0.75
                     
                     majority_classes = {name: files for name, files in classes.items() if class_file_counts.get(name, 0) >= majority_threshold}
@@ -529,12 +527,10 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                         final_class_counts[class_name] = num_original_samples + num_to_synthesize
                         new_minority_counts.append(final_class_counts[class_name])
 
-                        # Copy original files
                         for f in files_to_process:
                             shutil.copy2(f, class_dir)
                             manifest_files.append(f"{class_name}/{os.path.basename(f)}".replace(os.sep, '/'))
 
-                        # Apply SMOTE if possible
                         k_neighbors = min(5, num_original_samples - 1) if num_original_samples > 1 else 0
                         if k_neighbors > 0 and num_to_synthesize > 0:
                             print(f"Applying SMOTE to class '{class_name}' to generate {num_to_synthesize} new samples...")
@@ -550,17 +546,14 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                             
                             if len(X_class) > k_neighbors:
                                 X_class_flat = np.array(X_class).reshape(len(X_class), -1).astype(np.float32)
-                                
                                 nn = NearestNeighbors(n_neighbors=k_neighbors + 1).fit(X_class_flat)
                                 indices = nn.kneighbors(X_class_flat, return_distance=False)[:, 1:]
                                 
                                 for i in range(num_to_synthesize):
                                     sample_idx = random.randint(0, len(X_class_flat) - 1)
                                     neighbor_idx = random.choice(indices[sample_idx])
-                                    
                                     diff = X_class_flat[neighbor_idx] - X_class_flat[sample_idx]
                                     synthetic_sample_flat = X_class_flat[sample_idx] + random.random() * diff
-                                    
                                     synthetic_img = synthetic_sample_flat.reshape(IMG_DIM[0], IMG_DIM[1], 3).astype(np.uint8)
                                     filename = f"synthetic_{i:05d}.png"
                                     filepath = os.path.join(class_dir, filename)
@@ -569,15 +562,14 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                             else:
                                 print(f"Warning: Not enough valid images loaded for '{class_name}' to perform SMOTE.")
                         else:
-                            final_class_counts[class_name] = num_original_samples # Revert count if SMOTE was skipped
+                            final_class_counts[class_name] = num_original_samples
                             print(f"Skipping SMOTE for class '{class_name}' (not enough samples).")
 
                     # 3. Handle the majority classes (Undersampling)
                     if new_minority_counts:
                         avg_minority_size = sum(new_minority_counts) / len(new_minority_counts)
-                        target_majority_size = int(avg_minority_size * 4) # 4:1 ratio
+                        target_majority_size = int(avg_minority_size * 4)
                     else:
-                        # If there were no minorities, the target size is just the original max size (no change)
                         target_majority_size = max_count
 
                     for class_name, files_to_process in majority_classes.items():
@@ -595,13 +587,11 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                             shutil.copy2(f, majority_class_dir)
                             manifest_files.append(f"{class_name}/{os.path.basename(f)}".replace(os.sep, '/'))
 
-                    # 4. Update the main `included_classes` dict with new counts for the manifest
                     for class_name, count in final_class_counts.items():
                         if class_name in included_classes:
                             included_classes[class_name]['splits']['train'] = count
-
-            # --- Default file copying for validation/test or if resampling is skipped ---
-            if not manifest_files:
+            else:
+                # --- Default file copying for validation/test or if resampling is skipped ---
                 for class_name, files_to_copy in classes.items():
                     class_dir = os.path.join(set_dir, class_name)
                     os.makedirs(class_dir, exist_ok=True)
