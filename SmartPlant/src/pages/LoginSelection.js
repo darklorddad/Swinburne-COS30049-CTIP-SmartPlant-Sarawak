@@ -84,7 +84,7 @@ export default function LoginSelection({navigation}) {
 
       // Navigate based on role
       if (role === "admin") {
-        navigation.navigate("AdminDashboard", { userEmail: user.email });
+        navigation.navigate("back");
       } else if (role === "expert") {
         navigation.navigate("HomepageExpert", { userEmail: user.email });
       } else {
