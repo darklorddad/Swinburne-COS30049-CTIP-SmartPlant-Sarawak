@@ -505,88 +505,84 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                     print("Warning: No classes found for resampling. Skipping.")
                     resampling_applied = False
                 else:
-                    # 1. Define Majority/Minority classes based on a threshold
-                    max_count = max(class_file_counts.values()) if class_file_counts else 0
-                    majority_threshold = max_count * 0.75
-                    
-                    majority_classes = {name: files for name, files in classes.items() if class_file_counts.get(name, 0) >= majority_threshold}
-                    minority_classes = {name: files for name, files in classes.items() if class_file_counts.get(name, 0) < majority_threshold}
-                    
-                    print(f"Identified {len(majority_classes)} majority classes and {len(minority_classes)} minority classes.")
+                    # 1. Determine target size for all classes using the median count
+                    counts = np.array(list(class_file_counts.values()))
+                    target_size = int(np.median(counts))
+                    print(f"Balancing all classes to the median size: {target_size} samples.")
 
                     final_class_counts = {}
-                    new_minority_counts = []
 
-                    # 2. Process and copy/oversample each minority class
-                    for class_name, files_to_process in minority_classes.items():
+                    # 2. Process each class to meet the target size
+                    for class_name, files_to_process in classes.items():
                         class_dir = os.path.join(set_dir, class_name)
                         os.makedirs(class_dir, exist_ok=True)
                         
                         num_original_samples = len(files_to_process)
-                        num_to_synthesize = num_original_samples # 100% increase
-                        final_class_counts[class_name] = num_original_samples + num_to_synthesize
-                        new_minority_counts.append(final_class_counts[class_name])
+                        
+                        if num_original_samples > target_size:
+                            # Undersample
+                            print(f"Undersampling class '{class_name}' from {num_original_samples} to {target_size} samples.")
+                            files_to_copy = random.sample(files_to_process, target_size)
+                            for f in files_to_copy:
+                                shutil.copy2(f, class_dir)
+                                manifest_files.append(f"{class_name}/{os.path.basename(f)}".replace(os.sep, '/'))
+                            final_class_counts[class_name] = target_size
+                        
+                        elif num_original_samples < target_size:
+                            # Oversample
+                            num_to_synthesize = target_size - num_original_samples
+                            final_class_counts[class_name] = target_size
 
-                        for f in files_to_process:
-                            shutil.copy2(f, class_dir)
-                            manifest_files.append(f"{class_name}/{os.path.basename(f)}".replace(os.sep, '/'))
-
-                        k_neighbors = min(5, num_original_samples - 1) if num_original_samples > 1 else 0
-                        if k_neighbors > 0 and num_to_synthesize > 0:
-                            print(f"Applying SMOTE to class '{class_name}' to generate {num_to_synthesize} new samples...")
-                            X_class = []
+                            # Copy original files
                             for f in files_to_process:
-                                try:
-                                    n = np.fromfile(f, np.uint8)
-                                    img = cv2.imdecode(n, cv2.IMREAD_COLOR)
-                                    if img is not None:
-                                        X_class.append(cv2.resize(img, IMG_DIM))
-                                except Exception as e:
-                                    print(f"Warning: Could not load image {f} for SMOTE. Error: {e}")
-                            
-                            if len(X_class) > k_neighbors:
-                                X_class_flat = np.array(X_class).reshape(len(X_class), -1).astype(np.float32)
-                                nn = NearestNeighbors(n_neighbors=k_neighbors + 1).fit(X_class_flat)
-                                indices = nn.kneighbors(X_class_flat, return_distance=False)[:, 1:]
+                                shutil.copy2(f, class_dir)
+                                manifest_files.append(f"{class_name}/{os.path.basename(f)}".replace(os.sep, '/'))
+
+                            # Apply SMOTE if possible
+                            k_neighbors = min(5, num_original_samples - 1) if num_original_samples > 1 else 0
+                            if k_neighbors > 0 and num_to_synthesize > 0:
+                                print(f"Applying SMOTE to class '{class_name}' to generate {num_to_synthesize} new samples...")
+                                X_class = []
+                                for f in files_to_process:
+                                    try:
+                                        n = np.fromfile(f, np.uint8)
+                                        img = cv2.imdecode(n, cv2.IMREAD_COLOR)
+                                        if img is not None:
+                                            X_class.append(cv2.resize(img, IMG_DIM))
+                                    except Exception as e:
+                                        print(f"Warning: Could not load image {f} for SMOTE. Error: {e}")
                                 
-                                for i in range(num_to_synthesize):
-                                    sample_idx = random.randint(0, len(X_class_flat) - 1)
-                                    neighbor_idx = random.choice(indices[sample_idx])
-                                    diff = X_class_flat[neighbor_idx] - X_class_flat[sample_idx]
-                                    synthetic_sample_flat = X_class_flat[sample_idx] + random.random() * diff
-                                    synthetic_img = synthetic_sample_flat.reshape(IMG_DIM[0], IMG_DIM[1], 3).astype(np.uint8)
-                                    filename = f"synthetic_{i:05d}.png"
-                                    filepath = os.path.join(class_dir, filename)
-                                    cv2.imwrite(filepath, synthetic_img)
-                                    manifest_files.append(f"{class_name}/{filename}".replace(os.sep, '/'))
+                                if len(X_class) > k_neighbors:
+                                    X_class_flat = np.array(X_class).reshape(len(X_class), -1).astype(np.float32)
+                                    nn = NearestNeighbors(n_neighbors=k_neighbors + 1).fit(X_class_flat)
+                                    indices = nn.kneighbors(X_class_flat, return_distance=False)[:, 1:]
+                                    
+                                    for i in range(num_to_synthesize):
+                                        sample_idx = random.randint(0, len(X_class_flat) - 1)
+                                        neighbor_idx = random.choice(indices[sample_idx])
+                                        diff = X_class_flat[neighbor_idx] - X_class_flat[sample_idx]
+                                        synthetic_sample_flat = X_class_flat[sample_idx] + random.random() * diff
+                                        synthetic_img = synthetic_sample_flat.reshape(IMG_DIM[0], IMG_DIM[1], 3).astype(np.uint8)
+                                        filename = f"synthetic_{i:05d}.png"
+                                        filepath = os.path.join(class_dir, filename)
+                                        cv2.imwrite(filepath, synthetic_img)
+                                        manifest_files.append(f"{class_name}/{filename}".replace(os.sep, '/'))
+                                else:
+                                    print(f"Warning: Not enough valid images loaded for '{class_name}' to perform SMOTE. Reverting to original size.")
+                                    final_class_counts[class_name] = num_original_samples
                             else:
-                                print(f"Warning: Not enough valid images loaded for '{class_name}' to perform SMOTE.")
-                        else:
-                            final_class_counts[class_name] = num_original_samples
-                            print(f"Skipping SMOTE for class '{class_name}' (not enough samples).")
-
-                    # 3. Handle the majority classes (Undersampling)
-                    if new_minority_counts:
-                        avg_minority_size = sum(new_minority_counts) / len(new_minority_counts)
-                        target_majority_size = int(avg_minority_size * 4)
-                    else:
-                        target_majority_size = max_count
-
-                    for class_name, files_to_process in majority_classes.items():
-                        num_majority_original = len(files_to_process)
-                        final_majority_size = min(num_majority_original, target_majority_size)
-                        final_class_counts[class_name] = final_majority_size
+                                final_class_counts[class_name] = num_original_samples
+                                print(f"Skipping SMOTE for class '{class_name}' (not enough samples).")
                         
-                        print(f"Undersampling majority class '{class_name}' from {num_majority_original} to {final_majority_size} samples.")
-                        
-                        majority_class_dir = os.path.join(set_dir, class_name)
-                        os.makedirs(majority_class_dir, exist_ok=True)
-                        
-                        files_to_copy = random.sample(files_to_process, final_majority_size) if num_majority_original > 0 else []
-                        for f in files_to_copy:
-                            shutil.copy2(f, majority_class_dir)
-                            manifest_files.append(f"{class_name}/{os.path.basename(f)}".replace(os.sep, '/'))
+                        else: # num_original_samples == target_size
+                            # No change needed, just copy files
+                            print(f"Class '{class_name}' is already at the target size of {target_size}. Copying files.")
+                            for f in files_to_process:
+                                shutil.copy2(f, class_dir)
+                                manifest_files.append(f"{class_name}/{os.path.basename(f)}".replace(os.sep, '/'))
+                            final_class_counts[class_name] = target_size
 
+                    # 3. Update the main `included_classes` dict with new counts for the manifest
                     for class_name, count in final_class_counts.items():
                         if class_name in included_classes:
                             included_classes[class_name]['splits']['train'] = count
