@@ -161,35 +161,6 @@ export default function MapScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* 🔎 Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#555" style={{ marginRight: 8 }} />
-        <TextInput
-          placeholder="Search plant or location..."
-          value={search}
-          onChangeText={setSearch}
-          style={styles.searchInput}
-        />
-      </View>
-
-      {/* 🟩 Filter Buttons */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingHorizontal: 10 }}>
-        {["all", "iot", "common", "rare", "endangered", "Hidden Plant"].map((key) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.filterBtn, selectedFilter === key && styles.filterBtnActive]}
-            onPress={() => setSelectedFilter(key)}
-          >
-            <Text
-              style={[styles.filterText, selectedFilter === key && styles.filterTextActive]}
-            >
-              {key.toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* 🗺 Map */}
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
@@ -197,6 +168,7 @@ export default function MapScreen({ navigation }) {
         initialRegion={initialRegion}
         customMapStyle={mapStyle}
         showsUserLocation
+        showsMyLocationButton={false}
       >
         {/* 🛰 IoT Marker */}
         {(!selectedFilter || selectedFilter === "all" || selectedFilter === "iot") && live && (
@@ -272,6 +244,36 @@ export default function MapScreen({ navigation }) {
           </Marker>
         ))}
       </MapView>
+
+      <View style={styles.searchAndFilterContainer}>
+        {/* 🔎 Search Bar */}
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={20} color="#555" style={{ marginRight: 8 }} />
+          <TextInput
+            placeholder="Search plant or location..."
+            value={search}
+            onChangeText={setSearch}
+            style={styles.searchInput}
+          />
+        </View>
+
+        {/* 🟩 Filter Buttons */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingHorizontal: 10 }}>
+          {["all", "iot", "common", "rare", "endangered", "Hidden Plant"].map((key) => (
+            <TouchableOpacity
+              key={key}
+              style={[styles.filterBtn, selectedFilter === key && styles.filterBtnActive]}
+              onPress={() => setSelectedFilter(key)}
+            >
+              <Text
+                style={[styles.filterText, selectedFilter === key && styles.filterTextActive]}
+              >
+                {key.toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* 📍 Locate Button */}
       <TouchableOpacity style={styles.locateBtn} onPress={goToUserLocation}>
