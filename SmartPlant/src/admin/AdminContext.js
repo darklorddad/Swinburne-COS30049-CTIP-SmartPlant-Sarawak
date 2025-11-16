@@ -71,15 +71,19 @@ export const AdminProvider = ({ children }) => {
   useEffect(() => {
     const fs = getFirestore();
     const auth = getAuth();
-    const adminUser = auth.currentUser;
 
     let unsubscribeFavourites = () => {};
-    if (adminUser) {
-      const prefRef = doc(fs, 'admin_preferences', adminUser.uid);
-      unsubscribeFavourites = onSnapshot(prefRef, (docSnap) => {
-        setFavourites(docSnap.exists() ? docSnap.data().favourite_users || [] : []);
-      });
-    }
+    const unsubscribeAuth = onAuthStateChanged(auth, (adminUser) => {
+      unsubscribeFavourites(); // Clean up old listener
+      if (adminUser) {
+        const prefRef = doc(fs, 'admin_preferences', adminUser.uid);
+        unsubscribeFavourites = onSnapshot(prefRef, (docSnap) => {
+          setFavourites(docSnap.exists() ? docSnap.data().favourite_users || [] : []);
+        });
+      } else {
+        setFavourites([]); // Clear on logout
+      }
+    });
 
     // Accounts
     const unsubscribeUsers = onSnapshot(collection(fs, 'account'), async (snapshot) => {
@@ -193,6 +197,7 @@ export const AdminProvider = ({ children }) => {
     });
 
     return () => {
+      unsubscribeAuth();
       unsubscribeUsers();
       unsubscribeMails();
       unsubscribeReport();
