@@ -498,11 +498,11 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
 
             # --- Handle training set resampling ---
             if set_name == 'train' and resample_train_set:
-                print("Applying SMOTE and Tomek Links to the training set...")
+                print("Applying SMOTE and RandomUnderSampler to the training set...")
                 X_train, y_train = [], []
                 class_names_map = sorted(classes.keys())
                 label_map = {name: i for i, name in enumerate(class_names_map)}
-                IMG_DIM = (64, 64)
+                IMG_DIM = (224, 224)
 
                 for class_name, files in classes.items():
                     for f in files:
@@ -580,7 +580,7 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
             # --- Build manifest content with summary ---
             manifest_content = [f"# {set_name.capitalize()} Set Manifest"]
             if resampling_applied:
-                manifest_content.append("\n*This training set has been resampled using SMOTE and Tomek Links to address class imbalance.*")
+                manifest_content.append("\n*This training set has been resampled using SMOTE and RandomUnderSampler to address class imbalance.*")
 
             set_class_counts = {name: data['splits'][set_name] for name, data in included_classes.items() if data['splits'].get(set_name, 0) > 0}
             
