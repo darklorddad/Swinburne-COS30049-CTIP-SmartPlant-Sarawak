@@ -37,6 +37,17 @@ export const AdminProvider = ({ children }) => {
     favouritesRef.current = favourites;
   }, [favourites]);
 
+  useEffect(() => {
+    if (users.length > 0) {
+      setUsers(currentUsers =>
+        currentUsers.map(user => ({
+          ...user,
+          favourite: favourites.includes(user.id),
+        }))
+      );
+    }
+  }, [favourites]);
+
   const getTimeGroup = (timestamp) => {
     if (!timestamp || !timestamp.seconds) return 'Older';
     const date = new Date(timestamp.seconds * 1000);
