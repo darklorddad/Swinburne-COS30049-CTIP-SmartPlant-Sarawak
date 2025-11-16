@@ -180,7 +180,7 @@ export default function DashboardScreen() {
 
       <TouchableOpacity
         style={styles.backBtn}
-        onPress={() => navigation.navigate("AdminDashboard")}
+        onPress={() => navigation.navigate("back")}
         activeOpacity={0.85}
       >
         <Text style={styles.backBtnText}>Back to Admin Dashboard</Text>

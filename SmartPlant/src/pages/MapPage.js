@@ -178,6 +178,20 @@ const MapPage = ({navigation}) => {
     }
   };
 
+  // MASTER PLANT LIST (taxonomy database)
+  const [plantMaster, setPlantMaster] = useState([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "plant"), (snap) => {
+      const arr = snap.docs.map((d) => ({
+        id: d.id,   // Example: Burmannia_Longifolia
+        ...d.data()
+      }));
+      setPlantMaster(arr);
+    });
+    return () => unsub();
+  }, []);
+
   const fixMarkerData = (doc, source) => {
     const data = doc.data();
 
@@ -213,23 +227,45 @@ const MapPage = ({navigation}) => {
     let fixedMarker;
 
     if (source === "plant_identify") {
-      const topPrediction = data.model_predictions?.top_1;
+      const top = data.model_predictions?.top_1;
+      const predicted = top?.plant_species || "Unknown";
+
+      // Convert "Burmannia Longifolia" -> "Burmannia_Longifolia"
+      const formattedName = predicted.replace(/\s+/g, "_");
+
+      // Find matching taxonomy entry
+      const taxonomyMatch = plantMaster.find(
+        (p) => p.id.toLowerCase() === formattedName.toLowerCase()
+      );
+
       fixedMarker = {
         id: `${source}-${doc.id}`,
-        title: topPrediction?.plant_species || "Unknown Plant",
+        title: predicted,
         type: "Plant",
-        identify_status: data.identify_status || "pending",
+        identify_status: data.identify_status,
         coordinate: { latitude, longitude },
         identifiedBy: data.author_name || "Unknown",
+
+        // 🌱 ADD CONSERVATION STATUS HERE
+        conservation_status: taxonomyMatch?.conservation_status || "common",
+
+        // 🖼 Use taxonomy plant image if available
+        master_image: taxonomyMatch?.plant_image || null,
+
         time: formatTime(data.createdAt),
+
+        // Choose image priority: uploaded → taxonomy → fallback
         image:
           (data.ImageURLs && data.ImageURLs[0]) ||
+          taxonomyMatch?.plant_image ||
           "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400",
-        description: topPrediction
-          ? `Top prediction: ${topPrediction.plant_species} (${Math.round(
-              (topPrediction.ai_score || 0) * 100
+
+        description: top
+          ? `Top prediction: ${predicted} (${Math.round(
+              (top.ai_score || 0) * 100
             )}% confidence)`
-          : data.description || "No description available",
+          : "No description available",
+
         createdAt: data.createdAt,
         source,
         like_count: data.like_count || 0,

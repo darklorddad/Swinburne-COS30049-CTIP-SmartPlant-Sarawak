@@ -30,16 +30,47 @@ export default function MapScreen({ navigation }) {
 
   // 🌿 Fetch all verified plants (visible + hidden)
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "plant_identify"), (snap) => {
-      const arr = snap.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
+    const unsubIdentify = onSnapshot(collection(db, "plant_identify"), async (snap) => {
+      const detected = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
         .filter((p) => p.identify_status === "verified" && p.coordinate);
-      setPlants(arr);
-      setFiltered(arr);
-      setLoading(false);
+
+      // Load master plant list
+      const unsubMaster = onSnapshot(collection(db, "plant"), (snap2) => {
+        const master = snap2.docs.map((d) => ({
+          id: d.id,   // example: Burmannia_Longifolia
+          ...d.data()
+        }));
+
+        // Merge prediction → conservation_status
+        const merged = detected.map((p) => {
+          const predicted = p.model_predictions?.top_1?.plant_species ?? "";
+          
+          // Convert spaces to underscores (match Firestore ID)
+          const formatted = predicted.replace(/\s+/g, "_");
+
+          const match = master.find(
+            (m) => m.id.toLowerCase() === formatted.toLowerCase()
+          );
+
+          return {
+            ...p,
+            conservation_status: match?.conservation_status ?? "common",
+            master_plant_image: match?.plant_image ?? null,
+          };
+        });
+
+        setPlants(merged);
+        setFiltered(merged);
+        setLoading(false);
+      });
+
+      return () => unsubMaster();
     });
-    return () => unsub();
+
+    return () => unsubIdentify();
   }, []);
+
 
   // 📍 Get user location
   useEffect(() => {
@@ -77,7 +108,7 @@ export default function MapScreen({ navigation }) {
     } else if (selectedFilter !== "all") {
       if (selectedFilter === "iot") list = [];
       else list = list.filter(
-        (p) => (p.status || "").toLowerCase() === selectedFilter.toLowerCase()
+        (p) => (p.conservation_status || "").toLowerCase() === selectedFilter.toLowerCase()
       );
     }
 
@@ -193,7 +224,7 @@ export default function MapScreen({ navigation }) {
               longitude: p.coordinate?.longitude ?? 0,
             }}
             title={p.model_predictions?.top_1?.label ?? "Plant"}
-            pinColor={getPinColor(p.status, false, p.visible === false)}
+            pinColor={getPinColor(p.conservation_status, false, p.visible === false)}
             opacity={p.visible === false ? 0.6 : 1.0}
           >
             {/* 🏷️ Hidden Tag Above Marker */}
@@ -226,10 +257,10 @@ export default function MapScreen({ navigation }) {
                   <Text
                     style={{
                       fontWeight: "700",
-                      color: getPinColor(p.status, false, p.visible === false),
+                      color: getPinColor(p.conservation_status, false, p.visible === false),
                     }}
                   >
-                    {p.status?.toUpperCase() ?? "COMMON"}
+                    {p.conservation_status?.toUpperCase() ?? "COMMON"}
                   </Text>
                 </View>
               </View>

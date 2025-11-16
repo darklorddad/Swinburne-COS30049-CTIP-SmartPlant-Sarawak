@@ -8,9 +8,18 @@ import {
   TouchableOpacity,
 } from "react-native";
 
-import { collection, getDocs, orderBy, query, doc, deleteDoc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  doc,
+  deleteDoc
+} from "firebase/firestore";
+
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { db } from "../../firebase/FirebaseConfig";
+
 
 const AlertHistoryScreen = () => {
   const [alerts, setAlerts] = useState([]);
@@ -21,15 +30,18 @@ const AlertHistoryScreen = () => {
     loadAlerts();
   }, []);
 
+  // 🔥 Load from alertsHistory (flat collection)
   const loadAlerts = async () => {
     try {
-      const historyRef = collection(db, "alerts", "history", "history");
+      const historyRef = collection(db, "alertsHistory");
+
       const q = query(historyRef, orderBy("timestamp", "desc"));
+
       const snap = await getDocs(q);
 
-      const list = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
       }));
 
       setAlerts(list);
@@ -42,8 +54,7 @@ const AlertHistoryScreen = () => {
 
   const deleteAlert = async (id) => {
     try {
-      const ref = doc(db, "alerts", "history", "history", id);
-      await deleteDoc(ref);
+      await deleteDoc(doc(db, "alertsHistory", id));
       setAlerts(alerts.filter((a) => a.id !== id));
     } catch (error) {
       console.log("Delete error:", error);
@@ -51,10 +62,20 @@ const AlertHistoryScreen = () => {
   };
 
   const formatTimestamp = (ts) => {
-    if (!ts?.seconds) return "Unknown";
-    return new Date(ts.seconds * 1000).toLocaleString();
+    if (!ts) return "Unknown";
+
+    // Firestore timestamp (string ISO)
+    if (typeof ts === "string") return ts;
+
+    // Firestore native timestamp
+    if (ts?.seconds) {
+      return new Date(ts.seconds * 1000).toLocaleString();
+    }
+
+    return "Unknown";
   };
 
+  // Filter alerts by type
   const visibleAlerts =
     filter === "all" ? alerts : alerts.filter((a) => a.type === filter);
 
@@ -81,13 +102,13 @@ const AlertHistoryScreen = () => {
             onPress={() => setFilter(f)}
             style={[
               styles.filterButton,
-              filter === f && styles.filterButtonActive
+              filter === f && styles.filterButtonActive,
             ]}
           >
             <Text
               style={[
                 styles.filterText,
-                filter === f && styles.filterTextActive
+                filter === f && styles.filterTextActive,
               ]}
             >
               {f.toUpperCase()}
@@ -112,7 +133,11 @@ const AlertHistoryScreen = () => {
           <View style={styles.card}>
             <Text style={styles.type}>🚨 {alert.type?.toUpperCase()}</Text>
             <Text style={styles.message}>{alert.message}</Text>
-            <Text style={styles.timestamp}>🕒 {formatTimestamp(alert.timestamp)}</Text>
+
+            <Text style={styles.timestamp}>
+              🕒 {formatTimestamp(alert.timestamp)}
+            </Text>
+
             <Text style={styles.status}>
               Status: {alert.status === "unread" ? "🔴 Unread" : "🟢 Read"}
             </Text>
