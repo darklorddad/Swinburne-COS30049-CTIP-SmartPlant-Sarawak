@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { db } from '../firebase/FirebaseConfig';
 import { Alert } from 'react-native';
 import {
@@ -13,10 +13,13 @@ import {
   orderBy,
   getDocs,
   serverTimestamp,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { firebaseConfig } from '../firebase/FirebaseConfig';
+import { API_URL } from '../config';
 
 const AdminContext = createContext();
 
@@ -28,6 +31,12 @@ export const AdminProvider = ({ children }) => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [plantIdentities, setPlantIdentities] = useState([]);
   const [toastMessage, setToastMessage] = useState('');
+  const [favourites, setFavourites] = useState([]);
+  const favouritesRef = useRef(favourites);
+
+  useEffect(() => {
+    favouritesRef.current = favourites;
+  }, [favourites]);
 
   const getTimeGroup = (timestamp) => {
     if (!timestamp || !timestamp.seconds) return 'Older';
@@ -51,6 +60,16 @@ export const AdminProvider = ({ children }) => {
 
   useEffect(() => {
     const fs = getFirestore();
+    const auth = getAuth();
+    const adminUser = auth.currentUser;
+
+    let unsubscribeFavourites = () => {};
+    if (adminUser) {
+      const prefRef = doc(fs, 'admin_preferences', adminUser.uid);
+      unsubscribeFavourites = onSnapshot(prefRef, (docSnap) => {
+        setFavourites(docSnap.exists() ? docSnap.data().favourite_users || [] : []);
+      });
+    }
 
     // Accounts
     const unsubscribeUsers = onSnapshot(collection(fs, 'account'), async (snapshot) => {
@@ -66,7 +85,7 @@ export const AdminProvider = ({ children }) => {
           firebase_uid: userData.firebase_uid,
           name: data.full_name || 'Unnamed User',
           status: data.is_active ? 'active' : 'inactive',
-          favourite: (users.find(u => u.id === docSnap.id) || {}).favourite || false,
+          favourite: favouritesRef.current.includes(docSnap.id),
           color: ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'][index % 7],
           details: {
             ...data,
@@ -169,6 +188,7 @@ export const AdminProvider = ({ children }) => {
       unsubscribeReport();
       unsubscribeErrorReports();
       unsubscribePlantIdentities();
+      unsubscribeFavourites();
     };
   }, []);
 
@@ -177,12 +197,29 @@ export const AdminProvider = ({ children }) => {
   };
 
   // ==== USERS ====
-  const handleDeleteUser = async (userId) => {
+  const handleDeleteUser = async (userId, firebaseUid) => {
+    if (!firebaseUid) {
+      showToast('Cannot delete user: Firebase UID is missing.');
+      return;
+    }
+
     const fs = getFirestore();
     try {
+      // Call backend to delete from Firebase Auth
+      const response = await fetch(`${API_URL}/users/${firebaseUid}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || 'Failed to delete user from authentication.');
+      }
+
+      // Delete from Firestore
       await deleteDoc(doc(fs, 'account', userId));
       await deleteDoc(doc(fs, 'user', userId));
-      showToast('User deleted from database. Note: The user must also be deleted from the Firebase Authentication console to free up the email.');
+      
+      showToast('User deleted successfully from all systems.');
     } catch (error) {
       showToast(`Error deleting user: ${error.message}`);
     }
@@ -272,12 +309,29 @@ export const AdminProvider = ({ children }) => {
     }
   };
 
-  const handleToggleUserFavourite = (userId) => {
-    setUsers(currentUsers =>
-        currentUsers.map(user =>
-            user.id === userId ? { ...user, favourite: !user.favourite } : user
-        )
-    );
+  const handleToggleUserFavourite = async (userId) => {
+    const auth = getAuth();
+    const adminUser = auth.currentUser;
+    if (!adminUser) {
+      showToast("You must be logged in to manage favourites.");
+      return;
+    }
+
+    const fs = getFirestore();
+    const prefRef = doc(fs, 'admin_preferences', adminUser.uid);
+    const isCurrentlyFavourite = favouritesRef.current.includes(userId);
+
+    try {
+      await setDoc(
+        prefRef,
+        {
+          favourite_users: isCurrentlyFavourite ? arrayRemove(userId) : arrayUnion(userId),
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      showToast(`Error updating favourites: ${error.message}`);
+    }
   };
 
   // ==== MAILS ====

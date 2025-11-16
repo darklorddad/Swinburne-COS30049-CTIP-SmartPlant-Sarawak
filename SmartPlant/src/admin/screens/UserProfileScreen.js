@@ -18,8 +18,8 @@ const UserProfileScreen = ({ route, navigation }) => {
         );
     }
 
-    const onDelete = (userId) => {
-        handleDeleteUser(userId);
+    const onDelete = (userId, firebaseUid) => {
+        handleDeleteUser(userId, firebaseUid);
         navigation.navigate('AccountManagement');
     };
 
@@ -37,7 +37,7 @@ const UserProfileScreen = ({ route, navigation }) => {
                     <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('EditUser', { user: user })}>
                         <EditIcon color="#4b5563" />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => onDelete(user.id)} style={styles.actionButton}>
+                    <TouchableOpacity onPress={() => onDelete(user.id, user.firebase_uid)} style={styles.actionButton}>
                         <TrashIcon color="#ef4444" />
                     </TouchableOpacity>
                 </View>

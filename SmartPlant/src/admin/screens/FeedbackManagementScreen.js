@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
 
   feedbackItem: {
-    flexDirection: 'row', alignItems: 'flex-start',
+    flexDirection: 'row', alignItems: 'center',
     paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#e5e7eb',
   },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#e5e7eb', marginRight: 16 },
