@@ -504,12 +504,26 @@ const MapPage = ({navigation}) => {
 
     const handleMenuAction = (action) => {
       setShowMenu(false);
+
       switch(action) {
-        case 'more':  Alert.alert('More Details', 'Showing more details...'); break;
-        case 'report':Alert.alert('Report', 'Reporting this plant...'); break;
-        case 'save':  Alert.alert('Save', 'Saving this plant...'); break;
+        case 'more':
+          if (selectedMarker) {
+            navigation.navigate("PlantDetailUser", {
+              post: selectedMarker  
+            });
+          }
+          break;
+
+        case 'report':
+          Alert.alert('Report', 'Reporting this plant...');
+          break;
+
+        case 'save':
+          Alert.alert('Save', 'Saving this plant...');
+          break;
       }
     };
+
 
     return (
       <Animated.View style={[styles.bottomSheet, { height: bottomSheetHeight }]} {...panResponder.panHandlers}>

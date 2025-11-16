@@ -5,20 +5,36 @@ import { useAdminContext } from '../AdminContext';
 import { getAuth } from 'firebase/auth';
 import AdminBottomNavBar from '../components/AdminBottomNavBar';
 
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "../../firebase/FirebaseConfig";
+import { Ionicons } from '@expo/vector-icons';
+
+const formatTimestamp = (ts) => {
+  if (!ts || !ts.seconds) return "Unknown time";
+
+  try {
+    const date = new Date(ts.seconds * 1000);
+    return date.toLocaleString();
+  } catch {
+    return "Invalid timestamp";
+  }
+};
+
 const DashboardScreen = ({ navigation }) => {
   const { users, mails, feedbacks, handleLogout } = useAdminContext();
   const navigate = (screen) => navigation.navigate(screen);
+
   const [userName, setUserName] = useState('Admin');
   const [greeting, setGreeting] = useState('Good morning!');
+  const [latestAlert, setLatestAlert] = useState(null); 
 
   useEffect(() => {
     const auth = getAuth();
     const user = auth.currentUser;
+
     if (user) {
       const currentUserData = users.find(u => u.id === user.uid);
-      if (currentUserData) {
-        setUserName(currentUserData.name);
-      }
+      if (currentUserData) setUserName(currentUserData.name);
     }
 
     const hour = new Date().getHours();
@@ -26,17 +42,24 @@ const DashboardScreen = ({ navigation }) => {
     else if (hour < 18) setGreeting('Good afternoon!');
     else setGreeting('Good evening!');
   }, [users]);
+  
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "alerts", "latest"), (snap) => {
+      if (snap.exists()) setLatestAlert(snap.data());
+    });
+    return () => unsub();
+  }, []);
 
   const unreadMails = mails.filter(m => !m.read).length;
 
-  // ==== Feedback totals ====
+  // Feedback totals
   const totalFeedbacks = feedbacks.length;
   const pendingFeedbacks = feedbacks.filter(f => {
     const notes = f?.admin_notes;
     return !notes || String(notes).trim() === '';
   }).length;
 
-  // ==== Plant counts (unchanged) ====
+  // Plant distribution
   const plantCount = users.reduce((acc, user) => acc + (user.plantId || 0), 0);
   const commonCount = Math.floor(plantCount * 0.8);
   const rareCount = Math.floor(plantCount * 0.15);
@@ -48,6 +71,7 @@ const DashboardScreen = ({ navigation }) => {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={styles.container}>
+        {/* HEADER */}
         <View style={styles.header}>
           <TouchableOpacity
             style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
@@ -66,6 +90,7 @@ const DashboardScreen = ({ navigation }) => {
                 <Text style={styles.avatarText}>{(userName || 'A').charAt(0)}</Text>
               </View>
             )}
+
             <View>
               <Text style={styles.greetingText}>{greeting}</Text>
               <Text style={styles.userName}>{userName}</Text>
@@ -79,7 +104,33 @@ const DashboardScreen = ({ navigation }) => {
 
         <View style={styles.hr} />
 
-        {/* Quick Menus */}
+        {}
+        {latestAlert && (
+          <TouchableOpacity
+            style={styles.alertCard}
+            onPress={() => navigation.navigate("AlertHistory")}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: '#fde68a' }]}>
+              <Ionicons name="alert-circle" size={28} color="#d97706" />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={styles.alertTitle}>
+                {latestAlert.type?.toUpperCase() || "ALERT"}
+              </Text>
+
+              <Text style={styles.alertMessage}>
+                {latestAlert.message}
+              </Text>
+
+              <Text style={styles.alertTimestamp}>
+                {formatTimestamp(latestAlert.timestamp)}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* QUICK MENUS */}
         <View style={styles.menuContainer}>
           <TouchableOpacity onPress={() => navigate('AccountManagement')} style={styles.menuItem}>
             <View style={[styles.iconContainer, { backgroundColor: '#fee2e2' }]}>
@@ -109,15 +160,13 @@ const DashboardScreen = ({ navigation }) => {
             </View>
             <View style={styles.menuTextContainer}>
               <Text style={styles.menuTitle}>Feedback</Text>
-              {/* Show pending count in subtitle */}
               <Text style={styles.menuSubtitle}>{pendingFeedbacks} pending</Text>
             </View>
-            {/* Show total feedback on the right big number */}
             <Text style={styles.menuValue}>{totalFeedbacks}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Plant Distribution */}
+        {/* PLANT DISTRIBUTION */}
         <View style={styles.distributionContainer}>
           <Text style={styles.distributionTitle}>Plant Rarity Distribution</Text>
 
@@ -154,7 +203,7 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* IoT Dashboard Section */}
+        {/* IOT SECTION */}
         <View style={styles.iotContainer}>
           <Text style={styles.iotTitle}>IoT Dashboard</Text>
           <Text style={styles.iotSubtitle}>
@@ -182,7 +231,7 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/*AI Agent Plant Assistant Section */}
+        {/* AI ASSISTANT */}
         <View style={styles.agentContainer}>
           <Text style={styles.agentTitle}>AI Agent Plant Assistant</Text>
           <Text style={styles.agentSubtitle}>
@@ -196,10 +245,7 @@ const DashboardScreen = ({ navigation }) => {
           >
             <Text style={styles.agentButtonText}>Chat With AI Agent</Text>
           </TouchableOpacity>
-
-         
         </View>
-
 
       </ScrollView>
 
@@ -210,30 +256,52 @@ const DashboardScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFBF5', paddingHorizontal: 16 },
+
   header: { flexDirection: 'row', alignItems: 'center', paddingTop: 16, paddingBottom: 0 },
-  avatar: { width: 48, height: 48, borderRadius: 24, marginRight: 16, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 48, height: 48, borderRadius: 24, marginRight: 16 , alignItems: 'center', justifyContent: 'center'},
   greetingText: { fontSize: 16, color: '#75685a' },
   userName: { fontSize: 20, fontWeight: 'bold', color: '#3C3633' },
   avatarText: { color: 'white', fontSize: 24, fontWeight: 'bold' },
   hr: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 16 },
+
+  alertCard: {
+    backgroundColor: "white",
+    padding: 16,
+    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.20,
+    shadowRadius: 1.41,
+    elevation: 2,
+  },
+  alertTitle: { fontSize: 16, fontWeight: "bold", color: "#3C3633" },
+  alertMessage: { fontSize: 14, color: "#75685a", marginTop: 2 },
+  alertTimestamp: { fontSize: 12, color: "#9CA3AF", marginTop: 4 },
+
   menuContainer: { gap: 16 },
   menuItem: {
     backgroundColor: 'white', padding: 16, borderRadius: 16, flexDirection: 'row', alignItems: 'center',
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.20, shadowRadius: 1.41, elevation: 2,
   },
   iconContainer: { padding: 12, borderRadius: 8, marginRight: 16 },
+
   menuTextContainer: { flex: 1 },
   menuTitle: { fontWeight: 'bold', color: '#3C3633' },
   menuSubtitle: { fontSize: 14, color: '#75685a' },
   menuValue: { fontSize: 24, fontWeight: 'bold', color: '#3C3633' },
+
   distributionContainer: {
     marginTop: 24, backgroundColor: 'white', padding: 16, borderRadius: 16,
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.20, shadowRadius: 1.41, elevation: 2,
   },
   distributionTitle: { fontSize: 18, fontWeight: 'bold', color: '#3C3633', marginBottom: 16 },
+
   progressItemsContainer: { gap: 16 },
   progressLabelContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  progressLabel: { fontWeight: '600', color: '#4b5563', fontSize: 14 },
+  progressLabel: { fontWeight: '600', fontSize: 14 },
   progressValue: { color: '#6b7280', fontSize: 14 },
   progressBarBackground: { width: '100%', backgroundColor: '#e5e7eb', borderRadius: 9999, height: 10 },
   progressBar: { height: 10, borderRadius: 9999 },
@@ -247,51 +315,21 @@ const styles = StyleSheet.create({
   iotButton: {
     backgroundColor: '#3C3633', paddingVertical: 14, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
   },
-  iotButtonText: { color: '#fff', fontWeight: '700', fontSize: 16, letterSpacing: 0.3 },
+  iotButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   iotChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   iotChip: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999 },
   iotChipText: { color: '#374151', fontSize: 12, fontWeight: '600' },
 
   agentContainer: {
-    marginTop: 24,
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.20,
-    shadowRadius: 1.41,
-    elevation: 2,
+    marginTop: 24, backgroundColor: 'white', padding: 16, borderRadius: 16, marginBottom: 24,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.20, shadowRadius: 1.41, elevation: 2,
   },
-
-  agentTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#3C3633',
-    marginBottom: 6,
-  },
-
-  agentSubtitle: {
-    color: '#75685a',
-    marginBottom: 16,
-  },
-
+  agentTitle: { fontSize: 18, fontWeight: 'bold', color: '#3C3633', marginBottom: 6 },
+  agentSubtitle: { color: '#75685a', marginBottom: 16 },
   agentButton: {
-    backgroundColor: "#578C5B",
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#578C5B", paddingVertical: 14, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
   },
-
-  agentButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-    letterSpacing: 0.3,
-  },
-
+  agentButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });
 
 export default DashboardScreen;
