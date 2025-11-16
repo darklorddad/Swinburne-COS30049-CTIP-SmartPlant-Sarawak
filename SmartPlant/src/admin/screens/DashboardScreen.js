@@ -122,7 +122,7 @@ const DashboardScreen = ({ navigation }) => {
         <View style={styles.iotContainer}>
           <Text style={styles.iotTitle}>IoT Dashboard</Text>
           <Text style={styles.iotSubtitle}>
-            View live sensors, radar sweep, motion & sound events in real time.
+            View live sensor readings, radar sweep, motion & sound events in real time.
           </Text>
 
           <TouchableOpacity
@@ -138,10 +138,10 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={styles.iotChipText}>Ultrasonic Radar</Text>
             </View>
             <View style={[styles.iotChip, { backgroundColor: '#ecfeff' }]}>
-              <Text style={styles.iotChipText}>Temp & Humidity</Text>
+              <Text style={styles.iotChipText}>Temperature & Humidity</Text>
             </View>
             <View style={[styles.iotChip, { backgroundColor: '#f0fdf4' }]}>
-              <Text style={styles.iotChipText}>Motion & Sound</Text>
+              <Text style={styles.iotChipText}>Motion & Sound Events</Text>
             </View>
           </View>
         </View>
