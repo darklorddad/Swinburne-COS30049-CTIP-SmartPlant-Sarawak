@@ -506,16 +506,21 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                     print("Warning: No classes found for resampling. Skipping.")
                     resampling_applied = False
                 else:
-                    majority_class_name = max(class_file_counts, key=class_file_counts.get)
+                    # 1. Define Majority/Minority classes based on a threshold
+                    max_count = max(class_file_counts.values()) if class_file_counts else 0
+                    # Classes with counts >= 75% of the max are considered 'majority'
+                    majority_threshold = max_count * 0.75
                     
+                    majority_classes = {name: files for name, files in classes.items() if class_file_counts.get(name, 0) >= majority_threshold}
+                    minority_classes = {name: files for name, files in classes.items() if class_file_counts.get(name, 0) < majority_threshold}
+                    
+                    print(f"Identified {len(majority_classes)} majority classes and {len(minority_classes)} minority classes.")
+
                     final_class_counts = {}
                     new_minority_counts = []
 
                     # 2. Process and copy/oversample each minority class
-                    for class_name, files_to_process in classes.items():
-                        if class_name == majority_class_name:
-                            continue
-
+                    for class_name, files_to_process in minority_classes.items():
                         class_dir = os.path.join(set_dir, class_name)
                         os.makedirs(class_dir, exist_ok=True)
                         
@@ -567,28 +572,28 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                             final_class_counts[class_name] = num_original_samples # Revert count if SMOTE was skipped
                             print(f"Skipping SMOTE for class '{class_name}' (not enough samples).")
 
-                    # 3. Handle the majority class (Undersampling)
+                    # 3. Handle the majority classes (Undersampling)
                     if new_minority_counts:
                         avg_minority_size = sum(new_minority_counts) / len(new_minority_counts)
                         target_majority_size = int(avg_minority_size * 4) # 4:1 ratio
                     else:
-                        target_majority_size = class_file_counts.get(majority_class_name, 0)
+                        # If there were no minorities, the target size is just the original max size (no change)
+                        target_majority_size = max_count
 
-                    majority_files = classes.get(majority_class_name, [])
-                    num_majority_original = len(majority_files)
-                    
-                    final_majority_size = min(num_majority_original, target_majority_size)
-                    final_class_counts[majority_class_name] = final_majority_size
-                    
-                    print(f"Undersampling majority class '{majority_class_name}' from {num_majority_original} to {final_majority_size} samples.")
-                    
-                    majority_class_dir = os.path.join(set_dir, majority_class_name)
-                    os.makedirs(majority_class_dir, exist_ok=True)
-                    
-                    files_to_copy = random.sample(majority_files, final_majority_size) if num_majority_original > 0 else []
-                    for f in files_to_copy:
-                        shutil.copy2(f, majority_class_dir)
-                        manifest_files.append(f"{majority_class_name}/{os.path.basename(f)}".replace(os.sep, '/'))
+                    for class_name, files_to_process in majority_classes.items():
+                        num_majority_original = len(files_to_process)
+                        final_majority_size = min(num_majority_original, target_majority_size)
+                        final_class_counts[class_name] = final_majority_size
+                        
+                        print(f"Undersampling majority class '{class_name}' from {num_majority_original} to {final_majority_size} samples.")
+                        
+                        majority_class_dir = os.path.join(set_dir, class_name)
+                        os.makedirs(majority_class_dir, exist_ok=True)
+                        
+                        files_to_copy = random.sample(files_to_process, final_majority_size) if num_majority_original > 0 else []
+                        for f in files_to_copy:
+                            shutil.copy2(f, majority_class_dir)
+                            manifest_files.append(f"{class_name}/{os.path.basename(f)}".replace(os.sep, '/'))
 
                     # 4. Update the main `included_classes` dict with new counts for the manifest
                     for class_name, count in final_class_counts.items():
