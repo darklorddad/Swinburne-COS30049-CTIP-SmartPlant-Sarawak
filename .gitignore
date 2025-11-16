@@ -16,16 +16,17 @@ WhatsApp-Image-2025-09-30-at-09.38.43_366be51f.jpg
 # Environment variables (API keys, database credentials, secret tokens and etc. goes here)
 .env
 
-core/Dataset-iNaturalist/Preprocessed/Images
-core/Dataset-iNaturalist/Dataset-iNaturalist-train.zip
-core/Dataset-iNaturalist/Dataset-iNaturalist-validate.zip
-core/Model-*/
-
-Dataset-compressed/
-
-iNaturalist/CSV/
-iNaturalist/Images/
+Dataset/Pulong-Tau-National-Park/
+Dataset/iNaturalist/CSV/
+Dataset/iNaturalist/Images/
 counts-cache.json
+
+utilities/Dataset-iNaturalist/Preprocessed/Images/
+utilities/Dataset-iNaturalist/Train.zip
+utilities/Dataset-iNaturalist/Validate.zip
+utilities/Model-*/
+utilities/Dataset-Pulong-Tau-National-Park/Train.zip
+utilities/Dataset-Pulong-Tau-National-Park/Validate.zip
 
 *.tmp
 .vscode/
@@ -36,6 +37,7 @@ backend/heatmaps/
 backend/base_Dataset/
 backend/firebase_downloaded_data/
 backend/merged_dataset/
+
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # dependencies
