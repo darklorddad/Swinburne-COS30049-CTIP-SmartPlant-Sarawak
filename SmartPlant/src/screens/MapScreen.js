@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  StatusBar,
 } from "react-native";
 import MapView, { Marker, Callout, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
   map: { flex: 1 },
   searchContainer: {
     position: "absolute",
-    top: 40,
+    top: Platform.OS === "android" ? StatusBar.currentHeight + 10 : 40,
     left: 15,
     right: 15,
     zIndex: 10,
@@ -300,7 +301,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 15 },
   filterRow: {
     position: "absolute",
-    top: 90,
+    top: Platform.OS === "android" ? StatusBar.currentHeight + 65 : 90,
     left: 0,
     right: 0,
     zIndex: 10,
