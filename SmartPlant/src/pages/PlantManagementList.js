@@ -16,7 +16,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { db } from "../firebase/FirebaseConfig";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 
-const CATEGORIES = ["All", "Common", "Rare", "Endangered"];
+// 👉 one row only, extended with status filters
+const CATEGORIES = [
+  "All",
+  "Common",
+  "Rare",
+  "Endangered",
+  "Pending",
+  "Verified",
+  "Rejected",
+];
+
 const TOP_PAD = Platform.OS === "ios" ? 56 : (StatusBar.currentHeight || 0) + 8;
 
 export default function PlantManagementList({ navigation }) {
@@ -47,8 +57,8 @@ export default function PlantManagementList({ navigation }) {
           id: d.id,
           label,
           image: imgs[0] || null,
-          status: (v?.identify_status || "pending").toLowerCase(),
-          category: (v?.conservation_status || "").toLowerCase(), // common|rare|endangered|""
+          status: (v?.identify_status || "pending").toLowerCase(),    // pending | verified | rejected
+          category: (v?.conservation_status || "").toLowerCase(),    // common | rare | endangered | ""
         };
       });
       setItems(rows);
@@ -66,8 +76,20 @@ export default function PlantManagementList({ navigation }) {
     let base = !s ? items : items.filter((t) => (t.label || "").toLowerCase().includes(s));
 
     if (selectedCat === "All") return base;
+
     const key = selectedCat.toLowerCase();
-    return base.filter((t) => t.category === key);
+
+    // if chip is Common / Rare / Endangered → filter by conservation category
+    if (["common", "rare", "endangered"].includes(key)) {
+      return base.filter((t) => t.category === key);
+    }
+
+    // if chip is Pending / Verified / Rejected → filter by status
+    if (["pending", "verified", "rejected"].includes(key)) {
+      return base.filter((t) => t.status === key);
+    }
+
+    return base;
   }, [items, search, selectedCat]);
 
   const StatusDot = ({ status }) => {
@@ -127,7 +149,7 @@ export default function PlantManagementList({ navigation }) {
         />
       </View>
 
-      {/* Category chips */}
+      {/* Category + Status chips (single row) */}
       <View style={styles.chipsRow}>
         {CATEGORIES.map((c) => {
           const isOn = selectedCat === c;
@@ -157,7 +179,7 @@ export default function PlantManagementList({ navigation }) {
               <View style={[styles.tileImage, { backgroundColor: "#CFD4D0" }]} />
             )}
 
-            {/* category pill top-left */}
+            {/* category pill top-left (common/rare/endangered) */}
             <View style={styles.catWrapTopLeft}>
               <CategoryPill category={t.category} />
             </View>
@@ -169,7 +191,7 @@ export default function PlantManagementList({ navigation }) {
               </Text>
             </View>
 
-            {/* status top-right */}
+            {/* status top-right (pending/verified/rejected) */}
             <View style={styles.statusWrap}>
               <StatusDot status={t.status} />
             </View>
@@ -194,7 +216,7 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8e2",
   },
 
-  chipsRow: { flexDirection: "row", gap: 8, marginBottom: 10 },
+  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 },
   chip: {
     backgroundColor: "#D7EBD7",
     paddingHorizontal: 12,

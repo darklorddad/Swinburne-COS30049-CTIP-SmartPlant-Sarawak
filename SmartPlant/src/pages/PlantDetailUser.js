@@ -52,26 +52,33 @@ export default function PlantDetailUser({ navigation, route }) {
   const prediction = useMemo(() => {
     if (post?.prediction) return post.prediction;
     if (post?.model_predictions) {
-      return [post.model_predictions.top_1, post.model_predictions.top_2, post.model_predictions.top_3].filter(Boolean);
+      return [
+        post.model_predictions.top_1,
+        post.model_predictions.top_2,
+        post.model_predictions.top_3,
+      ].filter(Boolean);
     }
     return [];
   }, [post]);
   const top1 = prediction?.[0];
 
-  // NEW: scientific name prioritizes manual_scientific_name from PlantManagementDetail
+  // scientific name prioritizes manual_scientific_name from PlantManagementDetail
   const scientificName = useMemo(() => {
-    const manual = typeof post?.manual_scientific_name === "string" ? post.manual_scientific_name.trim() : "";
+    const manual =
+      typeof post?.manual_scientific_name === "string"
+        ? post.manual_scientific_name.trim()
+        : "";
     if (manual) return manual;
     return top1?.plant_species || top1?.class || "—";
   }, [post, top1]);
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [userProfiles, setUserProfiles] = useState(new Map());
-  // ---- Live comments pulled from the same place as PostDetail ----
+  // Live comments
   const [comments, setComments] = useState([]);
 
-  // NEW: display-only category (common/rare/endangered)
-  const [displayCategory, setDisplayCategory] = useState(null); // ← NEW
+  // display-only category (common/rare/endangered)
+  const [displayCategory, setDisplayCategory] = useState(null);
 
   // Resolve category to display
   useEffect(() => {
@@ -111,8 +118,7 @@ export default function PlantDetailUser({ navigation, route }) {
     } else {
       setDisplayCategory(null);
     }
-  }, [post]); // ← NEW
-  // ---------------------------------------------------------------
+  }, [post]);
 
   useEffect(() => {
     if (!post?.id) return;
@@ -141,30 +147,35 @@ export default function PlantDetailUser({ navigation, route }) {
     if (!comments.length) return;
 
     const fetchProfiles = async () => {
-      const userIds = [...new Set(comments.map(c => c.user_id).filter(id => !userProfiles.has(id)))];
+      const userIds = [
+        ...new Set(comments.map((c) => c.user_id).filter((id) => !userProfiles.has(id))),
+      ];
       if (!userIds.length) return;
 
       const newProfiles = new Map(userProfiles);
-      await Promise.all(userIds.map(async id => {
-        if (id === 'anon') return;
-        const userRef = doc(db, "account", id);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          newProfiles.set(id, userSnap.data());
-        }
-      }));
+      await Promise.all(
+        userIds.map(async (id) => {
+          if (id === "anon") return;
+          const userRef = doc(db, "account", id);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            newProfiles.set(id, userSnap.data());
+          }
+        })
+      );
       setUserProfiles(newProfiles);
     };
 
     fetchProfiles();
   }, [comments]);
-  // ----------------------------------------------------------------
 
   const lat = post?.coordinate?.latitude ?? null;
   const lng = post?.coordinate?.longitude ?? null;
-  const locality = post?.locality || (lat != null && lng != null
-    ? `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`
-    : "—");
+  const locality =
+    post?.locality ||
+    (lat != null && lng != null
+      ? `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`
+      : "—");
 
   const images = useMemo(() => {
     if (post?.imageURIs) return post.imageURIs;
@@ -175,20 +186,25 @@ export default function PlantDetailUser({ navigation, route }) {
     return [];
   }, [post]);
 
-  // NEW: read-only category pill UI
+  // read-only category pill UI
   const CategoryPill = ({ category }) => {
     if (!category) return null;
     let wrap = styles.catCommon;
     let label = "Common";
-    if (category === "rare") { wrap = styles.catRare; label = "Rare"; }
-    if (category === "endangered") { wrap = styles.catEndangered; label = "Endangered"; }
+    if (category === "rare") {
+      wrap = styles.catRare;
+      label = "Rare";
+    }
+    if (category === "endangered") {
+      wrap = styles.catEndangered;
+      label = "Endangered";
+    }
     return (
       <View style={[styles.catPillBase, wrap]}>
         <Text style={styles.catPillText}>{label}</Text>
       </View>
     );
   };
-  // -----
 
   return (
     <View style={styles.background}>
@@ -223,7 +239,7 @@ export default function PlantDetailUser({ navigation, route }) {
 
           <Text style={styles.label}>Conservation Status:</Text>
 
-          {/* NEW: show category pill if we have one */}
+          {/* show category pill if we have one */}
           <View style={{ marginTop: 6, marginBottom: 6 }}>
             <CategoryPill category={displayCategory} />
           </View>
@@ -236,24 +252,8 @@ export default function PlantDetailUser({ navigation, route }) {
             Date Identified: {post?.time ? new Date(post.time).toDateString() : "—"}
           </Text>
 
-          {/* Location + View on Map */}
+          {/* Location (no more "View on Map" button) */}
           <Text style={styles.sub}>Location: {locality}</Text>
-          {lat != null && lng != null && (
-            <TouchableOpacity
-              style={styles.viewOnMapBtn}
-              onPress={() =>
-                navigation.navigate("MapPage", {
-                  focus: {
-                    latitude: Number(lat),
-                    longitude: Number(lng),
-                    title: scientificName || "Plant",
-                  },
-                })
-              }
-            >
-              <Text style={styles.viewOnMapText}>View on Map</Text>
-            </TouchableOpacity>
-          )}
 
           <Text style={[styles.section, { marginTop: 10 }]}>Identification</Text>
           <Text style={styles.sub}>Confidence Score</Text>
@@ -288,13 +288,24 @@ export default function PlantDetailUser({ navigation, route }) {
                     {userProfile.profile_pic ? (
                       <Image source={{ uri: userProfile.profile_pic }} style={styles.commentAvatar} />
                     ) : (
-                      <View style={[styles.commentAvatar, { backgroundColor: getColorForId(c.user_id) }]}>
-                        <Text style={styles.avatarText}>{(userProfile.full_name || c.user_name || "U").charAt(0)}</Text>
+                      <View
+                        style={[
+                          styles.commentAvatar,
+                          { backgroundColor: getColorForId(c.user_id) },
+                        ]}
+                      >
+                        <Text style={styles.avatarText}>
+                          {(userProfile.full_name || c.user_name || "U").charAt(0)}
+                        </Text>
                       </View>
                     )}
                     <View style={{ flex: 1 }}>
                       <View style={styles.commentHeader}>
-                        <Text style={styles.commentAuthor}>{(userProfile && userProfile.full_name) || c.user_name || "User"}</Text>
+                        <Text style={styles.commentAuthor}>
+                          {(userProfile && userProfile.full_name) ||
+                            c.user_name ||
+                            "User"}
+                        </Text>
                         <Text style={styles.commentTime}>{timeAgo(c.createdAtMs)}</Text>
                       </View>
                       <Text style={styles.commentText}>{c.text}</Text>
@@ -359,7 +370,14 @@ const styles = StyleSheet.create({
 
   commentsBlock: { marginTop: 10 },
   commentRow: { flexDirection: "row", gap: 10, marginTop: 10 },
-  commentAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#D7E3D8", alignItems: "center", justifyContent: "center" },
+  commentAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#D7E3D8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   avatarText: { color: "white", fontSize: 14, fontWeight: "bold" },
   commentHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   commentAuthor: { fontWeight: "700", color: "#222" },
@@ -369,8 +387,13 @@ const styles = StyleSheet.create({
   report: { marginTop: 10, paddingVertical: 10, alignItems: "flex-start" },
   reportText: { color: "#b05555", fontWeight: "700" },
 
-  // NEW: pill styles
-  catPillBase: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, alignSelf: "flex-start" },
+  // pill styles
+  catPillBase: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    alignSelf: "flex-start",
+  },
   catPillText: { fontSize: 11, fontWeight: "700", color: "#fff" },
   catCommon: { backgroundColor: "#2FA66A" },
   catRare: { backgroundColor: "#E6A23C" },

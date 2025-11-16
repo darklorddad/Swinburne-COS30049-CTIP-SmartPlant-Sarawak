@@ -28,7 +28,6 @@ import {
   arrayUnion,
   arrayRemove,
   increment,
-  getDocs,
 } from "firebase/firestore";
 
 // Match NavigationExpert.js overlay
@@ -61,11 +60,11 @@ const getColorForId = (id) => {
 };
 
 export default function HomepageExpert({ navigation }) {
-  const expertName =
+  const myId = auth.currentUser?.uid || "anon";
+
+  const defaultExpertName =
     auth.currentUser?.displayName ||
     (auth.currentUser?.email ? auth.currentUser.email.split("@")[0] : "Expert");
-
-  const myId = auth.currentUser?.uid || "anon";
 
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -89,7 +88,20 @@ export default function HomepageExpert({ navigation }) {
     });
     return () => unsub();
   }, []);
-  // -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------  
+
+  // ✅ NEW: resolve expert’s own profile from profilesMap (for avatar + name)
+  const expertProfile = useMemo(() => {
+    const uidKey = auth.currentUser?.uid ? String(auth.currentUser.uid) : null;
+    const emailKey = (auth.currentUser?.email || "").toLowerCase();
+    return (
+      (uidKey && profilesMap.get(uidKey)) ||
+      (emailKey && profilesMap.get(emailKey)) ||
+      null
+    );
+  }, [profilesMap]);
+
+  const expertName = expertProfile?.full_name || defaultExpertName;
 
   // Live feed
   useEffect(() => {
@@ -139,7 +151,6 @@ export default function HomepageExpert({ navigation }) {
           user_email: v.user_email || null,
           userImage, // ← resolved avatar
           imageURIs,
-          // caption now just the plant name will render below; keep this for compatibility
           caption: top1
             ? `Top: ${top1.plant_species} (${Math.round((top1.ai_score || 0) * 100)}%)`
             : "New identification",
@@ -158,8 +169,6 @@ export default function HomepageExpert({ navigation }) {
           saved_count,
           liked_by,
           identify_status: (v?.identify_status || "pending").toLowerCase(),
-
-          // allow experts to see if a manual (new-species) name exists
           manual_scientific_name:
             typeof v?.manual_scientific_name === "string" ? v.manual_scientific_name : null,
         };
@@ -270,7 +279,7 @@ export default function HomepageExpert({ navigation }) {
     }
   };
 
-  // Round icon-only badge (same look, we'll position it absolute in styles)
+  // Round icon-only badge (same palette)
   const StatusIcon = ({ status }) => {
     let style = styles.iconWrapPending;
     let icon = "time";
@@ -315,7 +324,31 @@ export default function HomepageExpert({ navigation }) {
       >
         {/* Greeting */}
         <View style={styles.greetingCard}>
-          <View style={[styles.avatar, { backgroundColor: "#D7E3D8" }]} />
+          {/* ✅ NEW: expert avatar (photo or initial) */}
+          {expertProfile?.profile_pic ? (
+            <Image
+              source={{ uri: expertProfile.profile_pic }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View
+              style={[
+                styles.avatar,
+                {
+                  backgroundColor: getColorForId(
+                    expertProfile?.user_id || auth.currentUser?.uid || expertName
+                  ),
+                  alignItems: "center",
+                  justifyContent: "center",
+                },
+              ]}
+            >
+              <Text style={styles.avatarInitial}>
+                {(expertName || "E").charAt(0)}
+              </Text>
+            </View>
+          )}
+
           <View style={{ flex: 1 }}>
             <Text style={styles.greetingTitle}>Good Morning</Text>
             <Text style={styles.greetingSub}>{expertName}</Text>
@@ -437,7 +470,7 @@ export default function HomepageExpert({ navigation }) {
                     <Text style={styles.countText}>{p.like_count || 0}</Text>
                   </TouchableOpacity>
 
-                  {/* comment -> detail page (composer there) */}
+                  {/* comment -> detail page */}
                   <TouchableOpacity
                     onPress={() => openDetail(p)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -492,7 +525,17 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 20,
   },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#D7E3D8" },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#D7E3D8",
+  },
+  avatarInitial: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+  },
   greetingTitle: { fontSize: 16, fontWeight: "600", color: "#2b2b2b" },
   greetingSub: { fontSize: 14, color: "#2b2b2b", marginTop: 2 },
   greetingMeta: { fontSize: 12, color: "#4c6b50", marginTop: 6 },
@@ -568,7 +611,7 @@ const styles = StyleSheet.create({
   // (banner style kept; element removed)
   banner: { marginTop: 12, height: 160, borderRadius: 12, backgroundColor: "#5A7B60" },
 
-  // ===== Visible icon-only status badge (same look) =====
+  // status icon styles
   iconWrapBase: {
     width: 28,
     height: 28,
@@ -585,7 +628,6 @@ const styles = StyleSheet.create({
   iconWrapRejected: { backgroundColor: "#D36363" },
   iconWrapPending: { backgroundColor: "#9CA3AF" },
 
-  // absolute placement like the screenshot
   statusAbsolute: { position: "absolute", top: 8, right: 10, zIndex: 2 },
 
   // Details pill bottom-right

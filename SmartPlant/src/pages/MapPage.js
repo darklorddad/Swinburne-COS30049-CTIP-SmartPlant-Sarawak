@@ -60,8 +60,12 @@ const MapPage = ({ navigation }) => {
   const { locationGranted } = useContext(PermissionContext);
   const [likeInFlight, setLikeInFlight] = useState(false);
 
-  // temporary focus pin when navigating from PlantDetailUser (or anywhere)
+  // temporary focus pin when navigating from detail pages
   const [focusPin, setFocusPin] = useState(null);
+
+  // remember which specific marker we already auto-focused (from focusMarkerId)
+  const focusMarkerIdRef = useRef(route.params?.focusMarkerId || null);
+  const [hasAutoFocusedMarker, setHasAutoFocusedMarker] = useState(false);
 
   useEffect(() => {
     selectedMarkerRef.current = selectedMarker;
@@ -78,7 +82,7 @@ const MapPage = ({ navigation }) => {
     longitudeDelta: 0.0421,
   };
 
-  // center camera if route passes a focus param
+  // center camera if route passes a "focus" param (from PlantDetailUser or PlantManagementDetail)
   useEffect(() => {
     const f = route.params?.focus;
     if (f?.latitude != null && f?.longitude != null) {
@@ -539,6 +543,18 @@ const MapPage = ({ navigation }) => {
     );
   }, []);
 
+  // ✅ NEW: when coming from "View on Map" with focusMarkerId, auto-open that marker
+  useEffect(() => {
+    const focusId = focusMarkerIdRef.current;
+    if (!focusId || hasAutoFocusedMarker || !markers.length) return;
+
+    const marker = markers.find((m) => m.id === focusId);
+    if (!marker) return;
+
+    handleMarkerPress(marker);
+    setHasAutoFocusedMarker(true);
+  }, [markers, hasAutoFocusedMarker, handleMarkerPress]);
+
   const renderBottomSheet = () => {
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
@@ -891,7 +907,7 @@ const MapPage = ({ navigation }) => {
           </Marker>
         ))}
 
-        {/* temporary focus pin when coming from PlantDetailUser */}
+        {/* temporary focus pin when coming from detail pages */}
         {focusPin && (
           <Marker coordinate={focusPin.coordinate} title={focusPin.title} />
         )}
