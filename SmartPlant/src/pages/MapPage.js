@@ -431,19 +431,18 @@ const MapPage = ({ navigation }) => {
         if (lowerCaseFilter === "verified") {
           return marker.identify_status === "verified";
         }
-
-        // common / rare / endangered
-        if (["common", "rare", "endangered"].includes(lowerCaseFilter)) {
-          const cs = (marker.conservation_status || "").toLowerCase();
-          return cs === lowerCaseFilter;
+        // ⭐ 1. Filter by conservation status
+        if (['common', 'rare', 'endangered'].includes(lowerCaseFilter)) {
+          return (marker.conservation_status || 'common').toLowerCase() === lowerCaseFilter;
         }
 
-        // type (e.g. Plant)
+        // ⭐ 2. Filter by type (Plant, IOT, etc.)
         if (marker.type) {
           return marker.type.toLowerCase() === lowerCaseFilter;
         }
 
         return false;
+
       });
     });
   }, [markers, selectedFilters, searchText]);
