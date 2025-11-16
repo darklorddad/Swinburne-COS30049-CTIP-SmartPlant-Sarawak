@@ -29,6 +29,7 @@ import {
   arrayRemove,
   increment,
 } from "firebase/firestore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Match NavigationExpert.js overlay
 const NAV_HEIGHT = 60;
@@ -71,6 +72,7 @@ export default function HomepageExpert({ navigation }) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [likeBusy, setLikeBusy] = useState(new Set()); // prevent spam taps
   const [saveBusy, setSaveBusy] = useState(new Set());
+   const [showSafetyModal, setShowSafetyModal] = useState(false);
 
   // ------- Profiles map (robust: index by doc.id, uid/user_id, and email) -------
   const [profilesMap, setProfilesMap] = useState(new Map());
@@ -307,6 +309,30 @@ export default function HomepageExpert({ navigation }) {
       (latest.model_predictions?.top_1 ?? null);
     return top1?.plant_species || top1?.class || "Plant";
   }, [latest]);
+  useEffect(() => {
+    const checkModalShown = async () => {
+      const key = `safetyModalShown_${myId}`;
+      try {
+        const shown = await AsyncStorage.getItem(key);
+        if (!shown) setShowSafetyModal(true);
+      } catch (e) {
+        console.log("Error reading modal flag:", e);
+      }
+    };
+    checkModalShown();
+  }, [myId]);
+
+  const acknowledgeSafetyModal = async () => {
+    const key = `safetyModalShown_${myId}`;
+    try {
+      await AsyncStorage.setItem(key, "true");
+      setShowSafetyModal(false);
+    } catch (e) {
+      console.log("Error saving modal flag:", e);
+      setShowSafetyModal(false);
+    }
+  };
+  
 
   return (
     <View style={styles.background}>
@@ -506,6 +532,29 @@ export default function HomepageExpert({ navigation }) {
       </ScrollView>
 
       <BottomNav navigation={navigation} />
+
+      {/* Safety Guideline Modal */}
+      <Modal
+        visible={showSafetyModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowSafetyModal(false)}
+      >
+        <View style={styles.modalBackground}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>🛡️ Expert Safety Guidelines</Text>
+            <Text style={styles.modalText}>1. Keep your login credentials private</Text>
+            <Text style={styles.modalText}>2. Verify plants before responding</Text>
+            <Text style={styles.modalText}>3. Don't click untrusted links</Text>
+            <Text style={styles.modalText}>4. Protect user data</Text>
+            <Text style={styles.modalText}>5. Report suspicious activity</Text>
+
+            <TouchableOpacity style={styles.modalButton} onPress={acknowledgeSafetyModal}>
+              <Text style={styles.modalButtonText}>I Understand</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

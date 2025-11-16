@@ -73,6 +73,7 @@ export default function HomepageUser({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -173,12 +174,10 @@ export default function HomepageUser({ navigation }) {
     };
   }, []);
 
-  const [showSafetyModal, setShowSafetyModal] = useState(false);
-
   useEffect(() => {
-    async function checkFirstLogin() {
+    const checkFirstLogin = async () => {
       try {
-        const userKey = `hasSeenSafetyGuidelines_${route.params?.userEmail}`;
+        const userKey = `hasSeenSafetyGuidelines_${auth.currentUser?.uid || "anon"}`;
         const hasSeen = await AsyncStorage.getItem(userKey);
         if (!hasSeen) {
           setShowSafetyModal(true);
@@ -187,9 +186,9 @@ export default function HomepageUser({ navigation }) {
       } catch (err) {
         console.error("Error checking safety guidelines flag:", err);
       }
-    }
+    };
     checkFirstLogin();
-}, []);
+  }, []);
 
   // When we navigate back from CreatePost with { newPost }, prepend it once.
   useFocusEffect(
@@ -522,11 +521,11 @@ export default function HomepageUser({ navigation }) {
         <View style={styles.modalBackground}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>🔒 Safety & Security Guidelines</Text>
-            <Text style={styles.modalText}>• Do not share your password or OTP with anyone.</Text>
-            <Text style={styles.modalText}>• Avoid clicking unknown or suspicious links.</Text>
-            <Text style={styles.modalText}>• Keep your personal data and phone number private.</Text>
-            <Text style={styles.modalText}>• Report any suspicious activity immediately.</Text>
-            <Text style={styles.modalText}>• Use strong and unique passwords for your account.</Text>
+            <Text style={styles.modalText}>1. Keep your account safe</Text>
+            <Text style={styles.modalText}>2. Only trust verified experts</Text>
+            <Text style={styles.modalText}>3. Don't share personal info</Text>
+            <Text style={styles.modalText}>4. Avoid unknown links/files</Text>
+            <Text style={styles.modalText}>5. Report suspicious content</Text>
 
             <TouchableOpacity style={styles.modalButton} onPress={() => setShowSafetyModal(false)}>
               <Text style={styles.modalButtonText}>I Understand</Text>

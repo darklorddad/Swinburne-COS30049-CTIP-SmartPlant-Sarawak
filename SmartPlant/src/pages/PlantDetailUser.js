@@ -16,6 +16,8 @@ import BottomNav from "../components/Navigation";
 import { db } from "../firebase/FirebaseConfig";
 import { collection, onSnapshot, orderBy, query, doc, getDoc } from "firebase/firestore";
 import ImageSlideshow from "../components/ImageSlideShow";
+// import { decrypt } from "../utils/Encryption";
+
 
 // --- match your raised BottomNav ---
 const NAV_HEIGHT = 60;      // height of BottomNav
