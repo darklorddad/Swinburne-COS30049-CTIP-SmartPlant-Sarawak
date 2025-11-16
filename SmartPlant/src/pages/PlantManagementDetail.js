@@ -9,6 +9,8 @@ import {
   Image,
   Alert,
   TextInput,
+  Platform,
+  StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { db, auth } from "../firebase/FirebaseConfig";
@@ -20,6 +22,7 @@ import {
   setDoc,
   collection,
   addDoc,
+  arrayUnion, // ← needed in approve() for sample_images
 } from "firebase/firestore";
 import ImageSlideshow from "../components/ImageSlideShow";
 
@@ -39,6 +42,8 @@ const fmtDate = (ts) => {
 };
 
 const HIGH_CONFIDENCE_THRESHOLD = 0.75;
+const TOP_PAD =
+  Platform.OS === "ios" ? 56 : (StatusBar.currentHeight || 0) + 8; // ↓ push content down
 
 export default function PlantManagementDetail({ route, navigation }) {
   const { id } = route.params || {};
@@ -93,7 +98,11 @@ export default function PlantManagementDetail({ route, navigation }) {
           if (mounted) setVerifiedByName(null);
         }
 
-        const existing = (data?.conservation_status || data?.category || "").toLowerCase();
+        const existing = (
+          data?.conservation_status ||
+          data?.category ||
+          ""
+        ).toLowerCase();
         if (["common", "rare", "endangered"].includes(existing)) {
           setCategory(existing);
         }
@@ -101,14 +110,17 @@ export default function PlantManagementDetail({ route, navigation }) {
         const top1 = data?.model_predictions?.top_1 || {};
         const score = typeof top1?.ai_score === "number" ? top1.ai_score : 0;
         const sciName = top1?.plant_species || top1?.class || null;
-        const isPending = (data?.identify_status || "pending").toLowerCase() === "pending";
+        const isPending =
+          (data?.identify_status || "pending").toLowerCase() === "pending";
 
         // Auto-suggest for pending + high confidence + known species
         if (isPending && sciName && score >= HIGH_CONFIDENCE_THRESHOLD) {
           try {
             const plantSnap = await getDoc(doc(db, "plant", sciName));
             if (plantSnap.exists()) {
-              const cat = (plantSnap.data()?.conservation_status || "").toLowerCase();
+              const cat = (
+                plantSnap.data()?.conservation_status || ""
+              ).toLowerCase();
               if (["common", "rare", "endangered"].includes(cat)) {
                 setSuggestedCategory(cat);
                 if (!existing) setCategory(cat);
@@ -121,12 +133,15 @@ export default function PlantManagementDetail({ route, navigation }) {
         }
 
         // If verified but no category on doc, show catalog value read-only
-        const isVerified = (data?.identify_status || "pending").toLowerCase() === "verified";
+        const isVerified =
+          (data?.identify_status || "pending").toLowerCase() === "verified";
         if (isVerified && sciName && !existing) {
           try {
             const plantSnap = await getDoc(doc(db, "plant", sciName));
             if (plantSnap.exists()) {
-              const cat = (plantSnap.data()?.conservation_status || "").toLowerCase();
+              const cat = (
+                plantSnap.data()?.conservation_status || ""
+              ).toLowerCase();
               if (["common", "rare", "endangered"].includes(cat)) {
                 setCatalogCategory(cat);
               }
@@ -141,7 +156,9 @@ export default function PlantManagementDetail({ route, navigation }) {
           try {
             const plantSnap = await getDoc(doc(db, "plant", sciName));
             if (plantSnap.exists()) {
-              const cat = (plantSnap.data()?.conservation_status || "").toLowerCase();
+              const cat = (
+                plantSnap.data()?.conservation_status || ""
+              ).toLowerCase();
               if (["common", "rare", "endangered"].includes(cat)) {
                 setPredictionFetchedStatus(cat);
               } else {
@@ -169,11 +186,14 @@ export default function PlantManagementDetail({ route, navigation }) {
   const sciName = top1?.plant_species || top1?.class || "—";
   const identifyStatus = (post?.identify_status || "pending").toLowerCase();
   const coords = post?.coordinate || null;
+  const locationLabel = post?.locality || "Unknown location";
 
   const images = useMemo(() => {
     if (!post) return [];
     if (Array.isArray(post?.ImageURLs) && post.ImageURLs.length) {
-      return post.ImageURLs.filter((u) => typeof u === "string" && u.trim() !== "");
+      return post.ImageURLs.filter(
+        (u) => typeof u === "string" && u.trim() !== ""
+      );
     }
     if (typeof post?.ImageURL === "string" && post.ImageURL.trim() !== "") {
       return [post.ImageURL.trim()];
@@ -213,11 +233,17 @@ export default function PlantManagementDetail({ route, navigation }) {
       finalCategory = category || null;
 
       if (!finalSciName) {
-        Alert.alert("Enter scientific name", "Please type the new species scientific name.");
+        Alert.alert(
+          "Enter scientific name",
+          "Please type the new species scientific name."
+        );
         return;
       }
       if (!["common", "rare", "endangered"].includes(finalCategory || "")) {
-        Alert.alert("Select a category", "Please choose Common, Rare, or Endangered.");
+        Alert.alert(
+          "Select a category",
+          "Please choose Common, Rare, or Endangered."
+        );
         return;
       }
     }
@@ -240,7 +266,10 @@ export default function PlantManagementDetail({ route, navigation }) {
         } catch {
           whoName = whoUid;
         }
-        Alert.alert("Already decided", `This item was already ${res.decidedStatus} by ${whoName || whoUid}.`);
+        Alert.alert(
+          "Already decided",
+          `This item was already ${res.decidedStatus} by ${whoName || whoUid}.`
+        );
         // refresh document to reflect final state
         const fresh = await getDoc(doc(db, "plant_identify", post.id));
         if (fresh.exists()) setPost({ id: fresh.id, ...fresh.data() });
@@ -248,12 +277,12 @@ export default function PlantManagementDetail({ route, navigation }) {
         return;
       }
 
-      // If successful, we still need to merge into plant catalog (same as before)
-      // Determine finalSciName & finalCategory again (we already validated).
       // Merge into plant catalog (append sample_images only; don't overwrite plant_image)
       if (finalSciName) {
         const plantRef = doc(db, "plant", finalSciName);
-        const sampleImagesPayload = images.length ? { sample_images: arrayUnion(...images) } : {};
+        const sampleImagesPayload = images.length
+          ? { sample_images: arrayUnion(...images) }
+          : {};
         await setDoc(
           plantRef,
           {
@@ -270,19 +299,27 @@ export default function PlantManagementDetail({ route, navigation }) {
 
       // Log moderation action locally as well (best-effort)
       try {
-        await addDoc(collection(db, "plant_identify", post.id, "moderation_logs"), {
-          action: "approved",
-          by: auth.currentUser?.uid || "expert",
-          at: serverTimestamp(),
-          category: finalCategory,
-          mode,
-        });
+        await addDoc(
+          collection(db, "plant_identify", post.id, "moderation_logs"),
+          {
+            action: "approved",
+            by: auth.currentUser?.uid || "expert",
+            at: serverTimestamp(),
+            category: finalCategory,
+            mode,
+          }
+        );
       } catch {
         // ignore
       }
 
       // Update local state so UI shows verified
-      setPost((p) => ({ ...p, identify_status: "verified", conservation_status: finalCategory, verified_by: auth.currentUser?.uid }));
+      setPost((p) => ({
+        ...p,
+        identify_status: "verified",
+        conservation_status: finalCategory,
+        verified_by: auth.currentUser?.uid,
+      }));
       Alert.alert("Approved", "Post has been verified and categorized.");
       navigation.navigate("PlantManagementList");
     } catch (e) {
@@ -310,7 +347,10 @@ export default function PlantManagementDetail({ route, navigation }) {
         } catch {
           whoName = whoUid;
         }
-        Alert.alert("Already decided", `This item was already ${res.decidedStatus} by ${whoName || whoUid}.`);
+        Alert.alert(
+          "Already decided",
+          `This item was already ${res.decidedStatus} by ${whoName || whoUid}.`
+        );
         const fresh = await getDoc(doc(db, "plant_identify", post.id));
         if (fresh.exists()) setPost({ id: fresh.id, ...fresh.data() });
         navigation.navigate("PlantManagementList");
@@ -319,16 +359,23 @@ export default function PlantManagementDetail({ route, navigation }) {
 
       // add moderation log
       try {
-        await addDoc(collection(db, "plant_identify", post.id, "moderation_logs"), {
-          action: "rejected",
-          by: auth.currentUser?.uid || "expert",
-          at: serverTimestamp(),
-        });
+        await addDoc(
+          collection(db, "plant_identify", post.id, "moderation_logs"),
+          {
+            action: "rejected",
+            by: auth.currentUser?.uid || "expert",
+            at: serverTimestamp(),
+          }
+        );
       } catch {
         // ignore
       }
 
-      setPost((p) => ({ ...p, identify_status: "rejected", rejected_by: auth.currentUser?.uid }));
+      setPost((p) => ({
+        ...p,
+        identify_status: "rejected",
+        rejected_by: auth.currentUser?.uid,
+      }));
       Alert.alert("Rejected", "Post has been rejected.");
       navigation.navigate("PlantManagementList");
     } catch (e) {
@@ -338,9 +385,21 @@ export default function PlantManagementDetail({ route, navigation }) {
     }
   };
 
+  // send coords + id so MapPage can center AND open the card
   const viewOnMap = () => {
     if (!coords) return;
-    navigation.navigate("MapPage", { focusCoordinate: coords });
+
+    const lat = Number(coords.latitude);
+    const lng = Number(coords.longitude);
+
+    navigation.navigate("MapPage", {
+      focus: {
+        latitude: lat,
+        longitude: lng,
+        title: sciName || "Plant",
+      },
+      focusMarkerId: post.id, // for MapPage to auto-open this marker
+    });
   };
 
   const statusChip = useMemo(() => {
@@ -368,7 +427,8 @@ export default function PlantManagementDetail({ route, navigation }) {
 
   const bannerURI = useMemo(() => {
     if (!post) return null;
-    if (Array.isArray(post?.ImageURLs) && post.ImageURLs.length) return post.ImageURLs[0];
+    if (Array.isArray(post?.ImageURLs) && post.ImageURLs.length)
+      return post.ImageURLs[0];
     if (typeof post?.ImageURL === "string") return post.ImageURL;
     return null;
   }, [post]);
@@ -390,11 +450,17 @@ export default function PlantManagementDetail({ route, navigation }) {
   // which category to show in the details section
   const displayCategory =
     (mode === "prediction"
-      ? (predictionFetchedStatus || suggestedCategory || catalogCategory || category)
+      ? predictionFetchedStatus || suggestedCategory || catalogCategory || category
       : category) || null;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 140 }}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{
+        paddingTop: TOP_PAD, // 🔻 this pushes everything down
+        paddingBottom: 140,
+      }}
+    >
       {/* Banner / slideshow */}
       {images.length > 0 ? (
         <ImageSlideshow
@@ -418,21 +484,39 @@ export default function PlantManagementDetail({ route, navigation }) {
         {/* species source switch */}
         {identifyStatus === "pending" && (
           <>
-            <Text style={[styles.sectionHeader, { marginTop: 8 }]}>Species Source</Text>
+            <Text style={[styles.sectionHeader, { marginTop: 8 }]}>
+              Species Source
+            </Text>
             <View style={styles.modeRow}>
               <TouchableOpacity
-                style={[styles.modePill, mode === "prediction" ? styles.modeOn : styles.modeOff]}
+                style={[
+                  styles.modePill,
+                  mode === "prediction" ? styles.modeOn : styles.modeOff,
+                ]}
                 onPress={() => setMode("prediction")}
               >
-                <Text style={[styles.modeText, mode === "prediction" && styles.modeTextOn]}>
+                <Text
+                  style={[
+                    styles.modeText,
+                    mode === "prediction" && styles.modeTextOn,
+                  ]}
+                >
                   Use Prediction
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modePill, mode === "new" ? styles.modeOn : styles.modeOff]}
+                style={[
+                  styles.modePill,
+                  mode === "new" ? styles.modeOn : styles.modeOff,
+                ]}
                 onPress={() => setMode("new")}
               >
-                <Text style={[styles.modeText, mode === "new" && styles.modeTextOn]}>
+                <Text
+                  style={[
+                    styles.modeText,
+                    mode === "new" && styles.modeTextOn,
+                  ]}
+                >
                   New Species
                 </Text>
               </TouchableOpacity>
@@ -456,14 +540,19 @@ export default function PlantManagementDetail({ route, navigation }) {
         <Text style={styles.sectionHeader}>Conservation Status:</Text>
 
         {/* show a hint when auto-suggested (pending) */}
-        {identifyStatus === "pending" && autoSuggest && mode === "prediction" && (
-          <View style={styles.autoBanner}>
-            <Ionicons name="flash" size={16} color="#fff" />
-            <Text style={styles.autoBannerText}>
-              Suggested: {(suggestedCategory || predictionFetchedStatus)?.toUpperCase() || "—"} (from catalog / high confidence)
-            </Text>
-          </View>
-        )}
+        {identifyStatus === "pending" &&
+          autoSuggest &&
+          mode === "prediction" && (
+            <View style={styles.autoBanner}>
+              <Ionicons name="flash" size={16} color="#fff" />
+              <Text style={styles.autoBannerText}>
+                Suggested:{" "}
+                {(suggestedCategory || predictionFetchedStatus)?.toUpperCase() ||
+                  "—"}{" "}
+                (from catalog / high confidence)
+              </Text>
+            </View>
+          )}
 
         {/* Read-only chip in prediction mode; selector in new mode */}
         {mode === "prediction" ? (
@@ -472,12 +561,20 @@ export default function PlantManagementDetail({ route, navigation }) {
               <View
                 style={[
                   styles.chosenChip,
-                  displayCategory === "common" && { backgroundColor: "#2FA66A" },
-                  displayCategory === "rare" && { backgroundColor: "#E6A23C" },
-                  displayCategory === "endangered" && { backgroundColor: "#D36363" },
+                  displayCategory === "common" && {
+                    backgroundColor: "#2FA66A",
+                  },
+                  displayCategory === "rare" && {
+                    backgroundColor: "#E6A23C",
+                  },
+                  displayCategory === "endangered" && {
+                    backgroundColor: "#D36363",
+                  },
                 ]}
               >
-                <Text style={styles.chosenChipText}>{displayCategory.toUpperCase()}</Text>
+                <Text style={styles.chosenChipText}>
+                  {displayCategory.toUpperCase()}
+                </Text>
               </View>
             ) : (
               <Text style={[styles.value, { opacity: 0.7 }]}>—</Text>
@@ -485,13 +582,22 @@ export default function PlantManagementDetail({ route, navigation }) {
           </View>
         ) : (
           <View style={styles.categoryBar}>
-            <TouchableOpacity style={categoryPillStyle("common")} onPress={() => setCategory("common")}>
+            <TouchableOpacity
+              style={categoryPillStyle("common")}
+              onPress={() => setCategory("common")}
+            >
               <Text style={styles.catText}>Common</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={categoryPillStyle("rare")} onPress={() => setCategory("rare")}>
+            <TouchableOpacity
+              style={categoryPillStyle("rare")}
+              onPress={() => setCategory("rare")}
+            >
               <Text style={styles.catText}>Rare</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={categoryPillStyle("endangered")} onPress={() => setCategory("endangered")}>
+            <TouchableOpacity
+              style={categoryPillStyle("endangered")}
+              onPress={() => setCategory("endangered")}
+            >
               <Text style={styles.catText}>Endangered</Text>
             </TouchableOpacity>
           </View>
@@ -499,29 +605,27 @@ export default function PlantManagementDetail({ route, navigation }) {
 
         <View className="divider" style={styles.divider} />
 
-        <Text style={[styles.sectionHeader, { marginTop: 10 }]}>Sighting Details</Text>
+        <Text style={[styles.sectionHeader, { marginTop: 10 }]}>
+          Sighting Details
+        </Text>
         <Text style={styles.fieldLabel}>Submitted by:</Text>
         <Text style={styles.value}>{post?.author_name || "User"}</Text>
         <Text style={styles.fieldLabel}>Date identified:</Text>
         <Text style={styles.value}>{fmtDate(post?.createdAt)}</Text>
 
+        {/* ✅ LOCATION SECTION SIMPLIFIED */}
         <Text style={styles.fieldLabel}>Location:</Text>
-        <View style={styles.locationBox} />
-        {coords ? (
-          <>
-            <Text style={styles.value}>
-              lat: {coords.latitude ?? "—"} | lng: {coords.longitude ?? "—"}
-            </Text>
-            <TouchableOpacity style={styles.mapBtn} onPress={viewOnMap}>
-              <Ionicons name="map" size={16} color="#fff" />
-              <Text style={styles.mapBtnText}>View on Map</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <Text style={[styles.value, { opacity: 0.7 }]}>—</Text>
+        <Text style={styles.value}>{locationLabel}</Text>
+        {coords && (
+          <TouchableOpacity style={styles.mapBtn} onPress={viewOnMap}>
+            <Ionicons name="map" size={16} color="#fff" />
+            <Text style={styles.mapBtnText}>View on Map</Text>
+          </TouchableOpacity>
         )}
 
-        <Text style={[styles.sectionHeader, { marginTop: 10 }]}>Identification</Text>
+        <Text style={[styles.sectionHeader, { marginTop: 10 }]}>
+          Identification
+        </Text>
         <Text style={styles.fieldLabel}>Confidence Score</Text>
         <View style={styles.quote}>
           <Text style={styles.quoteText}>
@@ -533,30 +637,43 @@ export default function PlantManagementDetail({ route, navigation }) {
       </View>
 
       {/* show verified/rejected by when available */}
-      {(identifyStatus === "verified" || identifyStatus === "rejected") && verifiedByName && (
-        <View style={{ marginTop: 10, paddingHorizontal: 16 }}>
-          <Text style={[styles.fieldLabel]}>
-            {identifyStatus === "verified" ? "Verified by:" : "Rejected by:"}
-          </Text>
-          <Text style={styles.value}>{verifiedByName}</Text>
-        </View>
-      )}
+      {(identifyStatus === "verified" || identifyStatus === "rejected") &&
+        verifiedByName && (
+          <View style={{ marginTop: 10, paddingHorizontal: 16 }}>
+            <Text style={[styles.fieldLabel]}>
+              {identifyStatus === "verified"
+                ? "Verified by:"
+                : "Rejected by:"}
+            </Text>
+            <Text style={styles.value}>{verifiedByName}</Text>
+          </View>
+        )}
 
       {/* Actions (only while pending) */}
       {identifyStatus === "pending" && (
         <View style={styles.actions}>
           <TouchableOpacity
-            style={[styles.btn, styles.approve, loadingAction && { opacity: 0.6 }]}
+            style={[
+              styles.btn,
+              styles.approve,
+              loadingAction && { opacity: 0.6 },
+            ]}
             onPress={approve}
             disabled={loadingAction}
           >
             <Text style={styles.btnText}>
-              {mode === "prediction" ? "Approve Prediction" : "Approve New Species"}
+              {mode === "prediction"
+                ? "Approve Prediction"
+                : "Approve New Species"}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.btn, styles.reject, loadingAction && { opacity: 0.6 }]}
+            style={[
+              styles.btn,
+              styles.reject,
+              loadingAction && { opacity: 0.6 },
+            ]}
             onPress={reject}
             disabled={loadingAction}
           >
@@ -588,7 +705,14 @@ const styles = StyleSheet.create({
     gap: 12,
     flexWrap: "wrap",
   },
-  btn: { flexGrow: 1, borderRadius: 10, paddingVertical: 14, alignItems: "center", flexDirection: "row", justifyContent: "center" },
+  btn: {
+    flexGrow: 1,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+  },
   approve: { backgroundColor: "#27AE60" },
   reject: { backgroundColor: "#D36363" },
   btnText: { color: "#fff", fontWeight: "700" },
@@ -660,7 +784,13 @@ const styles = StyleSheet.create({
 
   // species source switch & input
   modeRow: { flexDirection: "row", gap: 10, marginTop: 6, marginBottom: 4 },
-  modePill: { flex: 1, paddingVertical: 10, borderRadius: 999, alignItems: "center", borderWidth: 2 },
+  modePill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 999,
+    alignItems: "center",
+    borderWidth: 2,
+  },
   modeOn: { backgroundColor: "#2FA66A", borderColor: "#2FA66A" },
   modeOff: { backgroundColor: "transparent", borderColor: "#2FA66A" },
   modeText: { fontWeight: "700", color: "#2b2b2b" },
