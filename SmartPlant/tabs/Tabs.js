@@ -2,6 +2,7 @@ import React from "react";
 import { TouchableOpacity } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
+import { BackIcon } from '../src/admin/Icons';
 import DashboardScreen from "../src/screens/DashboardScreen";
 import MapScreen from "../src/screens/MapScreen";
 import HistoryScreen from "../src/screens/HistoryScreen";
@@ -22,14 +23,14 @@ export default function Tabs() {
             onPress={() => navigation.goBack()}
             style={{ marginLeft: 16 }}
           >
-            <Ionicons name="chevron-back" size={24} color="black" />
+            <BackIcon color="#3C3633" />
           </TouchableOpacity>
         ),
         tabBarActiveTintColor: "#2ecc71",
         tabBarInactiveTintColor: "#777",
         tabBarStyle: {
           backgroundColor: "#fff",
-          height: 40 + insets.bottom,
+          height: 30 + insets.bottom,
           paddingBottom: insets.bottom,
         },
       }}
