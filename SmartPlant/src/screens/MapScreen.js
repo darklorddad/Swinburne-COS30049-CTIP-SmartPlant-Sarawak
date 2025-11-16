@@ -18,6 +18,7 @@ import { db } from "../firebase/FirebaseConfig";
 import useLiveReading from "../hooks/useLiveReading";
 import { Ionicons } from "@expo/vector-icons";
 import mapStyle from "../../assets/mapStyle.json";
+import { TOP_PAD } from "../components/StatusBarManager";
 
 export default function MapScreen({ navigation }) {
   const live = useLiveReading();
@@ -284,27 +285,29 @@ export default function MapScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   map: { flex: 1 },
-  searchContainer: {
-    position: "absolute",
-    top: Platform.OS === "android" ? StatusBar.currentHeight + 10 : 40,
+  searchAndFilterContainer: {
+    position: 'absolute',
+    top: TOP_PAD,
     left: 15,
     right: 15,
     zIndex: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
     elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   searchInput: { flex: 1, fontSize: 15 },
   filterRow: {
-    position: "absolute",
-    top: Platform.OS === "android" ? StatusBar.currentHeight + 65 : 90,
-    left: 0,
-    right: 0,
-    zIndex: 10,
+    marginTop: 10,
   },
   filterBtn: {
     backgroundColor: "#eee",
