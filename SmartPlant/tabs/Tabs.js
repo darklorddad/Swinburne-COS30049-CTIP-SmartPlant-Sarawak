@@ -30,8 +30,8 @@ export default function Tabs() {
         tabBarInactiveTintColor: "#777",
         tabBarStyle: {
           backgroundColor: "#fff",
-          height: 55 + insets.bottom,
-          paddingBottom: 5 + insets.bottom,
+          height: 50 + insets.bottom,
+          paddingBottom: insets.bottom,
         },
       }}
     >
