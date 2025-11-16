@@ -130,7 +130,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css="footer {display: none !importa
                     ds_train_ratio = gr.Slider(0, 100, value=80, step=1, label="Train %")
                     ds_val_ratio = gr.Slider(0, 100, value=20, step=1, label="Validate %", interactive=False)
                     ds_test_ratio = gr.Slider(0, 100, value=0, step=1, label="Test %", visible=False)
-                ds_resample = gr.Checkbox(label="Apply SMOTE + RandomUnderSampler resampling to training set", value=False)
+                ds_resample = gr.Checkbox(label="Apply balanced resampling to training set (SMOTE/Undersampling to median)", value=False)
                 ds_split_button = gr.Button("Split", variant="primary")
                 ds_status_message = gr.Textbox(label="Status", interactive=False, lines=5)
 
