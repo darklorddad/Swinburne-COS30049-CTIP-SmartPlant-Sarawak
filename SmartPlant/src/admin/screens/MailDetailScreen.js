@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Button, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Button, Image, RefreshControl } from 'react-native';
 import { BackIcon, TrashIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
 
@@ -7,6 +7,12 @@ const MailDetailScreen = ({ route, navigation }) => {
     const { mail } = route.params;
     const { users, handleDeleteMail, handleReplyMail, handleToggleMailRead } = useAdminContext();
     const [replyText, setReplyText] = useState('');
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        setTimeout(() => setRefreshing(false), 1000);
+    }, []);
 
     useEffect(() => {
         if (mail && !mail.read) {
@@ -51,7 +57,10 @@ const MailDetailScreen = ({ route, navigation }) => {
                     <TrashIcon color="#ef4444" />
                 </TouchableOpacity>
             </View>
-            <ScrollView style={styles.scrollContainer}>
+            <ScrollView
+                style={styles.scrollContainer}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            >
                 <Text style={styles.subject}>{mail.title}</Text>
                 <View style={styles.fromContainer}>
                     {profilePic ? (

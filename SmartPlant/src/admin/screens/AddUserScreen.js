@@ -1,12 +1,18 @@
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, RefreshControl } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { BackIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
 
 const AddUserScreen = ({ navigation }) => {
     const { handleAddNewUser } = useAdminContext();
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        setTimeout(() => setRefreshing(false), 1000);
+    }, []);
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -62,7 +68,10 @@ const AddUserScreen = ({ navigation }) => {
                 <Text style={styles.headerTitle}>Add New User</Text>
                 <View style={{ width: 24 }} />
             </View>
-            <ScrollView style={styles.formContainer}>
+            <ScrollView
+                style={styles.formContainer}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            >
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Name</Text>
                     <TextInput

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, RefreshControl } from 'react-native';
 import { BackIcon } from '../Icons';
 import SearchBar from '../components/SearchBar';
 import { useAdminContext } from '../AdminContext';
@@ -18,6 +18,12 @@ const FeedbackManagementScreen = ({ navigation }) => {
   const { feedbacks, users } = useAdminContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1000);
+  }, []);
 
   const filteredFeedbacks = feedbacks.filter((f) => {
     const subject = f.title ?? f.report_type ?? '';
@@ -122,6 +128,7 @@ const FeedbackManagementScreen = ({ navigation }) => {
         }
         contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
         style={styles.list}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       />
 
       <AdminBottomNavBar navigation={navigation} activeScreen="FeedbackManagement" />

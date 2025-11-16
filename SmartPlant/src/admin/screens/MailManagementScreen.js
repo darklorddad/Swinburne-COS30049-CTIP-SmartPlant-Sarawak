@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SectionList, Image } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SectionList, Image, RefreshControl } from 'react-native';
 import { BackIcon, StarIcon } from '../Icons';
 import SearchBar from '../components/SearchBar';
 import { useAdminContext } from '../AdminContext';
@@ -10,6 +10,12 @@ const MailManagementScreen = ({ navigation }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState('all');
     const [expandedGroups, setExpandedGroups] = useState({ Today: true });
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        setTimeout(() => setRefreshing(false), 1000);
+    }, []);
 
     const onToggleRead = (mailId, currentStatus) => {
         handleToggleMailRead(mailId, currentStatus);
@@ -108,6 +114,7 @@ const MailManagementScreen = ({ navigation }) => {
                 ListEmptyComponent={<Text style={styles.noMailText}>No mail found.</Text>}
                 contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, }}
                 style={styles.list}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             />
         <AdminBottomNavBar navigation={navigation} activeScreen="MailManagement" />
         </View>

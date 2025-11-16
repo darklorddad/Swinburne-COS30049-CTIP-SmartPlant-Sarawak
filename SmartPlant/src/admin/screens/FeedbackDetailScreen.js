@@ -1,5 +1,5 @@
 // admin/screens/FeedbackDetailScreen.js
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Platform,
   Image,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { BackIcon, TrashIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
@@ -43,6 +44,12 @@ const FeedbackDetailScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const scrollRef = useRef(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1000);
+  }, []);
 
   const me = auth.currentUser;
   const myId = me?.uid;
@@ -215,6 +222,7 @@ const sendReply = async () => {
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: NAV_BOTTOM + 140 }]}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
           <View style={styles.card}>
             <Text style={styles.subject}>{feedback.title ?? feedback.report_type ?? 'Feedback'}</Text>

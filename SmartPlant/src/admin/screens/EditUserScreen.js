@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, RefreshControl } from 'react-native';
 import { useAdminContext } from '../AdminContext';
 import { Picker } from '@react-native-picker/picker';
 import { BackIcon } from '../Icons';
@@ -10,6 +10,12 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 export default function EditUserScreen({ route, navigation }) {
   const { handleUpdateUser } = useAdminContext();
   const { user } = route.params;
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1000);
+  }, []);
   
   const [name, setName] = useState(user.details.full_name);
   const [email, setEmail] = useState(user.details.email);
@@ -101,7 +107,10 @@ export default function EditUserScreen({ route, navigation }) {
             <Text style={styles.headerTitle}>Edit User</Text>
             <View style={{ width: 24 }} />
         </View>
-        <ScrollView style={styles.formContainer}>
+        <ScrollView
+            style={styles.formContainer}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
             <View style={styles.inputGroup}>
                 <Text style={styles.label}>Profile Picture</Text>
                 <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>

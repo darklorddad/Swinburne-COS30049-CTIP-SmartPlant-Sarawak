@@ -1,11 +1,17 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, RefreshControl } from 'react-native';
 import { BackIcon, EditIcon, TrashIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
 
 const UserProfileScreen = ({ route, navigation }) => {
     const { handleDeleteUser, plantIdentities, feedbacks } = useAdminContext();
     const { user } = route.params;
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        setTimeout(() => setRefreshing(false), 1000);
+    }, []);
 
     if (!user) {
         return (
@@ -18,8 +24,8 @@ const UserProfileScreen = ({ route, navigation }) => {
         );
     }
 
-    const onDelete = (userId, firebaseUid) => {
-        handleDeleteUser(userId, firebaseUid);
+    const onDelete = (userId) => {
+        handleDeleteUser(userId);
         navigation.navigate('AccountManagement');
     };
 
@@ -37,13 +43,17 @@ const UserProfileScreen = ({ route, navigation }) => {
                     <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('EditUser', { user: user })}>
                         <EditIcon color="#4b5563" />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => onDelete(user.id, user.firebase_uid)} style={styles.actionButton}>
+                    <TouchableOpacity onPress={() => onDelete(user.id)} style={styles.actionButton}>
                         <TrashIcon color="#ef4444" />
                     </TouchableOpacity>
                 </View>
             </View>
             
-            <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer}>
+            <ScrollView
+                style={styles.scrollContainer}
+                contentContainerStyle={styles.scrollContentContainer}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            >
                 <View style={styles.profileHeader}>
                         {user.details.profile_pic ? (
                         <Image source={{ uri: user.details.profile_pic }} style={styles.avatar} />

@@ -19,7 +19,6 @@ import {
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { firebaseConfig } from '../firebase/FirebaseConfig';
-import { API_URL } from '../config';
 
 const AdminContext = createContext();
 
@@ -197,29 +196,12 @@ export const AdminProvider = ({ children }) => {
   };
 
   // ==== USERS ====
-  const handleDeleteUser = async (userId, firebaseUid) => {
-    if (!firebaseUid) {
-      showToast('Cannot delete user: Firebase UID is missing.');
-      return;
-    }
-
+  const handleDeleteUser = async (userId) => {
     const fs = getFirestore();
     try {
-      // Call backend to delete from Firebase Auth
-      const response = await fetch(`${API_URL}/users/${firebaseUid}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || 'Failed to delete user from authentication.');
-      }
-
-      // Delete from Firestore
       await deleteDoc(doc(fs, 'account', userId));
       await deleteDoc(doc(fs, 'user', userId));
-      
-      showToast('User deleted successfully from all systems.');
+      showToast('User deleted from database. Note: The user must also be deleted from the Firebase Authentication console to free up the email.');
     } catch (error) {
       showToast(`Error deleting user: ${error.message}`);
     }

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert, RefreshControl } from 'react-native';
 import { UserIcon, MailIcon, FeedbackIcon, LogoutIcon } from '../Icons';
 import { useAdminContext } from '../AdminContext';
 import { getAuth } from 'firebase/auth';
@@ -10,6 +10,12 @@ const DashboardScreen = ({ navigation }) => {
   const navigate = (screen) => navigation.navigate(screen);
   const [userName, setUserName] = useState('Admin');
   const [greeting, setGreeting] = useState('Good morning!');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1000);
+  }, []);
 
   useEffect(() => {
     const auth = getAuth();
@@ -47,7 +53,10 @@ const DashboardScreen = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <View style={styles.header}>
           <TouchableOpacity
             style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
