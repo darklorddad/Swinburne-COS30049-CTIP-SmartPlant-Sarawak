@@ -506,11 +506,19 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
 
                 for class_name, files in classes.items():
                     for f in files:
-                        img = cv2.imread(f)
-                        if img is not None:
-                            img = cv2.resize(img, IMG_DIM)
-                            X_train.append(img)
-                            y_train.append(label_map[class_name])
+                        try:
+                            # Read with numpy to handle special characters in file paths
+                            n = np.fromfile(f, np.uint8)
+                            img = cv2.imdecode(n, cv2.IMREAD_COLOR)
+                            
+                            if img is not None:
+                                img = cv2.resize(img, IMG_DIM)
+                                X_train.append(img)
+                                y_train.append(label_map[class_name])
+                            else:
+                                print(f"Warning: Failed to decode image (is it a valid image file?): {f}")
+                        except Exception as e:
+                            print(f"Warning: Could not load image {f}. Error: {e}")
 
                 if not X_train:
                     print("Warning: No images could be loaded for resampling. Skipping resampling.")
