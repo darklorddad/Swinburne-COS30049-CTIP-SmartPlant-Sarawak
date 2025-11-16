@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import MapView, { Marker, Callout, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
@@ -170,7 +171,7 @@ export default function MapScreen({ navigation }) {
       </View>
 
       {/* 🟩 Filter Buttons */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingHorizontal: 10 }}>
         {["all", "iot", "common", "rare", "endangered", "Hidden Plant"].map((key) => (
           <TouchableOpacity
             key={key}
@@ -223,7 +224,8 @@ export default function MapScreen({ navigation }) {
               latitude: p.coordinate?.latitude ?? 0,
               longitude: p.coordinate?.longitude ?? 0,
             }}
-            title={p.model_predictions?.top_1?.label ?? "Plant"}
+            title={p.model_predictions?.top_1?.plant_species ?? "Unknown Plant"}
+            description={p.locality ?? "Unknown"}
             pinColor={getPinColor(p.conservation_status, false, p.visible === false)}
             opacity={p.visible === false ? 0.6 : 1.0}
             onCalloutPress={() => navigation.navigate("PlantDetailScreen", { plant: p })}
@@ -235,36 +237,36 @@ export default function MapScreen({ navigation }) {
               </View>
             )}
 
-            <Callout
-              tooltip
-            >
-              <View style={styles.calloutCard}>
-                {p.ImageURLs && p.ImageURLs[0] && (
-                  <Image
-                    source={{ uri: p.ImageURLs[0] }}
-                    style={styles.plantImage}
-                    resizeMode="cover"
-                  />
-                )}
-                <View style={styles.calloutContent}>
-                  <Text style={styles.calloutTitle}>
-                    {p.model_predictions?.top_1?.plant_species ?? "Unknown Plant"}
-                    {p.visible === false && (
-                      <Text style={{ color: "#95a5a6" }}> (Hidden)</Text>
-                    )}
-                  </Text>
-                  <Text>📍 {p.locality ?? "Unknown"}</Text>
-                  <Text
-                    style={{
-                      fontWeight: "700",
-                      color: getPinColor(p.conservation_status, false, p.visible === false),
-                    }}
-                  >
-                    {p.conservation_status?.toUpperCase() ?? "COMMON"}
-                  </Text>
+            {Platform.OS === 'ios' ? (
+              <Callout tooltip>
+                <View style={styles.calloutCard}>
+                  {p.ImageURLs && p.ImageURLs[0] && (
+                    <Image
+                      source={{ uri: p.ImageURLs[0] }}
+                      style={styles.plantImage}
+                      resizeMode="cover"
+                    />
+                  )}
+                  <View style={styles.calloutContent}>
+                    <Text style={styles.calloutTitle}>
+                      {p.model_predictions?.top_1?.plant_species ?? "Unknown Plant"}
+                      {p.visible === false && (
+                        <Text style={{ color: "#95a5a6" }}> (Hidden)</Text>
+                      )}
+                    </Text>
+                    <Text>📍 {p.locality ?? "Unknown"}</Text>
+                    <Text
+                      style={{
+                        fontWeight: "700",
+                        color: getPinColor(p.conservation_status, false, p.visible === false),
+                      }}
+                    >
+                      {p.conservation_status?.toUpperCase() ?? "COMMON"}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </Callout>
+              </Callout>
+            ) : null}
           </Marker>
         ))}
       </MapView>
@@ -299,8 +301,8 @@ const styles = StyleSheet.create({
   filterRow: {
     position: "absolute",
     top: 90,
-    left: 15,
-    right: 15,
+    left: 0,
+    right: 0,
     zIndex: 10,
   },
   filterBtn: {
