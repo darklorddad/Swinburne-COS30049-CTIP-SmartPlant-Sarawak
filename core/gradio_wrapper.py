@@ -30,8 +30,8 @@ AUTOTRAIN_PROCESS = None
 def _enqueue_output(stream, queue_obj):
     """Reads from a stream and puts lines into a queue."""
     try:
-        for line in iter(stream.readline, b''):
-            queue_obj.put(line.decode('utf-8', errors='replace'))
+        for line in iter(stream.readline, ''):
+            queue_obj.put(line)
     finally:
         stream.close()
 
@@ -104,6 +104,7 @@ def launch_autotrain_ui(autotrain_path: str):
             "stderr": subprocess.STDOUT,
             "bufsize": 1,
             "env": env,
+            "text": True,
         }
 
         if sys.platform == "win32":
