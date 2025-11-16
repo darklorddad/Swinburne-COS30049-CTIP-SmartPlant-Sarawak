@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeIcon, UserIcon, MailIcon, FeedbackIcon } from '../Icons';
 
 const AdminBottomNavBar = ({ navigation, activeScreen }) => {
     const navigate = (screen) => navigation.navigate(screen);
+    const insets = useSafeAreaInsets();
 
     return (
-        <View style={styles.navBar}>
+        <View style={[styles.navBar, { paddingBottom: 8 + insets.bottom }]}>
             <TouchableOpacity onPress={() => navigate('Dashboard')} style={styles.navItem}>
                 <HomeIcon color={activeScreen === 'Dashboard' ? '#A59480' : '#75685a'} />
                 <Text style={[styles.navText, activeScreen === 'Dashboard' && styles.activeNavText]}>Dashboard</Text>
@@ -34,7 +36,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         borderTopWidth: 1,
         borderTopColor: '#e5e7eb',
-        paddingVertical: 8,
+        paddingTop: 8,
     },
     navItem: {
         alignItems: 'center',

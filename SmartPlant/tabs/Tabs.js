@@ -4,17 +4,23 @@ import DashboardScreen from "../src/screens/DashboardScreen";
 import MapScreen from "../src/screens/MapScreen";
 import HistoryScreen from "../src/screens/HistoryScreen";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const Tab = createBottomTabNavigator();
 
 export default function Tabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
         headerTitleAlign: "center",
         tabBarActiveTintColor: "#2ecc71",
         tabBarInactiveTintColor: "#777",
-        tabBarStyle: { backgroundColor: "#fff", height: 60 },
+        tabBarStyle: {
+          backgroundColor: "#fff",
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom,
+        },
       }}
     >
       <Tab.Screen

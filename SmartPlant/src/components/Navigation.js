@@ -2,12 +2,14 @@ import React from "react";
 import { View, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { useRoute } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function BottomNav({ navigation }) {
   const route = useRoute(); // get current active route
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.bottomNav}>
+    <View style={[styles.bottomNav, { height: 60 + insets.bottom, paddingBottom: insets.bottom }]}>
       <TouchableOpacity
         style={[styles.tab, route.name === "HomepageUser" && styles.activeTab]}
         onPress={() => navigation.navigate("HomepageUser")}
