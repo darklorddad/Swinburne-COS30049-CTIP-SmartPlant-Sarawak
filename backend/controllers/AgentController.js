@@ -25,7 +25,6 @@ const fetchLatestReadingTool = new DynamicTool({
       const snapshot = await db
         .collection("iot")
         .doc("latest")
-        .collection("history")
         .orderBy("timestamp", "desc")
         .limit(1)
         .get();
@@ -53,9 +52,7 @@ const fetchHistoryReadingTool = new DynamicTool({
     try {
       // Fetch the last 10 readings (old → new)
       const snapshot = await db
-        .collection("iot")
-        .doc("latest")
-        .collection("history")
+        .collection("iotHistory")
         .orderBy("timestamp", "desc")
         .limit(10)
         .get();
