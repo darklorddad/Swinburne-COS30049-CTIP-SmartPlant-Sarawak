@@ -18,7 +18,6 @@ import { db } from "../firebase/FirebaseConfig";
 import useLiveReading from "../hooks/useLiveReading";
 import { Ionicons } from "@expo/vector-icons";
 import mapStyle from "../../assets/mapStyle.json";
-import { TOP_PAD } from "../components/StatusBarManager";
 
 export default function MapScreen({ navigation }) {
   const live = useLiveReading();
@@ -169,6 +168,8 @@ export default function MapScreen({ navigation }) {
         customMapStyle={mapStyle}
         showsUserLocation
         showsMyLocationButton={false}
+        showsCompass={false}
+        zoomControlEnabled={false}
       >
         {/* 🛰 IoT Marker */}
         {(!selectedFilter || selectedFilter === "all" || selectedFilter === "iot") && live && (
@@ -289,7 +290,7 @@ const styles = StyleSheet.create({
   map: { flex: 1 },
   searchAndFilterContainer: {
     position: 'absolute',
-    top: TOP_PAD,
+    top: 10,
     left: 15,
     right: 15,
     zIndex: 10,
