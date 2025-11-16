@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const { bucket } = require("../firebase/firebaseConfig"); // Firebase Storage bucket
 
-const RETRAIN_COOLDOWN = 5* 60 *1000; //24 * 60 * 60 * 1000; // 24 hours in ms
+const RETRAIN_COOLDOWN = 24 * 60 * 60 * 1000; //24 * 60 * 60 * 1000; // 24 hours in ms
 let lastRetrainTime = 0;
 let intervalHandle = null;
 
@@ -82,7 +82,7 @@ function startRetrainWatcher() {
     for (const species of newSpecies) {
       const speciesPrefix = `${basePrefix}${species}/`;
       const [files] = await bucket.getFiles({ prefix: speciesPrefix })
-      if (files.length > 1) speciesWithEnoughImages.push(species);
+      if (files.length > 10) speciesWithEnoughImages.push(species);
     }
 
     if (speciesWithEnoughImages.length === 0) {

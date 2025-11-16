@@ -123,6 +123,7 @@ def predict(image_path, topk=3, classification_threshold=0.7):
     return results
 
 
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         # Standard error response for command line usage

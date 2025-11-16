@@ -140,7 +140,7 @@ def merge_and_split_datasets(train_ratio=0.8, min_val_per_class=1, seed=42):
 
         print(f" Class '{cls}': {num_train} train / {num_total - num_train} val images")
 
-    print(f" Merged and split dataset saved under:\n  Train → {TRAIN_DIR}\n  Val   → {VAL_DIR}")
+    print(f" Merged and split dataset saved under:\n  Train: {TRAIN_DIR}\n  Val: {VAL_DIR}")
 
 def evaluate_embeddings(model, test_loader, device):
     model.eval()
@@ -214,8 +214,8 @@ def evaluate_model(model_ckpt_path, val_dir):
 
 if __name__ == "__main__":
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #download_new_verified_images()
-    #merge_and_split_datasets()
+    download_new_verified_images()
+    merge_and_split_datasets()
 
     current_cls_acc, current_emb_acc = evaluate_model(config.MODEL_PATH, VAL_DIR)
 
