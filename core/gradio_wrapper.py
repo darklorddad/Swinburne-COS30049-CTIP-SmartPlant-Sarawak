@@ -538,7 +538,7 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                         # Define a pipeline that first oversamples minorities, then undersamples the majority.
                         # This is more memory-efficient than just oversampling to match the majority class.
                         over_strategy = 0.2  # Bring minorities to 20% of the majority size
-                        under_strategy = 0.5 # Make majority 2x the size of minorities (after oversampling)
+                        under_strategy = 0.25 # Make majority 4x the size of minorities (after oversampling)
 
                         over = SMOTE(sampling_strategy=over_strategy, random_state=42, k_neighbors=k_neighbors)
                         under = RandomUnderSampler(sampling_strategy=under_strategy, random_state=42)
