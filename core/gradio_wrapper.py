@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import cv2
 import numpy as np
 from imblearn.over_sampling import SMOTE
-from imblearn.under_sampling import TomekLinks
+from imblearn.under_sampling import RandomUnderSampler
 from imblearn.pipeline import Pipeline as ImblearnPipeline
 import queue
 import threading
@@ -502,7 +502,7 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                 X_train, y_train = [], []
                 class_names_map = sorted(classes.keys())
                 label_map = {name: i for i, name in enumerate(class_names_map)}
-                IMG_DIM = (224, 224)
+                IMG_DIM = (64, 64)
 
                 for class_name, files in classes.items():
                     for f in files:
@@ -534,12 +534,22 @@ def split_dataset(source_dir, train_zip_path, val_zip_path, test_zip_path, train
                     if k_neighbors < 1:
                         print(f"Warning: Skipping SMOTE as smallest class has {min_class_count} sample(s), which is not enough (needs at least 2).")
                     else:
+                        print("Applying SMOTE and RandomUnderSampler to the training set...")
+                        # Define a pipeline that first oversamples minorities, then undersamples the majority.
+                        # This is more memory-efficient than just oversampling to match the majority class.
+                        over_strategy = 0.2  # Bring minorities to 20% of the majority size
+                        under_strategy = 0.5 # Make majority 2x the size of minorities (after oversampling)
+
+                        over = SMOTE(sampling_strategy=over_strategy, random_state=42, k_neighbors=k_neighbors)
+                        under = RandomUnderSampler(sampling_strategy=under_strategy, random_state=42)
+
                         resampling_pipeline = ImblearnPipeline([
-                            ('smote', SMOTE(random_state=42, k_neighbors=k_neighbors)),
-                            ('tomek', TomekLinks(sampling_strategy='auto'))
+                            ('smote', over),
+                            ('rus', under)
                         ])
+                        
                         X_resampled_flat, y_resampled = resampling_pipeline.fit_resample(X_train_flat, y_train)
-                        X_resampled = X_resampled_flat.reshape(-1, IMG_DIM[0], IMG_DIM[1], 3)
+                        X_resampled = X_resampled_flat.reshape(-1, IMG_DIM[0], IMG_DIM[1], 3).astype(np.uint8)
                         
                         resampled_class_counts = {class_names_map[i]: count for i, count in enumerate(np.bincount(y_resampled))}
                         for class_name, count in resampled_class_counts.items():
