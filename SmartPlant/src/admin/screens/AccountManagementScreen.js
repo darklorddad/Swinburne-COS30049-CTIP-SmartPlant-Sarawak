@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image } from 'react-native';
-import { BackIcon, PlusIcon } from '../Icons';
+import { BackIcon, PlusIcon, StarIcon } from '../Icons';
 import SearchBar from '../components/SearchBar';
 import { useAdminContext } from '../AdminContext';
 import AdminBottomNavBar from '../components/AdminBottomNavBar';
 
 const AccountManagementScreen = ({ navigation }) => {
-    const { users } = useAdminContext();
+    const { users, handleToggleUserFavourite } = useAdminContext();
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState('all');
 
@@ -30,6 +30,9 @@ const AccountManagementScreen = ({ navigation }) => {
                     <Text style={styles.userTileInitialText}>{(item.name || 'U').charAt(0)}</Text>
                 </View>
             )}
+            <TouchableOpacity onPress={(e) => { e.stopPropagation(); handleToggleUserFavourite(item.id); }} style={styles.starButton}>
+                <StarIcon filled={item.favourite} />
+            </TouchableOpacity>
             <View style={styles.userNameContainer}>
                 <Text style={styles.userNameText} numberOfLines={1}>{item.name || 'Unnamed User'}</Text>
             </View>
@@ -160,6 +163,14 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: '#75685a',
         marginTop: 32,
+    },
+    starButton: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        padding: 4,
+        backgroundColor: 'rgba(0,0,0,0.2)',
+        borderRadius: 16,
     },
 });
 

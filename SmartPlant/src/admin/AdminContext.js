@@ -11,6 +11,8 @@ import {
   setDoc,
   query,
   orderBy,
+  getDocs,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 
@@ -49,14 +51,20 @@ export const AdminProvider = ({ children }) => {
     const fs = getFirestore();
 
     // Accounts
-    const unsubscribeUsers = onSnapshot(collection(fs, 'account'), (snapshot) => {
+    const unsubscribeUsers = onSnapshot(collection(fs, 'account'), async (snapshot) => {
+      const userDocs = await getDocs(collection(fs, 'user'));
+      const userMap = new Map();
+      userDocs.forEach(doc => userMap.set(doc.id, doc.data()));
+
       const usersData = snapshot.docs.map((docSnap, index) => {
         const data = docSnap.data();
+        const userData = userMap.get(data.user_id) || {};
         return {
           id: docSnap.id,
+          firebase_uid: userData.firebase_uid,
           name: data.full_name || 'Unnamed User',
           status: data.is_active ? 'active' : 'inactive',
-          favourite: false, // Default value
+          favourite: (users.find(u => u.id === docSnap.id) || {}).favourite || false,
           color: ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'][index % 7],
           details: {
             ...data,
@@ -184,13 +192,47 @@ export const AdminProvider = ({ children }) => {
       // Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, newUser.details.email, password);
       const user = userCredential.user;
+      const firebaseuid = user.uid;
 
-      // Save user details in Firestore
-      await setDoc(doc(fs, 'account', user.uid), {
+      // Generate new custom user ID (e.g., U001, A001, E001)
+      const rolePrefix = newUser.details.role.charAt(0).toUpperCase();
+      const userCollectionRef = collection(fs, "user");
+      const snapshot = await getDocs(userCollectionRef);
+      let maxNumber = 0;
+      snapshot.forEach((docSnap) => {
+        const id = docSnap.id;
+        if (id.startsWith(rolePrefix)) {
+            const numberPart = id.substring(1);
+            if (numberPart && !isNaN(numberPart)) {
+                const number = parseInt(numberPart, 10);
+                if (number > maxNumber) {
+                    maxNumber = number;
+                }
+            }
+        }
+      });
+      const newUserId = rolePrefix + (maxNumber + 1).toString().padStart(3, '0');
+
+      // Create 'user' document
+      await setDoc(doc(fs, "user", newUserId), {
+        user_id: newUserId,
+        firebase_uid: firebaseuid,
+        full_name: newUser.name,
+        email: newUser.details.email,
+        password: password, // Storing plain-text password is a security risk.
+        role: newUser.details.role.toLowerCase(),
+        is_active: newUser.status === 'active',
+        created_at: serverTimestamp(),
+      });
+
+      // Create 'account' document
+      await setDoc(doc(fs, "account", newUserId), {
         ...newUser.details,
+        account_id: newUserId,
+        user_id: newUserId,
         full_name: newUser.name,
         is_active: newUser.status === 'active',
-        user_id: user.uid,
+        created_at: serverTimestamp(),
       });
 
       showToast('User added successfully!');
@@ -218,6 +260,14 @@ export const AdminProvider = ({ children }) => {
     } catch (error) {
       showToast(`Error updating user: ${error.message}`);
     }
+  };
+
+  const handleToggleUserFavourite = (userId) => {
+    setUsers(currentUsers =>
+        currentUsers.map(user =>
+            user.id === userId ? { ...user, favourite: !user.favourite } : user
+        )
+    );
   };
 
   // ==== MAILS ====
@@ -291,6 +341,7 @@ export const AdminProvider = ({ children }) => {
     handleDeleteFeedback,
     handleReplyFeedback,
     handleLogout,
+    handleToggleUserFavourite,
   };
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

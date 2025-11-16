@@ -15,7 +15,7 @@ const DashboardScreen = ({ navigation }) => {
     const auth = getAuth();
     const user = auth.currentUser;
     if (user) {
-      const currentUserData = users.find(u => u.id === user.uid);
+      const currentUserData = users.find(u => u.firebase_uid === user.uid);
       if (currentUserData) {
         setUserName(currentUserData.name);
       }
@@ -42,7 +42,7 @@ const DashboardScreen = ({ navigation }) => {
   const rareCount = Math.floor(plantCount * 0.15);
   const endangeredCount = plantCount - commonCount - rareCount;
 
-  const currentUserData = users.find(u => u.id === getAuth().currentUser?.uid);
+  const currentUserData = users.find(u => u.firebase_uid === getAuth().currentUser?.uid);
   const photoURL = currentUserData?.details?.profile_pic;
 
   return (
@@ -117,42 +117,6 @@ const DashboardScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Plant Distribution */}
-        <View style={styles.distributionContainer}>
-          <Text style={styles.distributionTitle}>Plant Rarity Distribution</Text>
-
-          <View style={styles.progressItemsContainer}>
-            <View>
-              <View style={styles.progressLabelContainer}>
-                <Text style={styles.progressLabel}>Common</Text>
-                <Text style={styles.progressValue}>{commonCount} / {plantCount}</Text>
-              </View>
-              <View style={styles.progressBarBackground}>
-                <View style={[styles.progressBar, { width: `${(commonCount / plantCount) * 100}%`, backgroundColor: '#A59480' }]} />
-              </View>
-            </View>
-
-            <View>
-              <View style={styles.progressLabelContainer}>
-                <Text style={styles.progressLabel}>Rare</Text>
-                <Text style={styles.progressValue}>{rareCount} / {plantCount}</Text>
-              </View>
-              <View style={styles.progressBarBackground}>
-                <View style={[styles.progressBar, { width: `${(rareCount / plantCount) * 100}%`, backgroundColor: '#C8B6A6' }]} />
-              </View>
-            </View>
-
-            <View>
-              <View style={styles.progressLabelContainer}>
-                <Text style={styles.progressLabel}>Endangered</Text>
-                <Text style={styles.progressValue}>{endangeredCount} / {plantCount}</Text>
-              </View>
-              <View style={styles.progressBarBackground}>
-                <View style={[styles.progressBar, { width: `${(endangeredCount / plantCount) * 100}%`, backgroundColor: '#f87171' }]} />
-              </View>
-            </View>
-          </View>
-        </View>
 
         {/* IoT Dashboard Section */}
         <View style={styles.iotContainer}>
@@ -226,18 +190,6 @@ const styles = StyleSheet.create({
   menuTitle: { fontWeight: 'bold', color: '#3C3633' },
   menuSubtitle: { fontSize: 14, color: '#75685a' },
   menuValue: { fontSize: 24, fontWeight: 'bold', color: '#3C3633' },
-  distributionContainer: {
-    marginTop: 24, backgroundColor: 'white', padding: 16, borderRadius: 16,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.20, shadowRadius: 1.41, elevation: 2,
-  },
-  distributionTitle: { fontSize: 18, fontWeight: 'bold', color: '#3C3633', marginBottom: 16 },
-  progressItemsContainer: { gap: 16 },
-  progressLabelContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  progressLabel: { fontWeight: '600', color: '#4b5563', fontSize: 14 },
-  progressValue: { color: '#6b7280', fontSize: 14 },
-  progressBarBackground: { width: '100%', backgroundColor: '#e5e7eb', borderRadius: 9999, height: 10 },
-  progressBar: { height: 10, borderRadius: 9999 },
-
   iotContainer: {
     marginTop: 24, backgroundColor: 'white', padding: 16, borderRadius: 16,
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.20, shadowRadius: 1.41, elevation: 2,

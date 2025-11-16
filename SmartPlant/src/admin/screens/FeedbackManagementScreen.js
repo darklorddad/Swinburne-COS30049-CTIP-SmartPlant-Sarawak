@@ -23,13 +23,23 @@ const FeedbackManagementScreen = ({ navigation }) => {
     const subject = f.title ?? f.report_type ?? '';
     const body = f.details ?? f.description ?? '';
     const hay = `${subject} ${body}`;
-    return safeLower(hay).includes(safeLower(searchQuery));
+    const matchesSearch = safeLower(hay).includes(safeLower(searchQuery));
+    if (!matchesSearch) return false;
+
+    if (filter === 'read') {
+        return f.admin_notes && String(f.admin_notes).trim() !== '';
+    }
+    if (filter === 'unread') {
+        return !f.admin_notes || String(f.admin_notes).trim() === '';
+    }
+    return true;
   });
 
   const renderFeedbackItem = ({ item }) => {
     // Find the user account to get profile pic / name
-    const account = users.find(u => u.id === item.user_id);
+    const account = users.find(u => u.firebase_uid === item.user_id);
     const photoURL = account?.details?.profile_pic;
+    const senderName = account?.name || 'Unknown User';
     const subject = item.title ?? item.report_type ?? 'Feedback';
     const body = item.details ?? item.description ?? '';
     const replied = !!(item.admin_notes && String(item.admin_notes).trim() !== '');
@@ -42,12 +52,14 @@ const FeedbackManagementScreen = ({ navigation }) => {
         {photoURL ? (
           <Image source={{ uri: photoURL }} style={styles.avatarImg} />
         ) : (
-          <View style={styles.avatar} />
+          <View style={[styles.avatar, { backgroundColor: account?.color || '#e5e7eb', justifyContent: 'center', alignItems: 'center' }]}>
+            <Text style={styles.avatarText}>{(senderName || 'U').charAt(0)}</Text>
+          </View>
         )}
 
         <View style={styles.content}>
-          <Text style={styles.subject} numberOfLines={1}>{subject}</Text>
-          <Text style={styles.body} numberOfLines={1}>{body}</Text>
+          <Text style={styles.subject} numberOfLines={1}>{senderName}</Text>
+          <Text style={styles.body} numberOfLines={1}>{subject}</Text>
         </View>
 
         <View style={styles.meta}>
@@ -81,6 +93,18 @@ const FeedbackManagementScreen = ({ navigation }) => {
             style={[styles.filterButton, filter === 'all' && styles.activeFilter]}
           >
             <Text style={[styles.filterText, filter === 'all' && styles.activeFilterText]}>All</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setFilter('unread')}
+            style={[styles.filterButton, filter === 'unread' && styles.activeFilter]}
+          >
+            <Text style={[styles.filterText, filter === 'unread' && styles.activeFilterText]}>Unread</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setFilter('read')}
+            style={[styles.filterButton, filter === 'read' && styles.activeFilter]}
+          >
+            <Text style={[styles.filterText, filter === 'read' && styles.activeFilterText]}>Read</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -136,6 +160,11 @@ const styles = StyleSheet.create({
   activeFilter: { backgroundColor: '#A59480', borderRadius: 8 },
   filterText: { fontWeight: '600', color: '#75685a' },
   activeFilterText: { color: 'white' },
+  avatarText: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
 });
 
 export default FeedbackManagementScreen;
