@@ -44,26 +44,32 @@ def classify_plant(model_path: str, input_image: Image.Image) -> dict:
     if os.path.isfile(model_path):
         model_dir = os.path.dirname(model_path)
 
-    checkpoint_dir = model_dir
-    checkpoints = []
-    if os.path.isdir(model_dir):
-        for item in os.listdir(model_dir):
-            path = os.path.join(model_dir, item)
-            if os.path.isdir(path) and item.startswith('checkpoint-'):
-                try:
-                    step = int(item.split('-')[-1])
-                    checkpoints.append((step, path))
-                except (ValueError, IndexError):
-                    continue  # Not a valid checkpoint folder name
+    # If model_dir is a checkpoint, the actual model root is its parent.
+    if os.path.basename(model_dir).startswith('checkpoint-'):
+        checkpoint_dir = model_dir
+        model_dir = os.path.dirname(model_dir)
+    else:
+        # It's a model directory. Find the latest checkpoint.
+        checkpoint_dir = model_dir  # Default to model_dir if no checkpoints
+        checkpoints = []
+        if os.path.isdir(model_dir):
+            for item in os.listdir(model_dir):
+                path = os.path.join(model_dir, item)
+                if os.path.isdir(path) and item.startswith('checkpoint-'):
+                    try:
+                        step = int(item.split('-')[-1])
+                        checkpoints.append((step, path))
+                    except (ValueError, IndexError):
+                        continue  # Not a valid checkpoint folder name
 
-    if checkpoints:
-        latest_checkpoint_path = sorted(checkpoints, key=lambda x: x[0], reverse=True)[0][1]
-        checkpoint_dir = latest_checkpoint_path
-        print(f"Found latest checkpoint for '{model_dir}': '{checkpoint_dir}'")
+        if checkpoints:
+            latest_checkpoint_path = sorted(checkpoints, key=lambda x: x[0], reverse=True)[0][1]
+            checkpoint_dir = latest_checkpoint_path
+            print(f"Found latest checkpoint for '{model_dir}': '{checkpoint_dir}'")
 
     try:
-        image_processor = AutoImageProcessor.from_pretrained(checkpoint_dir)
-        model = AutoModelForImageClassification.from_pretrained(checkpoint_dir)
+        image_processor = AutoImageProcessor.from_pretrained(model_dir, local_files_only=True)
+        model = AutoModelForImageClassification.from_pretrained(checkpoint_dir, local_files_only=True)
     except Exception as e:
         raise gr.Error(f"Error loading model from {checkpoint_dir}. Check path and files. Original error: {e}")
     inputs = image_processor(images=input_image, return_tensors="pt")
