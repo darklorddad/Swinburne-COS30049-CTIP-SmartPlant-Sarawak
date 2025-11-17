@@ -632,46 +632,47 @@ const styles = StyleSheet.create({
   statusAbsolute: { position: "absolute", top: 8, right: 10, zIndex: 2 },
 
   detailsBtn: {
-    backgroundColor: "#10B981",
-    paddingHorizontal: 12,
+    backgroundColor: "#4c6b50",
     paddingVertical: 6,
-    borderRadius: 999,
+    paddingHorizontal: 14,
+    borderRadius: 10,
   },
-  detailsBtnText: { color: "#fff", fontWeight: "700" },
+  detailsBtnText: { color: "#fff", fontWeight: "600", fontSize: 12 },
 
-  // Safety guideline modal styles
+  // Safety guideline modal
   modalBackground: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.4)",
     alignItems: "center",
+    justifyContent: "center",
   },
   modalBox: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
     width: "85%",
+    backgroundColor: "#FFF",
+    borderRadius: 20,
+    padding: 20,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: "700",
-    marginBottom: 12,
     color: "#2b2b2b",
+    marginBottom: 12,
   },
   modalText: {
     fontSize: 14,
-    color: "#333",
-    marginBottom: 6,
+    color: "#2b2b2b",
+    marginVertical: 2,
   },
   modalButton: {
-    backgroundColor: "#6EA564",
-    borderRadius: 8,
-    marginTop: 16,
+    backgroundColor: "#4c6b50",
     paddingVertical: 10,
-    alignItems: "center",
+    borderRadius: 12,
+    marginTop: 16,
   },
   modalButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+    color: "white",
+    fontWeight: "700",
+    textAlign: "center",
+    fontSize: 14,
   },
 });
