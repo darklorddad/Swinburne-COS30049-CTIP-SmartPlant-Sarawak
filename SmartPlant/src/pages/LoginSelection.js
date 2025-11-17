@@ -80,17 +80,15 @@ export default function LoginSelection({navigation}) {
       }
 
       const userData = querySnapshot.docs[0].data();
+
+      if (userData.is_active === false) {
+        Alert.alert("Account Deactivated", "Your account has been deactivated. Please contact support.");
+        setAuthLoading(false);
+        return;
+      }
+
       const role = userData.role?.toLowerCase();
       const userId = userData.user_id;
-
-      if (userId) {
-        const accountSnap = await getDoc(doc(db, "account", userId));
-        if (accountSnap.exists() && accountSnap.data().is_active === false) {
-          Alert.alert("Account Deactivated", "Your account has been deactivated. Please contact support.");
-          setAuthLoading(false);
-          return;
-        }
-      }
 
       // Navigate based on role
       if (role === "admin") {
