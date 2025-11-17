@@ -24,8 +24,6 @@ const fetchLatestReadingTool = new DynamicTool({
     try {
       const snapshot = await db
         .collection("iot")
-        .doc("latest")
-        .orderBy("timestamp", "desc")
         .limit(1)
         .get();
 

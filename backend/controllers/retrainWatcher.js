@@ -93,8 +93,15 @@ function startRetrainWatcher() {
     // If we reach here: new species exist, images>10, and cooldown > 24h
     console.log(`Triggering retraining for new species: ${speciesWithEnoughImages.join(", ")}`);
     lastRetrainTime = Date.now();
-    await spawnRetrainingScript(speciesWithEnoughImages);
-    saveNewSpecies(speciesWithEnoughImages, trainedSpecies);
+    const success = await spawnRetrainingScript(speciesWithEnoughImages);
+
+    if (success) {
+      console.log("[WATCHER] New model is better — saving species");
+      saveNewSpecies(speciesWithEnoughImages, trainedSpecies);
+    } else {
+      console.log("[WATCHER] New model NOT better — skipping saveNewSpecies");
+    }
+
   }
 
   // Spawn retraining script asynchronously
@@ -107,7 +114,9 @@ function startRetrainWatcher() {
 
       process.on("close", code => {
         console.log(`[WATCHER] Retraining finished with code ${code} for species: ${speciesList.join(", ")}`);
-        resolve();
+
+        // Return success/fail to caller
+        resolve(code === 0); 
       });
 
       process.on("error", err => {
@@ -116,6 +125,7 @@ function startRetrainWatcher() {
       });
     });
   }
+
 
   // Start watcher interval (every 30 minutes)
   intervalHandle = setInterval(checkForNewVerifiedImages, 60 * 60 * 1000);

@@ -20,11 +20,27 @@ class MultiHeadResNet18(nn.Module):
         self.backbone = nn.Sequential(*list(base.children())[:-1])  # remove FC layer
         in_features = base.fc.in_features
         
+        # self.embedding_head = nn.Sequential(
+        #     nn.Linear(in_features, embedding_dim),
+        #     nn.BatchNorm1d(embedding_dim)
+        # )
+        # self.classifier_head = nn.Linear(in_features, num_classes)
         self.embedding_head = nn.Sequential(
-            nn.Linear(in_features, embedding_dim),
+            nn.Linear(in_features, 512),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(512),
+            nn.Dropout(0.3),
+            nn.Linear(512, embedding_dim),   # embedding_dim = 128
             nn.BatchNorm1d(embedding_dim)
         )
-        self.classifier_head = nn.Linear(in_features, num_classes)
+        
+        self.classifier_head = nn.Sequential(
+            nn.Linear(in_features, 512),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(512),
+            nn.Dropout(0.4),
+            nn.Linear(512, num_classes)
+        )
 
     def forward(self, x):
         feats = self.backbone(x)
@@ -75,50 +91,96 @@ else:
     reference_embeddings = None # Set to None if only using classifier
 
 # --- 2. Hybrid Prediction Function (New Logic) ---
-def predict(image_path, topk=3, classification_threshold=0.7):
+# def predict(image_path, topk=3, classification_threshold=0.7):
+#     try:
+#         img = Image.open(image_path).convert('RGB')
+#     except Exception as e:
+#         return {"error": f"Could not open image: {str(e)}"}
+
+#     img_tensor = transform(img).unsqueeze(0).to(DEVICE)
+    
+#     with torch.no_grad():
+#         query_emb, logits = model(img_tensor)
+#         probs = F.softmax(logits, dim=1)[0]
+        
+#         # Get Top-K predictions from the Classification Head
+#         top_probs, top_idxs = probs.topk(topk)
+        
+#         top_probs = top_probs.cpu().numpy()
+#         top_idxs = top_idxs.cpu().numpy()
+
+#         results = []
+#         for i in range(topk):
+#             species = CLASS_LIST[top_idxs[i]]
+#             confidence = float(top_probs[i])
+            
+#             # Use the Embedding Head as a secondary check if confidence is low
+#             if reference_embeddings is not None and confidence < classification_threshold:
+#                 # Calculate similarity for the top classification prediction
+#                 cls_idx_tensor = torch.tensor([top_idxs[i]], device=DEVICE)
+#                 ref_emb_for_cls = reference_embeddings[cls_idx_tensor]
+                
+#                 sim_score = F.cosine_similarity(query_emb, ref_emb_for_cls).item()
+                
+#                 # If similarity is also very low, the classification is likely wrong/out-of-distribution
+#                 # This is where more complex logic (like switching to kNN prediction) would go.
+#                 # For this top-K list, we append the classification result but note the low confidence.
+#                 results.append({
+#                     "class": species,
+#                     "confidence": round(confidence, 4),
+#                     "note": f"Low Cls Confidence. Ref Sim: {round(sim_score, 4)}"
+#                 })
+#             else:
+#                 results.append({
+#                     "class": species,
+#                     "confidence": round(confidence, 4)
+#                 })
+
+#     return results
+
+def predict(image_path, topk=3):
     try:
         img = Image.open(image_path).convert('RGB')
     except Exception as e:
         return {"error": f"Could not open image: {str(e)}"}
 
     img_tensor = transform(img).unsqueeze(0).to(DEVICE)
-    
+
     with torch.no_grad():
         query_emb, logits = model(img_tensor)
         probs = F.softmax(logits, dim=1)[0]
-        
-        # Get Top-K predictions from the Classification Head
-        top_probs, top_idxs = probs.topk(topk)
-        
-        top_probs = top_probs.cpu().numpy()
-        top_idxs = top_idxs.cpu().numpy()
+
+        top_idxs = []
+        final_scores = []
+
+        # Compute fusion score for each class
+        for cls_idx in range(len(CLASS_LIST)):
+            cls_prob = probs[cls_idx].item()
+
+            if reference_embeddings is not None:
+                ref_emb = reference_embeddings[cls_idx].unsqueeze(0)  # shape: 1 x embedding_dim
+                sim_score = F.cosine_similarity(query_emb, ref_emb).item()
+                sim_norm = (sim_score + 1) / 2  # normalize cosine similarity to [0,1]
+            else:
+                sim_norm = 0.0
+
+            # Weighted fusion: α = 0.5
+            fusion_score = 0.5 * cls_prob + 0.5 * sim_norm
+            top_idxs.append(cls_idx)
+            final_scores.append(fusion_score)
+
+        # Get top-K classes based on fusion score
+        top_scores, top_indices = torch.topk(torch.tensor(final_scores), topk)
 
         results = []
         for i in range(topk):
-            species = CLASS_LIST[top_idxs[i]]
-            confidence = float(top_probs[i])
-            
-            # Use the Embedding Head as a secondary check if confidence is low
-            if reference_embeddings is not None and confidence < classification_threshold:
-                # Calculate similarity for the top classification prediction
-                cls_idx_tensor = torch.tensor([top_idxs[i]], device=DEVICE)
-                ref_emb_for_cls = reference_embeddings[cls_idx_tensor]
-                
-                sim_score = F.cosine_similarity(query_emb, ref_emb_for_cls).item()
-                
-                # If similarity is also very low, the classification is likely wrong/out-of-distribution
-                # This is where more complex logic (like switching to kNN prediction) would go.
-                # For this top-K list, we append the classification result but note the low confidence.
-                results.append({
-                    "class": species,
-                    "confidence": round(confidence, 4),
-                    "note": f"Low Cls Confidence. Ref Sim: {round(sim_score, 4)}"
-                })
-            else:
-                results.append({
-                    "class": species,
-                    "confidence": round(confidence, 4)
-                })
+            cls_idx = top_indices[i].item()
+            results.append({
+                "class": CLASS_LIST[cls_idx],
+                "fusion_score": round(top_scores[i].item(), 4),
+                "confidence": round(probs[cls_idx].item(), 4),
+                "embedding_sim": round(((F.cosine_similarity(query_emb, reference_embeddings[cls_idx].unsqueeze(0)).item() + 1)/2), 4)
+            })
 
     return results
 

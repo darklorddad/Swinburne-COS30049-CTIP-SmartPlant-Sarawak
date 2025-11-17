@@ -186,8 +186,8 @@ def evaluate_classification(model, test_loader, device):
 
     acc = accuracy_score(all_labels, all_preds)
     print(f" Classification Accuracy: {acc * 100:.2f}%")
-    print("\nClassification Report:")
-    print(classification_report(all_labels, all_preds, digits=4))
+    # print("\nClassification Report:")
+    # print(classification_report(all_labels, all_preds, digits=4))
     return acc
 
 def evaluate_model(model_ckpt_path, val_dir):
@@ -214,10 +214,10 @@ def evaluate_model(model_ckpt_path, val_dir):
 
 if __name__ == "__main__":
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    download_new_verified_images()
-    merge_and_split_datasets()
+    #download_new_verified_images()
+    #merge_and_split_datasets()
 
-    current_cls_acc, current_emb_acc = evaluate_model(config.MODEL_PATH, VAL_DIR)
+    #current_cls_acc, current_emb_acc = evaluate_model(config.MODEL_PATH, VAL_DIR)
 
     new_model = train_and_validate(
         train_root=TRAIN_DIR,
@@ -248,6 +248,8 @@ if __name__ == "__main__":
 
         # Save embedding model
         save_versioned_model("models/new_embedding.pth", config.EMBEDDING_PATH, label="embedding model")
+        exit(0)   # <-- success
     else:
         print("New model did not outperform current best models.")
+        exit(1)
 
