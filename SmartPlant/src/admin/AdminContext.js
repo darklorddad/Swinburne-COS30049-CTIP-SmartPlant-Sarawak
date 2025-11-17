@@ -98,7 +98,7 @@ export const AdminProvider = ({ children }) => {
           id: docSnap.id,
           firebase_uid: userData.firebase_uid,
           name: data.full_name || 'Unnamed User',
-          status: data.is_active ? 'active' : 'inactive',
+          status: userData.is_active ? 'active' : 'inactive',
           favourite: favouritesRef.current.includes(docSnap.id),
           color: ['#fca5a5', '#16a34a', '#a3e635', '#fef08a', '#c084fc', '#60a5fa', '#f9a8d4'][index % 7],
           details: {
@@ -293,14 +293,16 @@ export const AdminProvider = ({ children }) => {
 
   const handleUpdateUser = async (userId, updatedData) => {
     const fs = getFirestore();
-    const userDocRef = doc(fs, 'account', userId);
+    const accountDocRef = doc(fs, 'account', userId);
+    const userDocRef = doc(fs, 'user', userId);
     try {
       const dataToUpdate = {
         ...updatedData,
         is_active: updatedData.status === 'active',
       };
       delete dataToUpdate.status;
-      await updateDoc(userDocRef, dataToUpdate);
+      await updateDoc(accountDocRef, dataToUpdate);
+      await updateDoc(userDocRef, { is_active: updatedData.status === 'active' });
       showToast('User updated successfully!');
     } catch (error) {
       showToast(`Error updating user: ${error.message}`);

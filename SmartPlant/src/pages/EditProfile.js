@@ -111,7 +111,7 @@ export default function EditProfile({ navigation, route }) {
 
       // Full Name check
       if (profile.full_name !== originalProfile.full_name) {
-        if (profile.full_name.trim().length < 3) {
+        if (profile.full_name && profile.full_name.trim().length < 3) {
           Alert.alert("Invalid Name", "Full name must be at least 3 characters long.");
           return;
         }
@@ -119,16 +119,18 @@ export default function EditProfile({ navigation, route }) {
 
       // Phone number check
       if (profile.phone_number !== originalProfile.phone_number) {
-        const phoneRegex = /^\d{10,}$/;
-        if (!phoneRegex.test(profile.phone_number)) {
-          Alert.alert("Invalid Phone", "Phone number must have at least 10 digits.");
-          return;
+        if (profile.phone_number) {
+          const phoneRegex = /^\d{10,}$/;
+          if (!phoneRegex.test(profile.phone_number)) {
+            Alert.alert("Invalid Phone", "Phone number must have at least 10 digits.");
+            return;
+          }
         }
       }
 
       // Address check
       if (profile.address !== originalProfile.address) {
-        if (profile.address.trim().length < 5) {
+        if (profile.address && profile.address.trim().length < 5) {
           Alert.alert("Invalid Address", "Address must be at least 5 characters long.");
           return;
         }
@@ -136,16 +138,18 @@ export default function EditProfile({ navigation, route }) {
       
       // NRIC check
       if (profile.nric !== originalProfile.nric) {
-        const nricRegex = /^\d{6}-\d{2}-\d{4}$/;
-        if (!nricRegex.test(profile.nric)) {
-          Alert.alert("Invalid NRIC", "NRIC must follow the format XXXXXX-XX-XXXX.");
-          return;
+        if (profile.nric) {
+          const nricRegex = /^\d{6}-\d{2}-\d{4}$/;
+          if (!nricRegex.test(profile.nric)) {
+            Alert.alert("Invalid NRIC", "NRIC must follow the format XXXXXX-XX-XXXX.");
+            return;
+          }
         }
       }
 
       // District check
       if (profile.division !== originalProfile.division) {
-        if (profile.division.trim().length < 3) {
+        if (profile.division && profile.division.trim().length < 3) {
           Alert.alert("Invalid District", "District name must be at least 3 characters long.");
           return;
         }
@@ -153,16 +157,18 @@ export default function EditProfile({ navigation, route }) {
 
       // Postcode check
       if (profile.postcode !== originalProfile.postcode) {
-        const postcodeRegex = /^\d{5}$/;
-        if (!postcodeRegex.test(profile.postcode)) {
-          Alert.alert("Invalid Postcode", "Postcode must be exactly 5 digits.");
-          return;
+        if (profile.postcode) {
+          const postcodeRegex = /^\d{5}$/;
+          if (!postcodeRegex.test(profile.postcode)) {
+            Alert.alert("Invalid Postcode", "Postcode must be exactly 5 digits.");
+            return;
+          }
         }
       }
 
       // Race check
       if (profile.race !== originalProfile.race) {
-        if (profile.race.trim().length < 3) {
+        if (profile.race && profile.race.trim().length < 3) {
           Alert.alert("Invalid Race", "Race must be at least 3 characters long.");
           return;
         }
@@ -170,7 +176,7 @@ export default function EditProfile({ navigation, route }) {
 
       // Occupation check
       if (profile.occupation !== originalProfile.occupation) {
-        if (profile.occupation.trim().length < 2) {
+        if (profile.occupation && profile.occupation.trim().length < 2) {
           Alert.alert("Invalid Occupation", "Occupation must be at least 2 characters long.");
           return;
         }
