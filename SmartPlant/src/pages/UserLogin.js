@@ -91,7 +91,7 @@ export default function UserLogin({ navigation }) {
       // Navigate according to role
       if (role === "admin" || (userId && userId.startsWith("A"))) {
         Alert.alert("Welcome", "Login successful!");
-        navigation.navigate("AdminDashboard");
+        navigation.navigate("back");
       } 
       else if (role === "expert" || (userId && userId.startsWith("E"))) {
         Alert.alert("Welcome", "Login successful!");
