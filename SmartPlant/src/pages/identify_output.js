@@ -38,7 +38,7 @@ export default function ResultScreen() {
   const navigation = useNavigation();
 
   const { prediction = [], imageURI } = route.params || {};
-
+  console.log(prediction)
   // normalize predictions (at least 3)
   const safePred =
     Array.isArray(prediction) && prediction.length

@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Platform,
   StatusBar,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BottomNav from "../components/NavigationExpert";
@@ -309,6 +310,7 @@ export default function HomepageExpert({ navigation }) {
       (latest.model_predictions?.top_1 ?? null);
     return top1?.plant_species || top1?.class || "Plant";
   }, [latest]);
+
   useEffect(() => {
     const checkModalShown = async () => {
       const key = `safetyModalShown_${myId}`;
@@ -317,6 +319,7 @@ export default function HomepageExpert({ navigation }) {
         if (!shown) setShowSafetyModal(true);
       } catch (e) {
         console.log("Error reading modal flag:", e);
+        setShowSafetyModal(true);
       }
     };
     checkModalShown();
@@ -326,11 +329,10 @@ export default function HomepageExpert({ navigation }) {
     const key = `safetyModalShown_${myId}`;
     try {
       await AsyncStorage.setItem(key, "true");
-      setShowSafetyModal(false);
     } catch (e) {
       console.log("Error saving modal flag:", e);
-      setShowSafetyModal(false);
     }
+    setShowSafetyModal(false);
   };
   
 
@@ -687,4 +689,41 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   detailsBtnText: { color: "#fff", fontWeight: "700" },
+
+   // Safety guideline modal
+  modalBackground: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBox: {
+    width: "85%",
+    backgroundColor: "#FFF",
+    borderRadius: 20,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#2b2b2b",
+    marginBottom: 12,
+  },
+  modalText: {
+    fontSize: 14,
+    color: "#2b2b2b",
+    marginVertical: 2,
+  },
+  modalButton: {
+    backgroundColor: "#4c6b50",
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  modalButtonText: {
+    color: "white",
+    fontWeight: "700",
+    textAlign: "center",
+    fontSize: 14,
+  },
 });

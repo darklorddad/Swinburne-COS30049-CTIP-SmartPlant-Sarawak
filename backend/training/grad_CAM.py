@@ -25,10 +25,21 @@ class MultiHeadResNet18(nn.Module):
         in_features = base.fc.in_features
         
         self.embedding_head = nn.Sequential(
-            nn.Linear(in_features, embedding_dim),
+            nn.Linear(in_features, 512),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(512),
+            nn.Dropout(0.3),
+            nn.Linear(512, embedding_dim),   # embedding_dim = 128
             nn.BatchNorm1d(embedding_dim)
         )
-        self.classifier_head = nn.Linear(in_features, num_classes)
+        
+        self.classifier_head = nn.Sequential(
+            nn.Linear(in_features, 512),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(512),
+            nn.Dropout(0.4),
+            nn.Linear(512, num_classes)
+        )
 
     def forward(self, x):
         feats = self.backbone(x)
