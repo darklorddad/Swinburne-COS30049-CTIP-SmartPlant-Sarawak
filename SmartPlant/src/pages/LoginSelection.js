@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase/FirebaseConfig";
-import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 
 const db = getFirestore();
 
@@ -81,6 +81,16 @@ export default function LoginSelection({navigation}) {
 
       const userData = querySnapshot.docs[0].data();
       const role = userData.role?.toLowerCase();
+      const userId = userData.user_id;
+
+      if (userId) {
+        const accountSnap = await getDoc(doc(db, "account", userId));
+        if (accountSnap.exists() && accountSnap.data().is_active === false) {
+          Alert.alert("Account Deactivated", "Your account has been deactivated. Please contact support.");
+          setAuthLoading(false);
+          return;
+        }
+      }
 
       // Navigate based on role
       if (role === "admin") {

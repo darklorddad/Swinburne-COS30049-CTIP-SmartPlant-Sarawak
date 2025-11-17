@@ -52,6 +52,11 @@ async function loginWithEmail(email, password) {
         login_method: "manual"
       });
       console.log(`Created missing account record for ${role}: ${userId}`);
+    } else {
+      const accountData = accountSnap.data();
+      if (accountData.is_active === false) {
+        return { success: false, error: "Your account has been deactivated. Please contact support." };
+      }
     }
 
     return {
