@@ -31,6 +31,7 @@ import assignExpertsAndNotify from "../firebase/verification/assignExpertsAndNot
 // device/location
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
+import { encrypt } from "../utils/Encryption";
 
 
 export default function ResultScreen() {
@@ -289,7 +290,7 @@ export default function ResultScreen() {
         },
         createdAt: serverTimestamp(),
         ImageURLs: downloadURLs,
-        coordinate: { latitude: latitude ?? null, longitude: longitude ?? null },
+        coordinate: encrypt({ latitude: latitude ?? null, longitude: longitude ?? null }),
         user_id: userID,
         identify_status: identification_status,
         author_name: userName,
@@ -363,10 +364,10 @@ if (safePred?.[0]?.confidence < HIGH_CONFIDENCE_THRESHOLD) {
         await addDoc(collection(db, "markers"), {
           title: top1?.class || "Plant",
           type: "Plant",
-          coordinate: {
+          coordinate: encrypt({
             latitude: latitude ?? 1.5495,
             longitude: longitude ?? 110.3632,
-          },
+          }),
           identifiedBy: userName,
           time: serverTimestamp(),
           images: downloadURLs,
@@ -389,7 +390,7 @@ if (safePred?.[0]?.confidence < HIGH_CONFIDENCE_THRESHOLD) {
         time: Date.now(),
         locality,
         prediction: safePred.slice(0, 3),
-        coordinate: { latitude: latitude ?? null, longitude: longitude ?? null },
+        coordinate: encrypt({ latitude: latitude ?? null, longitude: longitude ?? null }),
       };
 
       navigation.navigate("HomepageUser", { newPost });

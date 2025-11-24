@@ -39,8 +39,10 @@ import {
   increment,
 } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { decrypt } from "../utils/Encryption";
 import { PermissionContext } from "../components/PermissionManager";
 import { TOP_PAD } from "../components/StatusBarManager";
+
 
 const { width, height } = Dimensions.get("window");
 
@@ -224,30 +226,52 @@ const MapPage = ({ navigation }) => {
   const fixMarkerData = (docSnap, source) => {
     const data = docSnap.data();
 
-    // Only verified & visible plants should appear
+    // Only verified & visible plants should appear; allow my own pending items
     if (source === "plant_identify") {
-      if (data.identify_status !== "verified" || data.visible === false) {
+      const status = (data.identify_status || "pending").toLowerCase();
+      const isMine = data.user_id === myId;
+      const isVisible = data.visible !== false;
+      if (!isVisible) return null;
+      if (!(status === "verified" || (status === "pending" && isMine))) {
         return null;
       }
     }
 
-    // Skip missing coordinates
-    if (
-      !data.coordinate ||
-      data.coordinate.latitude == null ||
-      data.coordinate.longitude == null
-    ) {
+    // If coordinate doesn't exist, skip silently (this prevents spam)
+    if (!data.coordinate) {
+      return null;
+    }
+
+    // If coordinate exists but is not a valid encrypted string
+    if (typeof data.coordinate !== "string") {
+      return null;
+    }
+
+    let rawCoord = null;
+    try {
+      rawCoord = decrypt(data.coordinate);
+    } catch (err) {
+      console.log("❌ decrypt failed:", err);
+      return null;
+    }
+
+    // If decrypted structure is missing lat/lng
+    if (!rawCoord ||
+        rawCoord.latitude == null ||
+        rawCoord.longitude == null) {
+      // Only log once per item, not spam
+      console.log("⚠️ coordinate missing lat/lng:", rawCoord);
       return null;
     }
 
     const latitude =
-      typeof data.coordinate.latitude === "string"
-        ? parseFloat(data.coordinate.latitude)
-        : data.coordinate.latitude;
+      typeof rawCoord.latitude === "string"
+        ? parseFloat(rawCoord.latitude)
+        : rawCoord.latitude;
     const longitude =
-      typeof data.coordinate.longitude === "string"
-        ? parseFloat(data.coordinate.longitude)
-        : data.coordinate.longitude;
+      typeof rawCoord.longitude === "string"
+        ? parseFloat(rawCoord.longitude)
+        : rawCoord.longitude;
 
     if (isNaN(latitude) || isNaN(longitude)) {
       return null;
