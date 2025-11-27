@@ -144,26 +144,6 @@ export default function ResultScreen() {
     try {
       setUPLoading(true);
 
-      // ----- upload all images -----
-      // const downloadURLs = [];
-      // for (let i = 0; i < images.length; i++) {
-      //   const uri = images[i];
-      //   if (uri.startsWith("http")) {
-      //     downloadURLs.push(uri);
-      //     continue;
-      //   }
-      //   try {
-      //     const uploadedURL = await uploadImage(uri, safePred?.[i]?.class || "Unknown");
-      //     downloadURLs.push(uploadedURL);
-      //   } catch (e) {
-      //     Alert.alert("Upload failed", `Image ${i + 1} failed. Please try again.`);
-      //     // keep going to upload others
-      //   }
-      // }
-
-
-      // Get class name and score for the current image
-
       const className = safePred?.[0]?.class || "Unknown";
       const score = safePred?.[0]?.confidence || 0; // Default score to 0 if missing
       const downloadURLs = [];
@@ -468,6 +448,7 @@ if (safePred?.[0]?.confidence < HIGH_CONFIDENCE_THRESHOLD) {
         )}
 
         <TouchableOpacity
+          testID="heatmap-button"
           style={styles.iconButton}
           onPress={() => {
             if (heatmapURIs.length > 0) setShowHeatmap((v) => !v);

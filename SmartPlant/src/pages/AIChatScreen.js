@@ -27,20 +27,22 @@ export default function ChatScreen({ navigation }) {
   ]);
   const [input, setInput] = useState("");
 
-  useEffect(() => {
-    // Create a session ID when screen opens
-    const newSession = uuidv4();
-    setSessionId(newSession);
 
-    return () => {
-      // When user leaves, end the session on backend
+  useEffect(() => {
+  const newSession = uuidv4();
+  setSessionId(newSession);
+
+  return () => {
+    Promise.resolve(
       fetch(`${API_URL}/end-session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: newSession }),
-      }).catch(() => { });
-    };
-  }, []);
+      })
+    ).catch(() => {});
+  };
+}, []);
+
 
 
   const sendMessage = async () => {
@@ -117,13 +119,13 @@ export default function ChatScreen({ navigation }) {
       <View style={styles.topBar}>
         {/* The 'cross' icon acts as a back/close button */}
         <TouchableOpacity
+          accessibilityRole="button"
           onPress={() => {
             fetch(`${API_URL}/end-session`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ sessionId }),
-            }).catch(() => { });
-
+            }).catch(() => {});
             navigation.goBack();
           }}
         >

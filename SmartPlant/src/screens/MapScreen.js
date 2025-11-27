@@ -8,8 +8,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Platform,
-  StatusBar,
 } from "react-native";
 import MapView, { Marker, Callout, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
@@ -160,6 +158,35 @@ export default function MapScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      {/* 🔎 Search Bar */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#555" style={{ marginRight: 8 }} />
+        <TextInput
+          placeholder="Search plant or location..."
+          value={search}
+          onChangeText={setSearch}
+          style={styles.searchInput}
+        />
+      </View>
+
+      {/* 🟩 Filter Buttons */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+        {["all", "iot", "common", "rare", "endangered", "Hidden Plant"].map((key) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.filterBtn, selectedFilter === key && styles.filterBtnActive]}
+            onPress={() => setSelectedFilter(key)}
+          >
+            <Text
+              style={[styles.filterText, selectedFilter === key && styles.filterTextActive]}
+            >
+              {key.toUpperCase()}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* 🗺 Map */}
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
@@ -167,9 +194,6 @@ export default function MapScreen({ navigation }) {
         initialRegion={initialRegion}
         customMapStyle={mapStyle}
         showsUserLocation
-        showsMyLocationButton={false}
-        showsCompass={false}
-        zoomControlEnabled={false}
       >
         {/* 🛰 IoT Marker */}
         {(!selectedFilter || selectedFilter === "all" || selectedFilter === "iot") && live && (
@@ -199,11 +223,9 @@ export default function MapScreen({ navigation }) {
               latitude: p.coordinate?.latitude ?? 0,
               longitude: p.coordinate?.longitude ?? 0,
             }}
-            title={p.model_predictions?.top_1?.plant_species ?? "Unknown Plant"}
-            description={p.locality ?? "Unknown"}
+            title={p.model_predictions?.top_1?.label ?? "Plant"}
             pinColor={getPinColor(p.conservation_status, false, p.visible === false)}
             opacity={p.visible === false ? 0.6 : 1.0}
-            onCalloutPress={() => navigation.navigate("PlantDetailScreen", { plant: p })}
           >
             {/* 🏷️ Hidden Tag Above Marker */}
             {p.visible === false && (
@@ -212,69 +234,40 @@ export default function MapScreen({ navigation }) {
               </View>
             )}
 
-            {Platform.OS === 'ios' ? (
-              <Callout tooltip>
-                <View style={styles.calloutCard}>
-                  {p.ImageURLs && p.ImageURLs[0] && (
-                    <Image
-                      source={{ uri: p.ImageURLs[0] }}
-                      style={styles.plantImage}
-                      resizeMode="cover"
-                    />
-                  )}
-                  <View style={styles.calloutContent}>
-                    <Text style={styles.calloutTitle}>
-                      {p.model_predictions?.top_1?.plant_species ?? "Unknown Plant"}
-                      {p.visible === false && (
-                        <Text style={{ color: "#95a5a6" }}> (Hidden)</Text>
-                      )}
-                    </Text>
-                    <Text>📍 {p.locality ?? "Unknown"}</Text>
-                    <Text
-                      style={{
-                        fontWeight: "700",
-                        color: getPinColor(p.conservation_status, false, p.visible === false),
-                      }}
-                    >
-                      {p.conservation_status?.toUpperCase() ?? "COMMON"}
-                    </Text>
-                  </View>
+            <Callout
+              tooltip
+              onPress={() => navigation.navigate("PlantDetailScreen", { plant: p })}
+            >
+              <View style={styles.calloutCard}>
+                {p.ImageURLs && p.ImageURLs[0] && (
+                  <Image
+                    source={{ uri: p.ImageURLs[0] }}
+                    style={styles.plantImage}
+                    resizeMode="cover"
+                  />
+                )}
+                <View style={styles.calloutContent}>
+                  <Text style={styles.calloutTitle}>
+                    {p.model_predictions?.top_1?.plant_species ?? "Unknown Plant"}
+                    {p.visible === false && (
+                      <Text style={{ color: "#95a5a6" }}> (Hidden)</Text>
+                    )}
+                  </Text>
+                  <Text>📍 {p.locality ?? "Unknown"}</Text>
+                  <Text
+                    style={{
+                      fontWeight: "700",
+                      color: getPinColor(p.conservation_status, false, p.visible === false),
+                    }}
+                  >
+                    {p.conservation_status?.toUpperCase() ?? "COMMON"}
+                  </Text>
                 </View>
-              </Callout>
-            ) : null}
+              </View>
+            </Callout>
           </Marker>
         ))}
       </MapView>
-
-      <View style={styles.searchAndFilterContainer}>
-        {/* 🔎 Search Bar */}
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#555" style={{ marginRight: 8 }} />
-          <TextInput
-            placeholder="Search plant or location..."
-            value={search}
-            onChangeText={setSearch}
-            style={styles.searchInput}
-          />
-        </View>
-
-        {/* 🟩 Filter Buttons */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingHorizontal: 10 }}>
-          {["all", "iot", "common", "rare", "endangered", "Hidden Plant"].map((key) => (
-            <TouchableOpacity
-              key={key}
-              style={[styles.filterBtn, selectedFilter === key && styles.filterBtnActive]}
-              onPress={() => setSelectedFilter(key)}
-            >
-              <Text
-                style={[styles.filterText, selectedFilter === key && styles.filterTextActive]}
-              >
-                {key.toUpperCase()}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
 
       {/* 📍 Locate Button */}
       <TouchableOpacity style={styles.locateBtn} onPress={goToUserLocation}>
@@ -288,29 +281,28 @@ export default function MapScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   map: { flex: 1 },
-  searchAndFilterContainer: {
-    position: 'absolute',
-    top: 10,
+  searchContainer: {
+    position: "absolute",
+    top: 40,
     left: 15,
     right: 15,
     zIndex: 10,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
     elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
   },
   searchInput: { flex: 1, fontSize: 15 },
   filterRow: {
-    marginTop: 10,
+    position: "absolute",
+    top: 90,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    paddingHorizontal: 10,
   },
   filterBtn: {
     backgroundColor: "#eee",

@@ -8,7 +8,7 @@ export default function FeedbackScreen({ navigation }) {
     <View style={styles.background}>
       {/* Header Row */}
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.goBack()} testID="back-btn">
           <Ionicons name="chevron-back" size={26} color="black" />
         </TouchableOpacity>
         <View style={styles.iconRow}>
@@ -33,7 +33,7 @@ export default function FeedbackScreen({ navigation }) {
 
       {/* Reply Button */}
       <View style={styles.replyWrap}>
-        <TouchableOpacity style={styles.replyBtn}>
+        <TouchableOpacity style={styles.replyBtn} testID="reply-btn">
           <Text style={styles.replyText}>Reply</Text>
         </TouchableOpacity>
       </View>

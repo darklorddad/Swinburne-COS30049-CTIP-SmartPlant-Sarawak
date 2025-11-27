@@ -293,11 +293,13 @@ export default function IdentifyPage() {
                             <ScrollView horizontal contentContainerStyle={styles.previewRow}>
                                 {images.map((uri, index) => (
                                     <View key={index} style={styles.card}>
-                                        <Image source={{ uri }} style={[
+                                        <Image
+                                        testID={`preview-image-${index}`} source={{ uri }} style={[
                                             styles.image,
                                             facing === "front" ? { transform: [{ scaleX: -1 }] } : null, 
                                         ]} />
                                         <TouchableOpacity
+                                        testID={`delete-image-${index}`}
                                             style={styles.deleteButton}
                                             onPress={() => removeImage(uri)}
                                         >
@@ -311,12 +313,14 @@ export default function IdentifyPage() {
                         {/* Mode buttons */}
                         <View style={styles.topRow}>
                             <TouchableOpacity
+                                testID="single-mode-btn"
                                 style={[styles.smallButton, mode === "single" ? styles.active : styles.inactive]}
                                 onPress={() => navigation.navigate("IdentifyPage", { mode: "single" })}
                             >
                                 <Text style={{ fontWeight: '900', color: mode === "single" ? "black" : "white" }}>Single</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
+                                testID="multiple-mode-btn"
                                 style={[styles.smallButton, mode === "multiple" ? styles.active : styles.inactive]}
                                 onPress={() => navigation.navigate("IdentifyPage", { mode: "multiple" })}
                             >
@@ -328,15 +332,18 @@ export default function IdentifyPage() {
                         {/* Bottom controls */}
                         {images.length === 3 ? (
                             <View style={styles.bottomRow}>
-                                <CustomButton title={'Identify'} icon="check" onPress={identifyImage} />
+                                <CustomButton
+                                testID="identify-btn" title={'Identify'} icon="check" onPress={identifyImage} />
                             </View>
                         ) : (
                             <View style={styles.bottomRow}>
-                                <TouchableOpacity onPress={pickImage} disabled={!photosGranted} style={{ opacity: photosGranted ? 1 : 0.5 }}>
+                                <TouchableOpacity
+                                testID="pick-image-btn" onPress={pickImage} disabled={!photosGranted} style={{ opacity: photosGranted ? 1 : 0.5 }}>
                                     <Ionicons name="images-outline" size={54} color='white' />
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.CaptureButton} onPress={takePicture} disabled={!cameraGranted} />
-                                <TouchableOpacity onPress={() => navigation.navigate("IdentifyTips")}>
+                                <TouchableOpacity
+                                 onPress={() => navigation.navigate("IdentifyTips")}>
                                     <MaterialIcons name="info-outline" size={54} color='white' />
                                 </TouchableOpacity>
                             </View>
@@ -353,7 +360,7 @@ export default function IdentifyPage() {
                     <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                         <View style={styles.bottomRow}>
                             <CustomButton title={'Retake'} icon="retweet" onPress={() => setImages([])} />
-                            <CustomButton title={'Identify'} icon="check" onPress={identifyImage} />
+                            <CustomButton testID="identify-btn" title={'Identify'} icon="check" onPress={identifyImage} />
                         </View>
                     </View>
                 </ImageBackground>

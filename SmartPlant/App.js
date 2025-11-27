@@ -87,7 +87,7 @@ export default function App() {
           <Stack.Screen name="PostDetail" component={PostDetail}/>
           <Stack.Screen name="ReportError" component={ReportError}/>
           <Stack.Screen name="TopSuggestions" component={TopSuggestions}/>
-          <Stack.Screen name="AdminDashboard" component={AdminNavigator} />
+          <Stack.Screen name="back" component={AdminNavigator} />
           <Stack.Screen name="AIChatScreen" component={AIChatScreen} />
           <Stack.Screen name="PlantDetailScreen" component={PlantDetailScreen} options={{ headerShown: true, headerTitle: "Plant", headerBackTitleVisible: false, }} />
           <Stack.Screen name="UserFeedbackDetail" component={UserFeedbackDetail} />
