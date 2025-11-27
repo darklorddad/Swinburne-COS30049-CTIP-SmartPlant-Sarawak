@@ -19,7 +19,7 @@ import {
 
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { db } from "../../firebase/FirebaseConfig";
-
+import { decrypt } from "../../utils/Encryption";
 
 const AlertHistoryScreen = () => {
   const [alerts, setAlerts] = useState([]);
@@ -39,10 +39,21 @@ const AlertHistoryScreen = () => {
 
       const snap = await getDocs(q);
 
-      const list = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
+      const list = snap.docs.map((d) => {
+        const data = d.data() || {};
+        let latitude = data.latitude ?? null;
+        let longitude = data.longitude ?? null;
+        if (data.coordinate) {
+          try {
+            const coord = decrypt(data.coordinate);
+            if (coord?.latitude != null && coord?.longitude != null) {
+              latitude = coord.latitude;
+              longitude = coord.longitude;
+            }
+          } catch {}
+        }
+        return { id: d.id, ...data, latitude, longitude };
+      });
 
       setAlerts(list);
     } catch (error) {

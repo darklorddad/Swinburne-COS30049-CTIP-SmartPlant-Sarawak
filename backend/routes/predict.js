@@ -1,3 +1,4 @@
+//predict.js
 const express = require("express");
 const multer = require("multer");
 const { handlePrediction } = require("../controllers/predictController");

@@ -34,6 +34,7 @@ import {
 } from "firebase/firestore";
 import { getFullProfile } from "../firebase/UserProfile/UserUpdate";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { decrypt } from "../utils/Encryption";
 
 const NAV_HEIGHT = 60;
 const NAV_MARGIN_TOP = 150;
@@ -105,6 +106,12 @@ export default function HomepageUser({ navigation }) {
         const items = snap.docs.map((d) => {
           const v = d.data();
           const prof = profilesMap.get(v.user_id) || {};
+          let coord = null;
+          if (typeof v?.coordinate_enc === "string") {
+            try { coord = decrypt(v.coordinate_enc); } catch (e) { coord = null; }
+          } else {
+            coord = v?.coordinate ?? null;
+          }
 
           const top1 = v?.model_predictions?.top_1;
           const ms =
@@ -142,7 +149,7 @@ export default function HomepageUser({ navigation }) {
               v?.model_predictions?.top_2,
               v?.model_predictions?.top_3,
             ].filter(Boolean),
-            coordinate: v?.coordinate ?? null,
+            coordinate: coord,
             like_count:
               typeof v?.like_count === "number"
                 ? v.like_count

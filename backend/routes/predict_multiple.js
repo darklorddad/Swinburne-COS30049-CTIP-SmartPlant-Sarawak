@@ -1,3 +1,4 @@
+//predict_multiple.js
 const express = require("express");
 const multer = require("multer");
 const { handleMultiplePrediction } = require("../controllers/predictMultipleController");
