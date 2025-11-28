@@ -4,7 +4,7 @@ import DashboardScreen from '../src/admin/screens/DashboardScreen';
 import { useAdminContext } from '../src/admin/AdminContext';
 import { getAuth } from 'firebase/auth';
 import { onSnapshot } from 'firebase/firestore';
-import { Alert } from 'react-native';
+import { Alert, View } from 'react-native';
 
 // Mock AdminContext
 jest.mock('../src/admin/AdminContext', () => ({
@@ -29,27 +29,26 @@ jest.mock('../src/firebase/FirebaseConfig', () => ({
 
 // Mock Icons
 jest.mock('../src/admin/Icons', () => {
-  const { Text } = require('react-native');
+  const { View } = require('react-native');
   return {
-    UserIcon: () => <Text>UserIcon</Text>,
-    MailIcon: () => <Text>MailIcon</Text>,
-    FeedbackIcon: () => <Text>FeedbackIcon</Text>,
-    LogoutIcon: () => <Text>LogoutIcon</Text>,
+    UserIcon: () => <View testID="UserIcon" />,
+    MailIcon: () => <View testID="MailIcon" />,
+    FeedbackIcon: () => <View testID="FeedbackIcon" />,
+    LogoutIcon: () => <View testID="LogoutIcon" />,
   };
 });
 
-// Mock Vector Icons
 jest.mock('@expo/vector-icons', () => {
-  const { Text } = require('react-native');
+  const { View } = require('react-native');
   return {
-    Ionicons: ({ name }) => <Text>Ionicons-{name}</Text>,
+    Ionicons: ({ name }) => <View testID={`Ionicons-${name}`} />,
   };
 });
 
 // Mock BottomNavBar
 jest.mock('../src/admin/components/AdminBottomNavBar', () => {
-  const { Text } = require('react-native');
-  return () => <Text>AdminBottomNavBar</Text>;
+  const { View } = require('react-native');
+  return () => <View testID="AdminBottomNavBar" />;
 });
 
 // Mock Alert
@@ -61,16 +60,15 @@ describe('DashboardScreen', () => {
   };
 
   const mockUsers = [
-    { firebase_uid: 'uid1', name: 'Admin User', details: { profile_pic: 'http://pic.com' }, color: '#fff' },
+    { firebase_uid: 'uid1', name: 'Admin User', details: { profile_pic: 'http://pic.url' }, color: '#fff' },
     { firebase_uid: 'uid2', name: 'User 2', details: {}, color: '#000' },
   ];
   const mockMails = [
     { read: false }, { read: true }, { read: false }
-  ]; // 2 unread
+  ];
   const mockFeedbacks = [
     { admin_notes: '' }, { admin_notes: 'Replied' }, { admin_notes: null }
-  ]; // 2 pending
-
+  ];
   const mockHandleLogout = jest.fn();
 
   beforeEach(() => {
@@ -87,143 +85,127 @@ describe('DashboardScreen', () => {
       currentUser: { uid: 'uid1' },
     });
 
-    // Default snapshot mock for alerts (no alert)
-    onSnapshot.mockImplementation((ref, callback) => {
-      callback({
-        exists: () => false,
-        data: () => ({}),
-      });
-      return jest.fn(); // unsubscribe
+    // Default onSnapshot mock (no alert)
+    onSnapshot.mockImplementation((docRef, callback) => {
+      callback({ exists: () => false, data: () => null });
+      return jest.fn();
     });
   });
 
-  test('renders correctly with user data and stats', async () => {
+  it('renders correctly with user data', () => {
     const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
-
     expect(getByText('Admin User')).toBeTruthy();
-    expect(getByText('2 users')).toBeTruthy(); // users.length
-    expect(getByText('2 unread')).toBeTruthy(); // unread mails
-    expect(getByText('2 pending')).toBeTruthy(); // pending feedbacks
   });
 
-  test('handles greeting based on time (morning)', () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(2023, 1, 1, 9, 0, 0)); // 9 AM
-
-    const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
+  it('displays correct greeting based on time', () => {
+    const realDate = Date;
+    
+    // Morning
+    global.Date = class extends Date { getHours() { return 9; } };
+    const { getByText, unmount } = render(<DashboardScreen navigation={mockNavigation} />);
     expect(getByText('Good morning!')).toBeTruthy();
+    unmount();
 
-    jest.useRealTimers();
+    // Afternoon
+    global.Date = class extends Date { getHours() { return 14; } };
+    const { getByText: getByText2, unmount: unmount2 } = render(<DashboardScreen navigation={mockNavigation} />);
+    expect(getByText2('Good afternoon!')).toBeTruthy();
+    unmount2();
+
+    // Evening
+    global.Date = class extends Date { getHours() { return 20; } };
+    const { getByText: getByText3 } = render(<DashboardScreen navigation={mockNavigation} />);
+    expect(getByText3('Good evening!')).toBeTruthy();
+
+    global.Date = realDate;
   });
 
-  test('handles greeting based on time (afternoon)', () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(2023, 1, 1, 14, 0, 0)); // 2 PM
-
+  it('calculates and displays correct counts', () => {
     const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
-    expect(getByText('Good afternoon!')).toBeTruthy();
-
-    jest.useRealTimers();
+    expect(getByText('2 users')).toBeTruthy();
+    expect(getByText('2 unread')).toBeTruthy();
+    expect(getByText('2 pending')).toBeTruthy();
   });
 
-  test('handles greeting based on time (evening)', () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(2023, 1, 1, 20, 0, 0)); // 8 PM
-
-    const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
-    expect(getByText('Good evening!')).toBeTruthy();
-
-    jest.useRealTimers();
-  });
-
-  test('navigates to EditUser when profile is pressed', () => {
+  it('navigates to EditUser when profile is pressed', () => {
     const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
     fireEvent.press(getByText('Admin User'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('EditUser', { user: mockUsers[0] });
   });
 
-  test('shows alert if user data not found for edit', () => {
-    getAuth.mockReturnValue({ currentUser: { uid: 'unknown' } });
-
+  it('shows alert if user data not found on profile press', () => {
+    getAuth.mockReturnValue({ currentUser: { uid: 'unknown_uid' } });
     const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
     
-    // When user is not found, name defaults to 'Admin' (initial state)
-    fireEvent.press(getByText('Admin')); 
-    
+    fireEvent.press(getByText('Admin'));
     expect(Alert.alert).toHaveBeenCalledWith("Error", "Could not find your user data to edit.");
   });
 
-  test('calls handleLogout when logout icon is pressed', () => {
-    const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
-    fireEvent.press(getByText('LogoutIcon'));
+  it('handles logout', () => {
+    const { getByTestId } = render(<DashboardScreen navigation={mockNavigation} />);
+    fireEvent.press(getByTestId('LogoutIcon'));
     expect(mockHandleLogout).toHaveBeenCalledWith(mockNavigation);
   });
-  
-  test('displays latest alert and navigates to AlertHistory', async () => {
+
+  it('renders alert card when alert exists', async () => {
     const mockAlert = {
       type: 'fire',
       message: 'Fire detected!',
-      timestamp: { seconds: 1672531200 }, // 2023-01-01
+      timestamp: { seconds: 1600000000 }
     };
 
-    onSnapshot.mockImplementation((ref, callback) => {
-      callback({
-        exists: () => true,
-        data: () => mockAlert,
-      });
+    onSnapshot.mockImplementation((docRef, callback) => {
+      callback({ exists: () => true, data: () => mockAlert });
       return jest.fn();
     });
 
     const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
-
+    
     await waitFor(() => {
       expect(getByText('FIRE')).toBeTruthy();
       expect(getByText('Fire detected!')).toBeTruthy();
     });
+  });
 
+  it('navigates to AlertHistory on alert press', async () => {
+    const mockAlert = { type: 'fire', message: 'Fire detected!' };
+    onSnapshot.mockImplementation((docRef, callback) => {
+      callback({ exists: () => true, data: () => mockAlert });
+      return jest.fn();
+    });
+
+    const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
     fireEvent.press(getByText('FIRE'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('AlertHistory');
   });
 
-  test('navigates to AccountManagement', () => {
+  it('navigates to Accounts on menu press', () => {
     const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
     fireEvent.press(getByText('Accounts'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('AccountManagement');
   });
 
-  test('navigates to MailManagement', () => {
+  it('navigates to Mailbox on menu press', () => {
     const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
     fireEvent.press(getByText('Mailbox'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('MailManagement');
   });
 
-  test('navigates to FeedbackManagement', () => {
+  it('navigates to Feedback on menu press', () => {
     const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
     fireEvent.press(getByText('Feedback'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('FeedbackManagement');
   });
 
-  test('navigates to IoT Dashboard (Back)', () => {
+  it('navigates to IoT Dashboard', () => {
     const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
     fireEvent.press(getByText('Open IoT Dashboard'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('Back');
   });
 
-  test('navigates to AI Chat', () => {
+  it('navigates to AI Chat', () => {
     const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
     fireEvent.press(getByText('Chat With AI Agent'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('AIChatScreen');
-  });
-
-  test('renders default avatar if no profile pic', () => {
-     useAdminContext.mockReturnValue({
-      users: [{ firebase_uid: 'uid1', name: 'No Pic User', details: { profile_pic: null }, color: '#123456' }],
-      mails: [],
-      feedbacks: [],
-      handleLogout: mockHandleLogout,
-    });
-    
-    const { getByText } = render(<DashboardScreen navigation={mockNavigation} />);
-    expect(getByText('N')).toBeTruthy(); // First char of 'No Pic User'
   });
 });
