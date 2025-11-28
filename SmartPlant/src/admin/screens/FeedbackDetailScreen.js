@@ -138,7 +138,6 @@ const sendReply = async () => {
       const parentSnap = await getDoc(parentRef);
       if (parentSnap.exists()) {
         const pd = parentSnap.data();
-        console.log("[sendReply] freshly fetched parent doc:", pd);
         // try multiple candidate fields
         ownerId =
           pd.user_id || pd.userUid || pd.uid || pd.ownerUid || pd.user?.uid || pd.userId || null;
@@ -153,7 +152,6 @@ const sendReply = async () => {
               const snaps = await getDocs(q);
               if (!snaps.empty) {
                 ownerId = snaps.docs[0].id;
-                console.log("[sendReply] found ownerId by email lookup:", ownerId);
                 // optional: write canonical user_id back to parent so next time it's present
                 await updateDoc(parentRef, { user_id: ownerId }).catch(()=>{});
               } else {
@@ -171,21 +169,17 @@ const sendReply = async () => {
       console.error("[sendReply] failed to read parent doc:", e);
     }
 
-    console.log("[sendReply] resolved ownerId:", ownerId, "adminId:", myId, "feedbackId:", feedback.id);
-
     // call addNotification only if ownerId exists and is not admin
     if (ownerId && ownerId !== myId) {
       try {
         const canonical = await getDisplayName(myId, myName);
-        console.log("[sendReply] calling addNotification with userId:", ownerId);
-        const notiId = await addNotification({
+        await addNotification({
           userId: ownerId,
           type: "admin_reply",
           title: `${canonical} replied to your report`,
           message: t.length > 120 ? `${t.slice(0,117)}...` : t,
           payload: { reportId: feedback.id, actorId: myId, actorName: canonical, replyText: t },
         });
-        console.log("[sendReply] addNotification returned id:", notiId);
       } catch (e) {
         console.error("[sendReply] addNotification threw:", e);
       }
