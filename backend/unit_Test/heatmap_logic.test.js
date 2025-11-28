@@ -58,7 +58,7 @@ describe("Heatmap Controller Logic", () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.heatmaps).toHaveLength(1);
     expect(res.body.heatmaps[0]).toMatch(/_heatmap\.jpg$/);
-    expect(spawn).toHaveBeenCalledWith("python", expect.arrayContaining(["grad_CAM.py"]));
+    expect(spawn).toHaveBeenCalledWith("python", expect.arrayContaining([expect.stringContaining("grad_CAM.py")]));
   });
 
   test("handles python process failure", async () => {
