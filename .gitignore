@@ -17,10 +17,8 @@ WhatsApp-Image-2025-09-30-at-09.38.43_366be51f.jpg
 .env
 
 Dataset/Pulong-Tau-National-Park/
-Dataset/iNaturalist/CSV/
 Dataset/iNaturalist/Images/
 counts-cache.json
-
 utilities/Dataset-iNaturalist/Preprocessed/Images/
 utilities/Dataset-iNaturalist/Train.zip
 utilities/Dataset-iNaturalist/Validate.zip
