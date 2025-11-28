@@ -222,3 +222,10 @@ global.fetch = jest.fn(() =>
       }),
   })
 );
+
+jest.mock("./src/components/Navigation.js", () => () => null);
+
+jest.mock("./src/firebase/FirebaseConfig", () => ({
+  auth: { currentUser: null },
+  db: {},
+}));

@@ -151,7 +151,7 @@ export default function MapScreen({ navigation }) {
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: "center" }]}>
-        <ActivityIndicator size="large" color="#2ecc71" />
+        <ActivityIndicator testID="ActivityIndicator" size="large" color="#2ecc71" />
       </View>
     );
   }
@@ -270,7 +270,7 @@ export default function MapScreen({ navigation }) {
       </MapView>
 
       {/* 📍 Locate Button */}
-      <TouchableOpacity style={styles.locateBtn} onPress={goToUserLocation}>
+      <TouchableOpacity testID="locate-btn" style={styles.locateBtn} onPress={goToUserLocation}>
         <Ionicons name="locate" size={26} color="#fff" />
       </TouchableOpacity>
     </View>

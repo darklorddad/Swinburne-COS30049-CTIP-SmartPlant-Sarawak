@@ -111,7 +111,7 @@ export default function LoginSelection({navigation}) {
   if (checking) {
     return (
       <View style={[styles.container, { justifyContent: 'center'}]}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" testID="loading-indicator"/>
       </View>
     );
   }
