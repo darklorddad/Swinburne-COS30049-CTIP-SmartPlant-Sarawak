@@ -35,6 +35,13 @@ jest.mock('../src/admin/Icons', () => {
 
 jest.spyOn(Alert, 'alert');
 
+// Mock global fetch for image upload
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    blob: () => Promise.resolve('blob-data'),
+  })
+);
+
 describe('EditUserScreen', () => {
   const mockNavigation = { goBack: jest.fn() };
   const mockUser = {

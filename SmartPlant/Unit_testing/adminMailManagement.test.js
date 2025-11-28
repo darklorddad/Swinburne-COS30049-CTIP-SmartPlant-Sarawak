@@ -52,6 +52,9 @@ describe('MailManagementScreen', () => {
     expect(getByText('Today')).toBeTruthy();
     expect(getByText('Hello')).toBeTruthy();
     expect(getByText('Older')).toBeTruthy();
+    
+    // Expand Older group
+    fireEvent.press(getByText('Older'));
     expect(getByText('Old')).toBeTruthy();
   });
 
@@ -60,10 +63,14 @@ describe('MailManagementScreen', () => {
     
     fireEvent.press(getByText('Unread'));
     expect(queryByText('Hello')).toBeTruthy();
+    // Old is read, so it shouldn't be there regardless of group expansion
     expect(queryByText('Old')).toBeNull();
 
     fireEvent.press(getByText('Read'));
     expect(queryByText('Hello')).toBeNull();
+    
+    // Expand Older group to see the read mail
+    fireEvent.press(getByText('Older'));
     expect(queryByText('Old')).toBeTruthy();
   });
 

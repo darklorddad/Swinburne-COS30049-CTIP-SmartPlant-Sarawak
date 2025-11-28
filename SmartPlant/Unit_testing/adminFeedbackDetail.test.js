@@ -12,14 +12,14 @@ jest.mock('../src/admin/AdminContext', () => ({
 
 // Mock Firebase
 jest.mock('firebase/firestore', () => ({
-  collection: jest.fn(),
+  collection: jest.fn(() => 'mock-collection-ref'),
   query: jest.fn(),
   orderBy: jest.fn(),
   where: jest.fn(),
   doc: jest.fn(),
   onSnapshot: jest.fn(),
-  addDoc: jest.fn(),
-  updateDoc: jest.fn(),
+  addDoc: jest.fn(() => Promise.resolve({ id: 'new-doc-id' })),
+  updateDoc: jest.fn(() => Promise.resolve()),
   getDoc: jest.fn(),
   getDocs: jest.fn(),
   serverTimestamp: jest.fn(),

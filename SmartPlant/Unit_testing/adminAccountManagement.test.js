@@ -104,7 +104,8 @@ describe('AccountManagementScreen', () => {
     const emptyStar = getAllByTestId('StarIconEmpty')[0];
     
     // Fire press on the icon (RNTL propagates to parent TouchableOpacity)
-    fireEvent.press(emptyStar);
+    // Pass event with stopPropagation mock
+    fireEvent.press(emptyStar, { stopPropagation: jest.fn() });
     
     expect(mockHandleToggleUserFavourite).toHaveBeenCalledWith('1');
   });
@@ -112,6 +113,6 @@ describe('AccountManagementScreen', () => {
   it('navigates to AddUser', () => {
     const { getByTestId } = render(<AccountManagementScreen navigation={mockNavigation} />);
     fireEvent.press(getByTestId('PlusIcon'));
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('AddUser');
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('AddUser', undefined);
   });
 });

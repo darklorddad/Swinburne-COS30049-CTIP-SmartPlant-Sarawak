@@ -67,11 +67,11 @@ describe('AlertHistoryScreen', () => {
   });
 
   it('deletes an alert', async () => {
-    const { getByText, queryByText } = render(<AlertHistoryScreen />);
+    const { getAllByText } = render(<AlertHistoryScreen />);
     
-    await waitFor(() => expect(getByText('Delete')).toBeTruthy()); // Swipeable mock renders actions
+    await waitFor(() => expect(getAllByText('Delete').length).toBeGreaterThan(0)); // Swipeable mock renders actions
 
-    fireEvent.press(getByText('Delete')); // Press the delete action from the mock
+    fireEvent.press(getAllByText('Delete')[0]); // Press the delete action from the mock
 
     await waitFor(() => {
       expect(deleteDoc).toHaveBeenCalled();
