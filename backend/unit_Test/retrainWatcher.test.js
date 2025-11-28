@@ -14,14 +14,17 @@ jest.mock("../firebase/firebaseConfig", () => ({
 describe("Retrain Watcher", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useFakeTimers();
+    jest.useRealTimers();
     jest.spyOn(console, "log").mockImplementation(() => {});
     jest.spyOn(console, "error").mockImplementation(() => {});
+    
+    // Mock Date.now to ensure we pass the cooldown check (24h)
+    jest.spyOn(Date, "now").mockReturnValue(1000000000000);
   });
 
   afterEach(() => {
     stopRetrainWatcher();
-    jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   test("loads existing species and checks for new ones", async () => {
@@ -54,11 +57,8 @@ describe("Retrain Watcher", () => {
 
     startRetrainWatcher();
 
-    // Fast-forward timers to trigger the async check
-    // The watcher runs immediately, but contains async calls. 
-    // We need to wait for promises to resolve. 
-    await new Promise(process.nextTick);
-    await new Promise(process.nextTick);
+    // Wait for async operations to complete
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     expect(bucket.getFiles).toHaveBeenCalled();
     expect(spawn).toHaveBeenCalledWith("python", expect.arrayContaining(["../backend/training/retrain_from_firebase.py"]));
@@ -81,8 +81,9 @@ describe("Retrain Watcher", () => {
     ]);
 
     startRetrainWatcher();
-    await new Promise(process.nextTick);
-    await new Promise(process.nextTick);
+    
+    // Wait for async operations to complete
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     expect(spawn).not.toHaveBeenCalled();
   });
