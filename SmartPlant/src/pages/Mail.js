@@ -19,7 +19,7 @@ export default function MailScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header */}
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity testID="back-button" onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" style={styles.iconBack} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Mail Management</Text>
@@ -30,6 +30,7 @@ export default function MailScreen({ navigation }) {
         <View style={styles.searchWrap}>
           <Ionicons name="search" style={styles.iconSearch} />
           <TextInput
+          testID="search-input"
             placeholder="Search..."
             placeholderTextColor="#aaa"
             style={styles.searchInput}
@@ -53,7 +54,7 @@ export default function MailScreen({ navigation }) {
         <Text style={styles.sectionTitle}>Yesterday</Text>
 
         {/* Row: Feedback (navigates) */}
-        <TouchableOpacity
+        <TouchableOpacity testID="star-feedback"
           style={styles.mailRow}
           onPress={() => navigation.navigate("Feedback")}
           activeOpacity={0.7}

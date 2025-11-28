@@ -132,10 +132,10 @@ export default function MyPost({ navigation }) {
     <ScrollView contentContainerStyle={styles.background}>
       {/* Posts */}
       {posts.length === 0 ? (
-        <Text style={styles.noPostText}>You haven’t uploaded any posts yet.</Text>
+        <Text testID="no-post-text" style={styles.noPostText}>You haven’t uploaded any posts yet.</Text>
       ) : (
         posts.map((post) => (
-          <TouchableOpacity
+          <TouchableOpacity testID="post-item"
             key={post.id}
             style={styles.postCard}
             onPress={() => navigation.navigate("PostDetail", { postId: post.id })}
