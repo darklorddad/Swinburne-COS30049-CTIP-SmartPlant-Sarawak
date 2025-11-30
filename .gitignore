@@ -32,16 +32,17 @@ utilities/Dataset-iNaturalist/Validate.zip
 utilities/Model-*/
 utilities/Dataset-Pulong-Tau-National-Park/Train.zip
 utilities/Dataset-Pulong-Tau-National-Park/Validate.zip
-
 *.tmp
 .vscode/
 smartplantsarawak-firebase-adminsdk-fbsvc-aee0d5a952.json
 backend/uploads/
 backend/heatmaps/
-
 backend/base_Dataset/
 backend/firebase_downloaded_data/
 backend/merged_dataset/
+bestmodel.pth
+new_model_temp.pth
+resnet18_with_class_label_weights_best_acc.tar
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
