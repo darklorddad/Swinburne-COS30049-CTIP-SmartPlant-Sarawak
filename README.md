@@ -1,8 +1,6 @@
 # SmartPlant Sarawak
 
-A community-driven mobile app for plant species identification and conservation.
-
----
+> A community-driven mobile app for plant species identification and conservation.
 
 ### Introduction
 SmartPlant Sarawak is a mobile-first solution designed to empower the public, researchers and conservationists to identify, map and protect plant biodiversity in Sarawak's national parks, nature reserves and community areas. Inspired by platforms like Pl@ntNet, the app allows users to photograph plants, receive AI-assisted species identification and contribute valuable biodiversity data.
